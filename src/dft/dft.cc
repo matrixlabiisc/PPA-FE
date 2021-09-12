@@ -43,6 +43,13 @@
 #include <symmetry.h>
 #include <vectorUtilities.h>
 
+#include <distributions.h>
+#include <CO_LCAO_MOorbitals.h>
+#include <atomicOrbitalBasisManager.h>
+#include <overlapPopulationAnalysis.h>
+#include <mathUtils.h>
+#include <matrixmatrixmul.h>
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -55,11 +62,25 @@
 #include <stdafx.h>
 #include <sys/stat.h>
 
+
+#include <array>
+#include <cassert>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <set>
+#include <map>
 #include <sstream>
+#include <string>
+#include <valarray>
+#include <vector>
+
+
+
+
+
 
 #ifdef DFTFE_WITH_GPU
 #  include <densityCalculatorCUDA.h>
@@ -99,6 +120,7 @@ namespace dftfe
 #include "moveMeshToAtoms.cc"
 #include "nodalDensityMixingSchemes.cc"
 #include "nscf.cc"
+#include "orbitalOverlapPopulation.cc"
 #include "pRefinedDoFHandler.cc"
 #include "psiInitialGuess.cc"
 #include "publicMethods.cc"
