@@ -1680,6 +1680,8 @@ namespace dftfe
     if (dftParameters::writeLocalizationLengths)
       compute_localizationLength("localizationLengths.out");
 
+    orbitalOverlapPopulationCompute();
+
 
     if (dftParameters::verbosity >= 1)
       pcout
