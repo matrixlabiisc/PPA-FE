@@ -30,7 +30,7 @@ void constructQuantumNumbersHierarchy
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
-dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
+dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::vector<std::vector<double> > & eigenValuesInput)
 {
 	std::cout << std::fixed;
 	std::cout << std::setprecision(8);
@@ -274,14 +274,21 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	std::cout << "Number of Kohn-Sham orbitals: " << numOfKSOrbitals << '\n';
 
 
-	std::vector<std::function<double(const dealii::Point<3>)>> MOsOfCO; 
+	//std::vector<std::function<double(const dealii::Point<3>)>> MOsOfCO; 
 	std::vector<double> energyLevelsKS;
-	std::vector<int> occupationNum;
+	std::vector<double> occupationNum;
 
 
 
-	assembleCO_LCAO_MOorbitals(energyLevelsKS, MOsOfCO, occupationNum); // for CO molecule
+	//assembleCO_LCAO_MOorbitals(energyLevelsKS, MOsOfCO, occupationNum); // for CO molecule
 
+        occupationNum.resize(eigenValuesInput[0].size());
+
+        for(unsigned int iEigen = 0; iEigen < eigenValuesInput[0].size(); ++iEigen)
+           {
+             occupationNum[iEigen] = dftUtils::getPartialOccupancy(eigenValuesInput[0][iEigen],fermiEnergy,C_kb,dftParameters::TVal);
+             std::cout<<occupationNum[iEigen]<<std::endl;
+           }
 
 
 	// Loop over atomic orbitals to evaluate at all nodal points
@@ -292,7 +299,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	unsigned int n_dofs = locallyOwnedDOFs.size();
 	std::vector<double> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis, 0.0);
 	std::vector<double> scaledKSOrbitalValues_FEnodes(n_dofs * numOfKSOrbitals, 0.0);
- 
+#ifdef USE_COMPLEX
+
+#else
 	for (unsigned int dof = 0; dof < n_dofs; ++dof)
 	  {
 	    // get nodeID 
@@ -324,7 +333,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	      }
 
 	  }
-
+#endif
 	// matrix of orbital values at FE nodes constructed!
 	std::cout << "matrices of orbital values at the nodes constructed!\n";
 

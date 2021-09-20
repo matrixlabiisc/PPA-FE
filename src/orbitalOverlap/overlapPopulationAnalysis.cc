@@ -11,12 +11,12 @@
 
 // this function assumes all filled Kohn-Sham orbitals/bands come first
 // to find the first zero in the occupation number vector  
-unsigned int numberOfFilledBands(const std::vector<int>& occupationNum){
+unsigned int numberOfFilledBands(const std::vector<double>& occupationNum){
 
 	unsigned int numOfFilledKSorbitals
 		= std::distance(std::begin(occupationNum), 
 						std::find_if(std::begin(occupationNum), std::end(occupationNum), 
-						[](int x) { return x == 0; }));
+						[](double x) { return (std::abs(x) < 1e-05); }));
 
 	return numOfFilledKSorbitals; 
 }
@@ -24,18 +24,20 @@ unsigned int numberOfFilledBands(const std::vector<int>& occupationNum){
 
 spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecOfProj,
 									  const std::vector<double>& arrayVecOfProj,
-									  const std::vector<int>& occupationNum){
+									  const std::vector<double>& occupationNum){
 
 	spillFactors spillvalues = {};
 
 	unsigned int numOfFilledKSorbitals = numberOfFilledBands(occupationNum);
 	unsigned int numOfKSOrbitals = occupationNum.size();
 	unsigned int totalDimOfBasis = arrayVecOfProj.size()/numOfKSOrbitals;
-	unsigned int totalNumOfElectrons = 0; 
+	unsigned double totalNumOfElectrons = 0; 
 
 	spillvalues.projectabilities.resize(numOfKSOrbitals, 0.0);
 
 	for(auto &n : occupationNum){ totalNumOfElectrons += n; }
+
+        totalNumOfElectrons = 2*totalNumOfElectrons;
 
 	unsigned int index; 
 
@@ -56,7 +58,7 @@ spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecO
 
 		if(i < numOfFilledKSorbitals){
 
-			chargeSpillForEachBand[i] = spillForEachBand[i] * occupationNum[i];
+			chargeSpillForEachBand[i] = 2 * spillForEachBand[i] * occupationNum[i];
 
 			spillvalues.occupiedBandsSpilling += spillForEachBand[i];
 			spillvalues.absOccupiedBandsSpilling += std::abs(spillForEachBand[i]);

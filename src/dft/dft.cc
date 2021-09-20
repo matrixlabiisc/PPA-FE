@@ -1682,7 +1682,7 @@ using namespace dealii;
     if (dftParameters::writeLocalizationLengths)
       compute_localizationLength("localizationLengths.out");
 
-    orbitalOverlapPopulationCompute();
+    orbitalOverlapPopulationCompute(eigenValues);
 
 
     if (dftParameters::verbosity >= 1)

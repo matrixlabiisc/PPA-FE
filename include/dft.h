@@ -827,7 +827,7 @@ namespace dftfe
                  const std::string &                     fileName);
 
     void
-    orbitalOverlapPopulationCompute();
+    orbitalOverlapPopulationCompute(const std::vector<std::vector<double> > & eigenValuesInput);
 
 
     /**
