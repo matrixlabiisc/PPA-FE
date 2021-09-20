@@ -331,7 +331,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	// need to switch to Gauss Quadrature or may be have a different FE values setup 
 	// if required 
 
-	std::cout << "constructing FE framwork done!\n";
+	std::cout << "constructing FE framwork done!\n";*/
 
 	//***************** Constucting FE triangulation completed *****************// 
 
@@ -381,6 +381,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	// evaluating projections and coefficients of projections onto Atomic orbitals 
 
 	// unsigned int numOfKSOrbitals = 1; // For Hydrogen molecule case  
+	
+
 	unsigned int numOfKSOrbitals = 8; // For CO molecule case  
 
 	std::cout << "Number of Kohn-Sham orbitals: " << numOfKSOrbitals << '\n';
@@ -428,7 +430,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
   			auto atomTypeID = globalBasisInfo[i].atomTypeID;
   			auto orbital = quantumNumHierarchy[ globalBasisInfo[i].localBasisNum ];
 
-			scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->sqrtMassVector[dof] *
+			scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
 								atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
   									(orbital, node, atomPos);
 		}
@@ -437,7 +439,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 
 		for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
 		{
-			scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->sqrtMassVector[dof] *  MOsOfCO[j](node);
+			scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *  MOsOfCO[j](node);
 														 // hydrogenMoleculeBondingOrbital(node);  MOsOfCO[j](node);
 		}
 
