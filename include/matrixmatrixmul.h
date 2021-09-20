@@ -20,8 +20,7 @@
 #include <vector>
 #include <iostream>
 #include <Eigen/Dense>
-#include <Eigen/Cholesky> 
-
+#include <Eigen/Cholesky>
 
 // only upper triangular matrix is provided as a vector 
 std::vector<double> 

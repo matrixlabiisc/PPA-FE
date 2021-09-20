@@ -1,13 +1,3 @@
-#pragma once
-/*
-*
-*	
-*
-*
-*
-*
-*/
-
 #ifndef ATOMIC_ORBITAL_BASIS_MANAGER_H_
 #define ATOMIC_ORBITAL_BASIS_MANAGER_H_
 
@@ -245,10 +235,6 @@ inline unsigned int numOfOrbitalsForShellCount(unsigned int n) {
 
 	return n*n;
 }
-
-void constructQuantumNumbersHierarchy
-	(unsigned int nstart, unsigned int nend, 
-	 std::vector<OrbitalQuantumNumbers>& quantumNumHierarchy);
 
 double hydrogenMoleculeBondingOrbital(const dealii::Point<3>& evalPoint);
 

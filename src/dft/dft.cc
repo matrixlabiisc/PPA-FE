@@ -97,6 +97,8 @@ extern "C"
 
 namespace dftfe
 {
+
+using namespace dealii;
   // Include cc files
 #include "atomicRho.cc"
 #include "charge.cc"

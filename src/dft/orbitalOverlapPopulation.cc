@@ -1,8 +1,36 @@
+// using this class we create an Array of Objects
+// // each element corresponding to an atom type
+// // corresponding atomPositions should be as an external array or suitable in a datastructure
 
-using namespace dealii;
+void constructQuantumNumbersHierarchy
+		(unsigned int nstart, unsigned int nend, 
+		 std::vector<OrbitalQuantumNumbers>& quantumNumHierarchy)
+{
+     // assume the vector of size 0 has already been reserved with space for N shells 
+     // which is N(N+1)(2N+1)/6 orbitals for N shells 
+     // N is maximum of the principal quantum number over each atomType
+     // this function is called just once for the whole program 
+  
+      	OrbitalQuantumNumbers orbitalTraverse;
 
+		for(unsigned int n = nstart; n <= nend; ++n) {
+			for(unsigned int l = 0; l < n; ++l) {
+				for(unsigned int tmp_m = 0; tmp_m <= 2*l; ++tmp_m) {
+
+					orbitalTraverse.n = n;
+					orbitalTraverse.l = l;
+					orbitalTraverse.m = tmp_m - l;
+					quantumNumHierarchy.push_back(orbitalTraverse);
+				}
+			}
+		}
+}
+
+
+
+template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
-dftClass<FEOrder,FEOrderElectro>::orbitalOverlapPopulationCompute()
+dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 {
 	std::cout << std::fixed;
 	std::cout << std::setprecision(8);
@@ -69,7 +97,7 @@ dftClass<FEOrder,FEOrderElectro>::orbitalOverlapPopulationCompute()
 	else {
 
 		std::cerr << "Couldn't open " << coordinatesFile << " file!!" << std::endl;
-        return -1;
+        exit(0);
 	}
 
 	atomCoordinatesFile.close();
@@ -144,7 +172,7 @@ dftClass<FEOrder,FEOrderElectro>::orbitalOverlapPopulationCompute()
 	else {
 
 		std::cerr << "Couldn't open " << basisInfoFile << " file!!" << std::endl;
-        return -1;
+        exit(0);
 	}
 
 	basisinfofile.close();
@@ -267,7 +295,7 @@ dftClass<FEOrder,FEOrderElectro>::orbitalOverlapPopulationCompute()
 
 	DoFHandler<3> dof_handler;	// dof_handler for connectivity
 
-	types::global_dof_index  n_dofs, n_q_points, dofs_per_cell;
+	dealii::types::global_dof_index  n_dofs, n_q_points, dofs_per_cell;
 
 	FE_Q<dim> FE(feOrder); // By default it creates finite-element object with nodes located at Gauss Lobatto  points	
 
@@ -449,6 +477,4 @@ dftClass<FEOrder,FEOrderElectro>::orbitalOverlapPopulationCompute()
 	std::cout << "Absolute total spilling = " << spilling.absTotalSpilling << '\n';
 	std::cout << "Charge Spilling = " << spilling.chargeSpilling << '\n';
 	std::cout << "Absolute charge spilling = " << spilling.absChargeSpilling << '\n';
-
-	return 0;	
 }
