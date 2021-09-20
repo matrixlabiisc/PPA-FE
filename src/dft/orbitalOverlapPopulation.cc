@@ -49,8 +49,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	// const unsigned int numOfAtomTypes = 1; 
 
 	// for CO molecule: 
-	const unsigned int numOfAtoms = 2;
-	const unsigned int numOfAtomTypes = 2; // is not more than 120
+	const unsigned int numOfAtoms = atomLocations.size();
+	const unsigned int numOfAtomTypes = atomTypes.size(); // is not more than 120
 
 	// above numOfAtoms and numOfAtomTypes would be taken from DFT-FE run
 	// actually even the contents of the coordinates files would be taken from DFT-FE run 
@@ -79,7 +79,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	double x, y, z, zeta;
 	unsigned int count = 0;
 
-	std::string coordinatesFile = "coordinatesNew.inp"; // In DFT-FE format
+	std::string coordinatesFile = "coordinates.inp"; // In DFT-FE format
 
 	std::ifstream atomCoordinatesFile (coordinatesFile);
 	if (atomCoordinatesFile.is_open()){
@@ -264,121 +264,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 
 	std::cout << "vector of objects constructed!\n";
 
-	//***************** Atom info datastructures constructed ****************// 
 
-	//************ Constucting FE mass matrix for GL Quadrature *************// 
-
-	// Initial setup done!
-
-	// Generating a fully functioning FE dealii framework 
-	// constructing Mass matrix - Only the diagonal elements would be present
-	// cross terms overlap vanishes as the FE nodes are present GL quadrature points  
-
-	//**************************** FE Framework *****************************//
-
-	/*std::cout << "constructing FE framework.. " << '\n';
-
-	const unsigned int dim = 3; // physical dimension of the problem 
-
-	// const std::vector<unsigned int> uniform_grid {20, 20, 20}; // coarse mesh 
-	const std::vector<unsigned int> uniform_grid {40, 40, 40}; // testing purpose - usual choice
-	// const std::vector<unsigned int> uniform_grid {60, 60, 60}; // finer mesh 
-
-	const Point<dim> p1 (-7.0, -7.0, -7.0);
-	const Point<dim> p2 (+7.0, +7.0, +7.0); 
-
-	Triangulation<dim> triangulation;
-
-	GridGenerator::subdivided_hyper_rectangle(triangulation, uniform_grid, p1, p2);
-
-	unsigned int feOrder = 3; //  = 3, 4, 5; or else reduce mess size by half 
-
-	DoFHandler<3> dof_handler;	// dof_handler for connectivity
-
-	dealii::types::global_dof_index  n_dofs, n_q_points, dofs_per_cell;
-
-	FE_Q<dim> FE(feOrder); // By default it creates finite-element object with nodes located at Gauss Lobatto  points	
-
-	// Initialize dof_handler
-
-	dof_handler.initialize(triangulation, FE);
-	dof_handler.distribute_dofs(FE);
-
-	// to access the indices of locally owned degrees of freedom
-	// locallly owned in the sense of distributed memory parallelism (MPI)
-
-	const IndexSet &locallyOwnedSet = dof_handler.locally_owned_dofs();
-	std::vector<IndexSet::size_type> locallyOwnedDOFs;
-	locallyOwnedSet.fill_index_vector(locallyOwnedDOFs);
-	n_dofs = locallyOwnedDOFs.size(); // Number of finite-element nodes in the mesh
-
-	// Constructing dealii vector corresponding to diagonal of a mass matrix //
-
-	// create a dealii vector
-
-	Vector<double> sqrtMassVector(n_dofs);
-
-	// create a constraintsMatrix (Here it is just dummy for now)
-
-	AffineConstraints<double> constraintsDummy;
-	DoFTools::make_hanging_node_constraints(dof_handler, constraintsDummy);
-
-	// declare Gauss-Lobatto quadrature rule
-	QGaussLobatto<3> quadrature(feOrder + 1);
-	FEValues<3> fe_framework(dof_handler.get_fe(),
-                      		 quadrature, update_values | update_JxW_values);
-
-	// need to switch to Gauss Quadrature or may be have a different FE values setup 
-	// if required 
-
-	std::cout << "constructing FE framwork done!\n";*/
-
-	//***************** Constucting FE triangulation completed *****************// 
-
-	  /*std::cout << "constructing Mass matrix using Gauss-Lobatto quadrature.. \n";
-					  
-	dofs_per_cell   = (dof_handler.get_fe()).dofs_per_cell;
-	n_q_points = quadrature.size(); // redefininition of n_q_points 
-
-	// Create dealii vector of size dofs_per_cell
-	Vector<double> massVectorLocal(dofs_per_cell);
-	std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);	
-
-	typename DoFHandler<3>::active_cell_iterator cell = dof_handler.begin_active(),
-                                                    endc = dof_handler.end();
-
-	for (; cell != endc; ++cell)
-      	if (cell->is_locally_owned()) // declare cell type 
-        {
-          	// compute values for the current element
-          	fe_framework.reinit(cell);
-          	massVectorLocal = 0.0;
-          	for (unsigned int i = 0; i < dofs_per_cell; ++i)
-            	for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-              		massVectorLocal(i) += fe_framework.shape_value(i, q_point) *
-                                    	  fe_framework.shape_value(i, q_point) *
-                                    	  fe_framework.JxW(q_point);
-
-          	cell->get_dof_indices(local_dof_indices);
-          	constraintsDummy.distribute_local_to_global(massVectorLocal,local_dof_indices, sqrtMassVector);
-        }
-		
-	sqrtMassVector.compress(VectorOperation::add);
-
-	for(dealii::types::global_dof_index i = 0; i < sqrtMassVector.size(); ++i)
-	{
-   		if (sqrtMassVector.in_local_range(i) &&
-          	!constraintsDummy.is_constrained(i))
-   		sqrtMassVector(i) = std::sqrt(sqrtMassVector(i));
-	}
-	sqrtMassVector.compress(VectorOperation::insert); // this is now the sqrt of mass vector
-
-	std::cout << "Mass matrix (diagonal vector) constructed! \n";*/
-	// Mass vector constructed! 
-
-	//******************* Mass diagonal matrix constructed ******************// 
-
-	// evaluating projections and coefficients of projections onto Atomic orbitals 
 
 	// unsigned int numOfKSOrbitals = 1; // For Hydrogen molecule case  
 	
@@ -392,18 +278,11 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	std::vector<double> energyLevelsKS;
 	std::vector<int> occupationNum;
 
-	// a test value for Hydrogen Bonding orbital
-	// energyLevelsKS.push_back(0.0);  
-	// occupationNum.push_back(2);
+
 
 	assembleCO_LCAO_MOorbitals(energyLevelsKS, MOsOfCO, occupationNum); // for CO molecule
 
-	// access nodal point data to evaluate the functions 
 
-	//std::map<dealii::types::global_dof_index, Point<3>> d_supportPoints;
-	//DoFTools::map_dofs_to_support_points(MappingQ1<3, 3>(), dof_handler, d_supportPoints);
-
-	// Now create a flattened STL vector of size (number of dofs) x (number of orbitals per atom) let’s say this STL vector is called “atomicOrbital” and compute finite-element nodal values and fill in this STL vector
 
 	// Loop over atomic orbitals to evaluate at all nodal points
 	
@@ -415,38 +294,39 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	std::vector<double> scaledKSOrbitalValues_FEnodes(n_dofs * numOfKSOrbitals, 0.0);
  
 	for (unsigned int dof = 0; dof < n_dofs; ++dof)
-	{
-		// get nodeID 
-    	const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
+	  {
+	    // get nodeID 
+	    const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
     
-    	// get coordinates of the finite-element node
-    	Point<3> node  = d_supportPointsEigen[dofID];
+	    // get coordinates of the finite-element node
+	    Point<3> node  = d_supportPointsEigen[dofID];
 
-    	auto count1 = totalDimOfBasis*dof;
+	    auto count1 = totalDimOfBasis*dof;
 
-		for (unsigned int i = 0; i < totalDimOfBasis; ++i)
-		{
-			auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
-  			auto atomTypeID = globalBasisInfo[i].atomTypeID;
-  			auto orbital = quantumNumHierarchy[ globalBasisInfo[i].localBasisNum ];
+	    for (unsigned int i = 0; i < totalDimOfBasis; ++i)
+	      {
+		auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
+		auto atomTypeID = globalBasisInfo[i].atomTypeID;
+		auto orbital = quantumNumHierarchy[ globalBasisInfo[i].localBasisNum ];
 
-			scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
-								atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
-  									(orbital, node, atomPos);
-		}
+		scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+		  atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
+		  (orbital, node, atomPos);
+	      }
 
-		auto count2 = numOfKSOrbitals*dof;
+	    auto count2 = numOfKSOrbitals*dof;
 
-		for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
-		{
-			scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *  MOsOfCO[j](node);
-														 // hydrogenMoleculeBondingOrbital(node);  MOsOfCO[j](node);
-		}
+	    for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
+	      {
+		scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] * d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues +
+                                                   j];
+		// hydrogenMoleculeBondingOrbital(node);  MOsOfCO[j](node);
+	      }
 
-	}
+	  }
 
 	// matrix of orbital values at FE nodes constructed!
-	//std::cout << "matrices of orbital values at the nodes constructed!\n";
+	std::cout << "matrices of orbital values at the nodes constructed!\n";
 
 	// direct assembly of Overlap matrix S using Mass diagonal matrix from Gauss Lobatto
 
