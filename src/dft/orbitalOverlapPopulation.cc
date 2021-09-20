@@ -276,7 +276,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 
 	//**************************** FE Framework *****************************//
 
-	std::cout << "constructing FE framework.. " << '\n';
+	/*std::cout << "constructing FE framework.. " << '\n';
 
 	const unsigned int dim = 3; // physical dimension of the problem 
 
@@ -335,7 +335,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 
 	//***************** Constucting FE triangulation completed *****************// 
 
-	std::cout << "constructing Mass matrix using Gauss-Lobatto quadrature.. \n";
+	  /*std::cout << "constructing Mass matrix using Gauss-Lobatto quadrature.. \n";
 					  
 	dofs_per_cell   = (dof_handler.get_fe()).dofs_per_cell;
 	n_q_points = quadrature.size(); // redefininition of n_q_points 
@@ -373,7 +373,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 	}
 	sqrtMassVector.compress(VectorOperation::insert); // this is now the sqrt of mass vector
 
-	std::cout << "Mass matrix (diagonal vector) constructed! \n";
+	std::cout << "Mass matrix (diagonal vector) constructed! \n";*/
 	// Mass vector constructed! 
 
 	//******************* Mass diagonal matrix constructed ******************// 
@@ -398,13 +398,17 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 
 	// access nodal point data to evaluate the functions 
 
-	std::map<dealii::types::global_dof_index, Point<3>> d_supportPoints;
-	DoFTools::map_dofs_to_support_points(MappingQ1<3, 3>(), dof_handler, d_supportPoints);
+	//std::map<dealii::types::global_dof_index, Point<3>> d_supportPoints;
+	//DoFTools::map_dofs_to_support_points(MappingQ1<3, 3>(), dof_handler, d_supportPoints);
 
 	// Now create a flattened STL vector of size (number of dofs) x (number of orbitals per atom) let’s say this STL vector is called “atomicOrbital” and compute finite-element nodal values and fill in this STL vector
 
-	// Loop over atomic orbitals to evaluate at all nodal points 
-
+	// Loop over atomic orbitals to evaluate at all nodal points
+	
+	const IndexSet &locallyOwnedSet = dofHandlerEigen.locally_owned_dofs();
+	std::vector<IndexSet::size_type> locallyOwnedDOFs;
+	locallyOwnedSet.fill_index_vector(locallyOwnedDOFs);
+	unsigned int n_dofs = locallyOwnedDOFs.size();
 	std::vector<double> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis, 0.0);
 	std::vector<double> scaledKSOrbitalValues_FEnodes(n_dofs * numOfKSOrbitals, 0.0);
  
@@ -414,7 +418,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
     	const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
     
     	// get coordinates of the finite-element node
-    	Point<3> node  = d_supportPoints[dofID];
+    	Point<3> node  = d_supportPointsEigen[dofID];
 
     	auto count1 = totalDimOfBasis*dof;
 
@@ -424,7 +428,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
   			auto atomTypeID = globalBasisInfo[i].atomTypeID;
   			auto orbital = quantumNumHierarchy[ globalBasisInfo[i].localBasisNum ];
 
-			scaledOrbitalValues_FEnodes[count1 + i] = sqrtMassVector[dof] *
+			scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->sqrtMassVector[dof] *
 								atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
   									(orbital, node, atomPos);
 		}
@@ -433,15 +437,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute()
 
 		for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
 		{
-			scaledKSOrbitalValues_FEnodes[count2 + j] =  sqrtMassVector[dof] * 
-														 // hydrogenMoleculeBondingOrbital(node);	
-														 MOsOfCO[j](node);
+			scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->sqrtMassVector[dof] *  MOsOfCO[j](node);
+														 // hydrogenMoleculeBondingOrbital(node);  MOsOfCO[j](node);
 		}
 
 	}
 
 	// matrix of orbital values at FE nodes constructed!
-	std::cout << "matrices of orbital values at the nodes constructed!\n";
+	//std::cout << "matrices of orbital values at the nodes constructed!\n";
 
 	// direct assembly of Overlap matrix S using Mass diagonal matrix from Gauss Lobatto
 
