@@ -282,9 +282,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	//assembleCO_LCAO_MOorbitals(energyLevelsKS, MOsOfCO, occupationNum); // for CO molecule
 
-        occupationNum.resize(eigenValuesInput[0].size());
+        occupationNum.resize(numOfKSOrbitals);
 
-        for(unsigned int iEigen = 0; iEigen < eigenValuesInput[0].size(); ++iEigen)
+        for(unsigned int iEigen = 0; iEigen < numOfKSOrbitals; ++iEigen)
            {
              occupationNum[iEigen] = dftUtils::getPartialOccupancy(eigenValuesInput[0][iEigen],fermiEnergy,C_kb,dftParameters::TVal);
              std::cout<<occupationNum[iEigen]<<std::endl;

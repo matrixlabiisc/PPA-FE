@@ -31,7 +31,7 @@ spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecO
 	unsigned int numOfFilledKSorbitals = numberOfFilledBands(occupationNum);
 	unsigned int numOfKSOrbitals = occupationNum.size();
 	unsigned int totalDimOfBasis = arrayVecOfProj.size()/numOfKSOrbitals;
-	unsigned double totalNumOfElectrons = 0; 
+	double totalNumOfElectrons = 0.0; 
 
 	spillvalues.projectabilities.resize(numOfKSOrbitals, 0.0);
 

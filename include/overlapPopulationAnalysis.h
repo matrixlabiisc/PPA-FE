@@ -63,12 +63,12 @@ struct spillFactors {
 
 // this function assumes all filled Kohn-Sham orbitals/bands come first
 // to find the first zero in the occupation number vector  
-unsigned int numberOfFilledBands(const std::vector<int>& occupationNum);
+unsigned int numberOfFilledBands(const std::vector<double>& occupationNum);
 
 
 spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecOfProj,
 									  const std::vector<double>& arrayVecOfProj,
-									  const std::vector<int>& occupationNum);
+									  const std::vector<double>& occupationNum);
 
 
 std::vector<double> 
