@@ -143,7 +143,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	// at present zeta is fixed for the atom but soon we ll have 
 	// to construct it on own using the slater rules function 
 
-	std::string basisInfoFile = "STOBasisInfoNew.inp";
+	std::string basisInfoFile = "STOBasisInfo.inp";
 
 	std::ifstream basisinfofile (basisInfoFile);
 	if (basisinfofile.is_open()){
