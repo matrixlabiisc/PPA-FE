@@ -327,8 +327,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	    for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
 	      {
-		scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] * d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues +
-                                                   j];
+		scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] * d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];
 		// hydrogenMoleculeBondingOrbital(node);  MOsOfCO[j](node);
 	      }
 
@@ -366,6 +365,15 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	printVector(coeffArrayVecOfProj);
 
 	auto spilling = spillFactorsOfProjection(coeffArrayVecOfProj, arrayVecOfProj, occupationNum);
+
+	//Compute projected Hamiltonian of FE discretized Hamiltonian into 
+	 std::vector<dataTypes::number> ProjHam;
+	 d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
+					totalDimOfBasis,
+					ProjHam);
+					
+					
+	 
 
 	std::cout << "Total spilling = " << spilling.totalSpilling << '\n';
 	std::cout << "Absolute total spilling = " << spilling.absTotalSpilling << '\n';
