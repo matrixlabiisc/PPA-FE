@@ -12,6 +12,7 @@
 
 #include "mathUtils.h"
 #include "matrixmatrixmul.h"
+#include "bungeOrbitalInfo.h"
 
 
 struct OrbitalQuantumNumbers {
@@ -38,7 +39,8 @@ private:
 	unsigned int basisDataForm; 
 
 	// !(Analytical form = 1) or generatorFunc >= 1, Tabular data = 0 
-	// generatorFunc = 1 Slater Type Orbitals, = 2 can be used for Gaussian and so on  
+	// generatorFunc = 1 Slater Type Orbitals, = 2 can be used for Hydrogenic orbitals
+	// = 3 can be used for Bunge orbitals 
 
 	bool normalizedOrNot; 
 
@@ -82,6 +84,8 @@ private:
 	// the function for overlap matrix and projection operator are external functions
 	// do not need to be friend functions as the above basisGeneratorFunc can access all members 
 	// and the member functions  
+
+	std::vector< std::function<double(double)> > ROfBungeBasisFunctions;
 	
 
 public:
@@ -91,7 +95,13 @@ public:
 	AtomicOrbitalBasisManager
 		(unsigned int atype, unsigned int btype, bool nor, unsigned int basisdim, double z)
 		: atomType(atype), basisDataForm(btype), normalizedOrNot(nor), dimOfBasis(basisdim), 
-		zeta(z) {}  
+		zeta(z) {
+
+			if(btype == 3) // Bunge orbitals
+			{
+				readBungeRadialBasisFunctions();
+			}
+		}  
 
 
 	void readBasisData(){} 
@@ -104,6 +114,8 @@ public:
 
 	double splineInterpolationFunc(unsigned int, double, double);
 
+	void readBungeRadialBasisFunctions();
+
 	double radialPartofSlaterTypeOrbital(unsigned int n, double r);
 	
 	// in general radial part might depend on l as well, but not in the case of STO
@@ -111,6 +123,11 @@ public:
 	double radialPartOfHydrogenicOrbital(unsigned int n, 
 										 unsigned int l, 
 										 double r);
+
+	double radialPartOfBungeOrbital(unsigned int n, 
+									unsigned int l, 
+									double r);
+
 
 	double realSphericalHarmonics(unsigned int l, 
 								  short int m, 
@@ -132,6 +149,14 @@ public:
 	double hydrogenicOrbital(const OrbitalQuantumNumbers& orbital, 
 							 const dealii::Point<3>& evalPoint, 
 							 const std::array<double, 3>& atomPos);
+
+	double bungeOrbital(const OrbitalQuantumNumbers& orbital, 
+			 			const dealii::Point<3>& evalPoint, 
+			     		const std::vector<double>& atomPos);
+
+	double bungeOrbital(const OrbitalQuantumNumbers& orbital, 
+						const dealii::Point<3>& evalPoint, 
+						const std::array<double, 3>& atomPos);
 	
 
 	~AtomicOrbitalBasisManager(){}

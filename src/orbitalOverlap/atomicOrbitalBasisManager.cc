@@ -11,6 +11,61 @@
 #include "mathUtils.h"
 #include "matrixmatrixmul.h"
 #include "atomicOrbitalBasisManager.h"
+#include "bungeOrbitalInfo.h"
+
+void AtomicOrbitalBasisManager::readBungeRadialBasisFunctions(){
+
+	ROfBungeBasisFunctions = getRofBungeOrbitalBasisFuncs(atomType);
+}
+
+
+double AtomicOrbitalBasisManager::bungeOrbital
+			(const OrbitalQuantumNumbers& orbital, 
+			 const dealii::Point<3>& evalPoint, 
+			 const std::vector<double>& atomPos){
+
+	int n = orbital.n;
+	int l = orbital.l;
+	int m = orbital.m;
+
+	double r{}, theta{}, phi{}; 
+
+	auto relativeEvalPoint = relativeVector3d(evalPoint, atomPos);
+		
+	convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
+
+	return radialPartOfBungeOrbital(n, l, r)
+			* realSphericalHarmonics(l, m, theta, phi);
+}
+
+double AtomicOrbitalBasisManager::bungeOrbital
+			(const OrbitalQuantumNumbers& orbital, 
+			 const dealii::Point<3>& evalPoint, 
+			 const std::array<double, 3>& atomPos){
+
+	int n = orbital.n;
+	int l = orbital.l;
+	int m = orbital.m;
+
+	double r{}, theta{}, phi{}; 
+
+	auto relativeEvalPoint = relativeVector3d(evalPoint, atomPos);
+
+	convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
+
+	return radialPartOfBungeOrbital(n, l, r)
+			* realSphericalHarmonics(l, m, theta, phi);
+}
+
+double AtomicOrbitalBasisManager::radialPartOfBungeOrbital
+	(unsigned int n, unsigned int l, double r) {
+
+	unsigned int azimHierarchy = n*(n-1)/2 + l;
+	
+	return ROfBungeBasisFunctions[azimHierarchy](r);
+}
+
+
 
 double AtomicOrbitalBasisManager::hydrogenicOrbital
 			(const OrbitalQuantumNumbers& orbital, 
