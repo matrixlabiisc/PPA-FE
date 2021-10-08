@@ -1437,7 +1437,7 @@ namespace dftfe
             << "=========================================================================================================="
             << std::endl;
           std::cout
-            << "			Welcome to the Open Source program DFT-FE version	1.0		        "
+            << "			Welcome to the Open Source program DFT-FE version	1.1-pre		        "
             << std::endl;
           std::cout
             << "This is a C++ code for materials modeling from first principles using Kohn-Sham density functional theory."
@@ -1459,16 +1459,16 @@ namespace dftfe
             << std::endl;
           std::cout << "														" << std::endl;
           std::cout
-            << " Sambit Das               - University of Michigan, Ann Arbor"
+            << " Sambit Das               - University of Michigan, USA"
             << std::endl;
           std::cout
-            << " Vikram Gavini (Mentor)   - University of Michigan, Ann Arbor"
+            << " Vikram Gavini (Mentor)   - University of Michigan, USA"
             << std::endl;
           std::cout
-            << " Krishnendu Ghosh         - University of Michigan, Ann Arbor"
+            << " Krishnendu Ghosh         - Intel Corporation, USA"
             << std::endl;
           std::cout
-            << " Phani Motamarri          - University of Michigan, Ann Arbor"
+            << " Phani Motamarri          - Indian Institute of Science, India"
             << std::endl;
           std::cout
             << " Shiva Rudraraju          - University of Wisconsin-Madison  "
@@ -1769,7 +1769,6 @@ namespace dftfe
       dftParameters::useELPAGPUKernel = false;
 #endif
 
-#ifdef DFTFE_WITH_ELPA
       if (dftParameters::scalapackBlockSize == 0)
         {
           if (dftParameters::useELPAGPUKernel)
@@ -1777,13 +1776,6 @@ namespace dftfe
           else
             dftParameters::scalapackBlockSize = 32;
         }
-#else
-      if (dftParameters::scalapackBlockSize == 0)
-        {
-          dftParameters::scalapackBlockSize = 50;
-        }
-      dftParameters::useELPA = false;
-#endif
 
 #ifndef DFTFE_WITH_NCCL
       dftParameters::useGPUDirectAllReduce = false;

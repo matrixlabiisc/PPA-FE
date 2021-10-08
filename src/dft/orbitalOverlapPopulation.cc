@@ -367,10 +367,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	auto spilling = spillFactorsOfProjection(coeffArrayVecOfProj, arrayVecOfProj, occupationNum);
 
 	//Compute projected Hamiltonian of FE discretized Hamiltonian into 
+#ifdef USE_COMPLEX
+
+#else
 	 std::vector<dataTypes::number> ProjHam;
 	 d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
 					totalDimOfBasis,
 					ProjHam);
+#endif
 					
 					
 	 
