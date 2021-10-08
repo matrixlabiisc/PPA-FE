@@ -11,7 +11,6 @@
 #include "mathUtils.h"
 #include "matrixmatrixmul.h"
 #include "atomicOrbitalBasisManager.h"
-#include "bungeOrbitalsInfo.h"
 
 void AtomicOrbitalBasisManager::readBungeRadialBasisFunctions(){
 
