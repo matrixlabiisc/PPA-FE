@@ -12,7 +12,7 @@
 
 #include "mathUtils.h"
 #include "matrixmatrixmul.h"
-#include "bungeOrbitalInfo.h"
+#include "bungeOrbitalsInfo.h"
 
 
 struct OrbitalQuantumNumbers {
