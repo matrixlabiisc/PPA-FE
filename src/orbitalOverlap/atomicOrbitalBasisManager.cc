@@ -69,7 +69,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
 
 			nMin = 1;
 			nMax = 2;
-			lmax = 1;
+			lMax = 1;
 			numOfOrbitals = (nMax*(nMax + 1))/2;
             bungeFunctions.reserve(numOfOrbitals);
 
