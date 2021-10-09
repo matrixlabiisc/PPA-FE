@@ -26,6 +26,23 @@ double AtomicOrbitalBasisManager::ROfSTO(unsigned int n, double zetaEff, double 
     return normalizationConst * pow(r, n-1) * exp(-zetaEff*r); 
 }
 
+/** @brief Normalized Radial part of Hydrogenic Orbitals 
+ * 
+ * 
+ * 
+ */
+double AtomicOrbitalBasisManager::ROfHydrogenicOrbital
+	(unsigned int n, unsigned int l, double zetaEff, double r) {
+
+	double tmp1 = 2*zetaEff/n;
+	double tmp2 = tmp1 * r; 
+
+	return tmp1 * sqrt(tmp1 * factorial(n-l-1)/(2.0*n*factorial(n+l))) *
+		   boost::math::laguerre(n-l-1, 2*l+1, tmp2) *
+		   pow(tmp2, l) *
+		   exp(-tmp2/2);
+}
+
 /** @brief Returns the Bunge orbital basis functions for a given Atomic number
  * 
  *  
@@ -47,6 +64,30 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
     unsigned int numOfOrbitals;
 
 	switch(atomicNum) {
+
+		case 1: // Hydrogen
+
+			nMin = 1;
+			nMax = 2;
+			lmax = 1;
+			numOfOrbitals = (nMax*(nMax + 1))/2;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // zeta value is NOT taken from the STOBasisInfo.inp file input 
+
+            // 1s radial part of Hydrogen
+            bungeFunctions.push_back([&](double r){return 
+            	RofHydrogenicOrbital(1, 0, 1.0, r);});
+
+            // 2s radial part of Hydrogen
+            bungeFunctions.push_back([&](double r){return 
+            	ROfHydrogenicOrbital(2, 0, 1.0, r);});
+            
+            // 2p radial part of Hydrogen 
+            bungeFunctions.push_back([&](double r){return 
+            	ROfHydrogenicOrbital(2, 1, 1.0, r);});
+
+            break; 
 
         case 6: // Carbon 
 
@@ -88,6 +129,51 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
                 + 0.230802 * ROfSTO(2, 2.1908, r)
                 + 0.411931 * ROfSTO(2, 1.4413, r)
                 + 0.350701 * ROfSTO(2, 1.0242, r);
+            });
+
+            break;
+
+        case 7: // Nitrogen
+
+        	nMin = 1;
+        	nMax = 2;
+        	lMax = 1;
+
+        	numOfOrbitals = (nMax*(nMax + 1))/2;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.354839 * ROfSTO(1, 9.9051, r)
+                + 0.472579 * ROfSTO(1, 5.7429, r)
+                - 0.001038 * ROfSTO(3, 17.9816, r)
+                + 0.208492 * ROfSTO(2, 8.3087, r)
+                + 0.001687 * ROfSTO(2, 2.7611, r)
+                + 0.000206 * ROfSTO(2, 1.8223, r)
+                + 0.000064 * ROfSTO(2, 1.4191, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.067498 * ROfSTO(1, 9.9051, r)
+                + 0.434142 * ROfSTO(1, 5.7429, r)
+                - 0.000315 * ROfSTO(3, 17.9816, r)
+                - 0.080331 * ROfSTO(2, 8.3087, r)
+                - 0.374128 * ROfSTO(2, 2.7611, r)
+                - 0.522775 * ROfSTO(2, 1.8223, r)
+                - 0.207735 * ROfSTO(2, 1.4191, r);
+            });
+
+            // 2p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.006323 * ROfSTO(2, 8.3490, r)
+                + 0.082938 * ROfSTO(2, 3.8827, r)
+                + 0.260147 * ROfSTO(2, 2.5920, r)
+                + 0.418361 * ROfSTO(2, 1.6946, r)
+                + 0.308272 * ROfSTO(2, 1.1914, r);
             });
 
             break;
