@@ -136,12 +136,12 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
 
             break;
 
-            default:
+        default:
 
-                std::cout << "Bunge orbital data not filled for "
-                          << "atomic number: " << atomicNum << '\n';
+            std::cout << "Bunge orbital data not filled for "
+                      << "atomic number: " << atomicNum << '\n';
 
-                std::exit(-1);
+            std::exit(-1);
     }
 
     return bungeFunctions;

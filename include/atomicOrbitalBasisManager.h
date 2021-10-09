@@ -99,9 +99,9 @@ public:
 		: atomType(atype), basisDataForm(btype), normalizedOrNot(nor), dimOfBasis(basisdim), 
 		zeta(z) {
 
-			if(btype == 3) // Bunge orbitals
+			if(basisDataForm == 3) // Bunge orbitals
 			{
-				ROfBungeBasisFunctions = getRofBungeOrbitalBasisFuncs(atype);
+				ROfBungeBasisFunctions = getRofBungeOrbitalBasisFuncs(atomType);
 			}
 		}  
 
