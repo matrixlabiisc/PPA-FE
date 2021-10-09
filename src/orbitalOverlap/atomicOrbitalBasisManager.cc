@@ -57,7 +57,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
             bungeFunctions.reserve(numOfOrbitals);
 
             // 1s RHF orbital
-            bungeFunctions.push_back([](double r){return 
+            bungeFunctions.push_back([&](double r){return 
                 
                 + 0.352872 * ROfSTO(1, 8.4936, r)
                 + 0.473621 * ROfSTO(1, 4.8788, r)
@@ -69,7 +69,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
             });
 
             // 2s RHF orbital
-            bungeFunctions.push_back([](double r){return 
+            bungeFunctions.push_back([&](double r){return 
                 
                 - 0.071727 * ROfSTO(1, 8.4936, r)
                 + 0.438307 * ROfSTO(1, 4.8788, r)
@@ -81,7 +81,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
             });
 
             // 2p RHF orbital 
-            bungeFunctions.push_back([](double r){return 
+            bungeFunctions.push_back([&](double r){return 
                 
                 + 0.006977 * ROfSTO(2, 7.0500, r)
                 + 0.070877 * ROfSTO(2, 3.2275, r)
@@ -101,7 +101,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
             bungeFunctions.reserve(numOfOrbitals);
 
             // 1s RHF orbital
-            bungeFunctions.push_back([](double r){return 
+            bungeFunctions.push_back([&](double r){return 
                 
                 + 0.360063 * ROfSTO(1, 11.2970, r)
                 + 0.466625 * ROfSTO(1, 6.5966, r)
@@ -113,7 +113,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
             });
 
             // 2s RHF orbital
-            bungeFunctions.push_back([](double r){return 
+            bungeFunctions.push_back([&](double r){return 
                 
                 - 0.064363 * ROfSTO(1, 11.2970, r)
                 + 0.433186 * ROfSTO(1, 6.5966, r)
@@ -125,7 +125,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
             });
 
             // 2p RHF orbital 
-            bungeFunctions.push_back([](double r){return 
+            bungeFunctions.push_back([&](double r){return 
                 
                 + 0.005626 * ROfSTO(2, 9.6471, r)
                 + 0.126618 * ROfSTO(2, 4.3323, r)
