@@ -118,6 +118,9 @@ public:
 
 	double ROfSTO(unsigned int n, double zetaEff, double r);
 
+	double ROfHydrogenicOrbital(unsigned int n, unsigned int l, 
+								double zetaEff, double r);
+
 	std::vector< std::function<double(double)> >
 			getRofBungeOrbitalBasisFuncs(unsigned int atomicNum);
 
