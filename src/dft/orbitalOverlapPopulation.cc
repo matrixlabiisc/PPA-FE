@@ -260,6 +260,10 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		atomType = atomTypesVec[i];
 		atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
 			(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
+                 //atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
+                   //     (atomType, 3, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
+
+
 	}
 
 	std::cout << "vector of objects constructed!\n";
@@ -269,7 +273,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	// unsigned int numOfKSOrbitals = 1; // For Hydrogen molecule case  
 	
 
-	unsigned int numOfKSOrbitals = 8; // For CO molecule case  
+	unsigned int numOfKSOrbitals = 2;//8; // For CO molecule case  
 
 	std::cout << "Number of Kohn-Sham orbitals: " << numOfKSOrbitals << '\n';
 
@@ -321,6 +325,13 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
 		  atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
 		  (orbital, node, atomPos);
+		  
+                 //scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+                   //                atomTypewiseSTOvector[atomTypeID].bungeOrbital
+                     //                                (orbital, node, atomPos);
+                 
+
+
 	      }
 
 	    auto count2 = numOfKSOrbitals*dof;
@@ -370,10 +381,10 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 #ifdef USE_COMPLEX
 
 #else
-	 std::vector<dataTypes::number> ProjHam;
-	 d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
-					totalDimOfBasis,
-					ProjHam);
+	 //std::vector<dataTypes::number> ProjHam;
+	 //d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
+	//				totalDimOfBasis,
+	//				ProjHam);
 #endif
 					
 					
