@@ -25,7 +25,7 @@ end
 subsection SCF parameters
   set MIXING PARAMETER                 = 0.5
   set MAXIMUM ITERATIONS               = 30
-  set TEMPERATURE                      = 500
+  set TEMPERATURE                      = 10
   set TOLERANCE                        = 5e-5
   subsection Eigen-solver parameters
       set NUMBER OF KOHN-SHAM WAVEFUNCTIONS = 15

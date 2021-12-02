@@ -9,7 +9,7 @@
 #SBATCH --mail-type=BEGIN,END
 
 #srun /scratch/vikramg_root/vikramg1/phanim/DFT_FETesting/buildDevelop/release/real/dftfe parameterFile_a.prm>CO_RefRun
-srun /scratch/vikramg_root/vikramg1/phanim/DFT_FETesting/buildpCOHP/release/real/dftfe parameterFile_a.prm>CO_testCase_DFTFEKohnShamOrbital_Bunge_PAWCoor
+srun /scratch/vikramg_root/vikramg1/phanim/DFT_FETesting/buildpCOHP/release/real/dftfe parameterFile_a.prm>CO_testCase_DFTFEKohnShamOrbital_Bunge_PAWCoor_pCOHP
 #srun /scratch/vikramg_root/vikramg1/phanim/DFT_FETesting/buildSmearedChargeNew/release/real/dftfe fccAl_01Mod.prm>fccAl_GGA_GammaPoint_Orig_RealMode
 #srun /scratch/vikramg_root/vikramg1/phanim/DFT_FETesting/buildStiffOptMerge/release/real/dftfe fccAl_01Mod.prm>fccAl_GGA_GammaPoint_Opt_RealMode_MoreBlocks
 
