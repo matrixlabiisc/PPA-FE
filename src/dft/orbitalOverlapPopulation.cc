@@ -44,11 +44,6 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	std::cout << "reading input files..\n";
 
-	// for Hydrogen molecule: 
-	// const unsigned int numOfAtoms = 2;
-	// const unsigned int numOfAtomTypes = 1; 
-
-	// for CO molecule: 
 	const unsigned int numOfAtoms = atomLocations.size();
 	const unsigned int numOfAtomTypes = atomTypes.size(); // is not more than 120
 
@@ -258,10 +253,10 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	for(unsigned int i = 0; i < numOfAtomTypes; ++i)
 	{
 		atomType = atomTypesVec[i];
-		atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
-			(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
-                 //atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
-                   //     (atomType, 3, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
+		//atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
+		//	(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
+                 atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
+                        (atomType, 3, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
 
 
 	}
@@ -270,10 +265,12 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 
 
-	// unsigned int numOfKSOrbitals = 1; // For Hydrogen molecule case  
+	unsigned int numOfKSOrbitals = 7; // For Hydrogen molecule case  
 	
 
-	unsigned int numOfKSOrbitals = 2;//8; // For CO molecule case  
+	//unsigned int numOfKSOrbitals = 8; // For CO molecule case  
+
+        //unsigned int numOfKSOrbitals = 6; //For H2O molecule
 
 	std::cout << "Number of Kohn-Sham orbitals: " << numOfKSOrbitals << '\n';
 
@@ -322,13 +319,13 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		auto atomTypeID = globalBasisInfo[i].atomTypeID;
 		auto orbital = quantumNumHierarchy[ globalBasisInfo[i].localBasisNum ];
 
-		scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
-		  atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
-		  (orbital, node, atomPos);
+		//scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+		  //atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
+		  //(orbital, node, atomPos);
 		  
-                 //scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
-                   //                atomTypewiseSTOvector[atomTypeID].bungeOrbital
-                     //                                (orbital, node, atomPos);
+                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+                                   atomTypewiseSTOvector[atomTypeID].bungeOrbital
+                                                    (orbital, node, atomPos);
                  
 
 
@@ -381,10 +378,12 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 #ifdef USE_COMPLEX
 
 #else
-	 //std::vector<dataTypes::number> ProjHam;
-	 //d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
-	//				totalDimOfBasis,
-	//				ProjHam);
+	 std::cout << "Matrix of projected Hamiltonian into the subspace of atomic orbitals: \n";
+         std::vector<dataTypes::number> ProjHam;
+	 d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
+					totalDimOfBasis,
+					ProjHam);
+         printVector(ProjHam);
 #endif
 					
 					
