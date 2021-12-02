@@ -387,7 +387,53 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 #endif
 					
 					
-	 
+	// writing the energy levels and the occupation numbers 
+
+  unsigned int kPointDummy = 0;
+ 
+	std::ofstream energyLevelsOccNumsFile ("energyLevelsOccNums.txt");
+
+	if (energyLevelsOccNumsFile.is_open())
+	{
+		for (unsigned int i = 0; i < eigenValues[0].size(); ++i)
+		{
+			const double partialOccupancy = dftUtils::getPartialOccupancy(
+                              eigenValues[kPointDummy][i], fermiEnergy, C_kb, TVal);
+			
+			energyLevelsOccNumsFile << eigenValues[kPointDummy][i]
+                              << " " << partialOccupancy << '\n';
+		}
+
+		energyLevelsOccNumsFile.close();
+	}
+
+	else std::cout << "couldn't open energyLevelsOccNums.txt file!\n";
+
+	// and writing the high level basis information  
+
+  std::ofstream highLevelBasisInfoFile ("highLevelBasisInfo.txt");	
+
+	if (highLevelBasisInfoFile.is_open())
+	{
+		highLevelBasisInfoFile << numOfAtoms << '\n'
+													 << numOfAtomTypes << '\n'
+													 << totalDimOfBasis << '\n'
+													 << numOfKSOrbitals << '\n';
+
+		highLevelBasisInfoFile.close();
+	}
+
+	else std::cout << "couldn't open highLevelBasisInfo.txt file!\n";   
+
+	// functions to print the orbital hierarchy and numbering for atom types and atoms 
+	// for easy postprocessing 
+	// we have to output to 2 files 
+	// atomTypeWiseOrbitalNums.txt and
+	// atomWiseAtomicOrbitalInfo.txt   
+
+	
+
+	// printing the spilling information
 
 	std::cout << "Total spilling = " << spilling.totalSpilling << '\n';
 	std::cout << "Absolute total spilling = " << spilling.absTotalSpilling << '\n';

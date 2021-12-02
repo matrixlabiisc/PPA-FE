@@ -118,14 +118,6 @@ void writeVectorAs2DMatrix(const std::vector<T>& vec,
 				   << filename << "file!\n";
 }
 
-// functions to print the orbital hierarchy and numbering for atom types and atoms 
-// for easy postprocessing 
-// we have to output to 2 files 
-// atomTypeWiseOrbitalNums.txt and
-// atomWiseAtomicOrbitalInfo.txt
-// we shall also need to print the eigenvalues and occupation numbers
-// but that can be done in dftfe files 
-
 struct spillFactors {
 
 	double absChargeSpilling;
