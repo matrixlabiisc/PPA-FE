@@ -18,6 +18,9 @@
 #include <algorithm>
 #include <numeric>
 #include <valarray>
+#include <fstream>
+#include <string>
+#include <cassert>
 #include "distributions.h"
 
 
@@ -40,6 +43,88 @@ void printArray(const std::array<T, N>& array)
 	}
 	std::cout << '\n';
 }
+
+template <typename T>
+void writeVectorToFile(const std::vector<T>& vec,
+					   std::string filename){
+		
+	std::ofstream outputFile(filename);
+
+	if (outputFile.is_open()) {
+
+		for (const auto &elem : vec)
+		{
+			outputFile << elem << '\n';
+		}
+
+		outputFile.close();
+	}
+
+	else std::cout << "unable to create and open the" 
+				   << filename << "file!\n";
+}
+
+template <typename T, std::size_t N>
+void writeArrayToFile(const std::array<T, N>& arr,
+					  std::string filename){
+		
+	std::ofstream outputFile(filename);
+
+	if (outputFile.is_open()) {
+
+		for (const auto &elem : arr)
+		{
+			outputFile << elem << '\n';
+		}
+
+		outputFile.close();
+	}
+
+	else std::cout << "unable to create and open the" 
+				   << filename << "file!\n";
+}
+
+template <typename T>
+void writeVectorAs2DMatrix(const std::vector<T>& vec, 
+						   unsigned int numOfRows, 
+						   unsigned int numOfColumns,
+						   std::string filename){
+
+	assert(vec.size() == numOfRows * numOfColumns);
+
+	std::ofstream outputFile(filename);
+
+	unsigned int count = 0; 
+
+	if (outputFile.is_open()) {
+
+		for (unsigned int i = 0; i < numOfRows; ++i)
+		{
+			for (unsigned int j = 0; j < numOfColumns; ++j)
+			{
+				outputFile << vec[count] << " ";
+				++count;
+			}
+
+			outputFile << '\n';
+		}
+
+		outputFile.close();
+	}
+
+	// can also be implemented by a single for loop and if condition for next line 
+
+	else std::cout << "unable to create and open the" 
+				   << filename << "file!\n";
+}
+
+// functions to print the orbital hierarchy and numbering for atom types and atoms 
+// for easy postprocessing 
+// we have to output to 2 files 
+// atomTypeWiseOrbitalNums.txt and
+// atomWiseAtomicOrbitalInfo.txt
+// we shall also need to print the eigenvalues and occupation numbers
+// but that can be done in dftfe files 
 
 struct spillFactors {
 
@@ -84,7 +169,7 @@ pCOOPvsEnergy(std::vector<double> epsvalues,
 // returns pCOHPvalues correspoding energy values vector 
 std::vector<double> 
 pCOHPvsEnergyTest(std::vector<double> epsvalues,
-			  int globalBasisNum1, int globalBasisNum2, // a, b
+			  int globalBasisNum1, int globalBasisNum2,
 			  const std::vector<double>&  HmatrixVec,
 			  const std::vector<double>& coeffArrayOfProj,
 			  const std::vector<double>& energyLevelsKS,
