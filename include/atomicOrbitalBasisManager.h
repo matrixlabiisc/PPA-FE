@@ -246,6 +246,11 @@ convertCartesianToSpherical(const std::array<double, 3>& x, // relative pos vec 
     }
 }
 
+inline unsigned int numofOrbitalsUntilShell(unsigned int n) {
+
+	return (n*(n+1)*(2*n+1))/6;
+}
+
 
 inline unsigned int numOfOrbitalsForShellCount(unsigned int n1, 
 											   unsigned int n2) {
@@ -254,7 +259,7 @@ inline unsigned int numOfOrbitalsForShellCount(unsigned int n1,
 
 	if (n1 == 1)
 	{
-		return n2*(n2 + 1)*(2*n2 + 1)/6;
+		return (n2*(n2 + 1)*(2*n2 + 1))/6;
 	}
 
 	for(unsigned int n = n1; n <= n2; ++n)

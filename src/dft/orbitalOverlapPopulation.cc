@@ -125,7 +125,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	std::map<unsigned int, unsigned int> atomTypetoNend;
 	std::map<unsigned int, double> atomTypetoZeta;
 	std::set<unsigned int> atomTypeswithBasisInfo;
-	std::set<unsigned int> diff; // to check if the required data is provided or not 
+	std::set<unsigned int> diff; // to check if the required data is provided or not
+	std::map<unsigned int, unsigned int> atomTypeToBasisInfoStartNum; 
 
 	unsigned int maxBasisShell = 0; // some lower unreachable value 
 	// unsigned int minBasisShell = 10; // some unreachable value
@@ -137,6 +138,27 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	// at present zeta is fixed for the atom but soon we ll have 
 	// to construct it on own using the slater rules function 
+
+	// functions to print the orbital hierarchy and numbering for atom types and atoms 
+	// for easy postprocessing 
+	// we have to output to 2 files 
+	// atomTypeWiseOrbitalNums.txt and
+	// atomWiseAtomicOrbitalInfo.txt  
+
+	// just to clear the contents of the file, if it already exists from previous runs 
+	std::ofstream atomTypeWiseOrbitalNumsFile;
+	atomTypeWiseOrbitalNumsFile.open("atomTypeWiseOrbitalNums.txt", 
+																		std::ofstream::out | std::ofstream::trunc);
+
+	if (!atomTypeWiseOrbitalNumsFile.is_open())
+	{
+		std::cerr << "Couldn't open " << "atomTypeWiseOrbitalNums.txt" << " file!!" << std::endl;
+    exit(0);
+	}
+
+	atomTypeWiseOrbitalNumsFile.close();
+
+	unsigned int basisHierarchyStart, basisHierarchyEnd, basisCount = 1;
 
 	std::string basisInfoFile = "STOBasisInfo.inp";
 
@@ -160,6 +182,19 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 			maxBasisShell = std::max(maxBasisShell, b2);
 
+			basisHierarchyStart = numofOrbitalsUntilShell(b1-1) + 1;
+			basisHierarchyEnd = numofOrbitalsUntilShell(b2);
+
+			// the above are the positioning in the basis hierarchy 
+
+			atomTypeToBasisInfoStartNum.insert({a, basisCount});
+			basisCount += tmpBasisDim; 
+
+			// for atomTypeWiseOrbitalNums.txt
+			appendElemsOfRangeToFile(basisHierarchyStart,
+															 basisHierarchyEnd,
+															 "atomTypeWiseOrbitalNums.txt"); 
+
 			++count;
 		}
 	}
@@ -167,7 +202,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	else {
 
 		std::cerr << "Couldn't open " << basisInfoFile << " file!!" << std::endl;
-        exit(0);
+    exit(0);
 	}
 
 	basisinfofile.close();
@@ -195,6 +230,16 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	// by the way can we automatically have an inverse function from a defined function
 	// if it is given that that the function is one-one and onto  -- seems not easy! 
 
+	std::ofstream atomWiseAtomicOrbitalInfoFile("atomWiseAtomicOrbitalInfo.txt");
+
+	if (!atomWiseAtomicOrbitalInfoFile.is_open())
+	{
+		std::cerr << "Couldn't open " << "atomWiseAtomicOrbitalInfo.txt" << " file!!" << std::endl;
+    exit(0);
+	}
+
+	unsigned int atomicNum; 
+
 	count = 0; 
 	std::vector<unsigned int> atomwiseGlobalbasisNum; // cumulative vector  
 	atomwiseGlobalbasisNum.reserve(numOfAtoms + 1);
@@ -220,11 +265,18 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	for(unsigned int i = 0; i < numOfAtoms; ++i) {
 
-		tmp1 = atomTypetoAtomTypeID[ atomicNumVec[i] ];
+		atomicNum = atomicNumVec[i];
+		tmp1 = atomTypetoAtomTypeID[ atomicNum ];
 		tmp2 =  atomwiseGlobalbasisNum[i];
 		tmp3 = atomwiseGlobalbasisNum[i+1];
-		nstart = atomTypetoNstart[ atomicNumVec[i] ];
+		nstart = atomTypetoNstart[ atomicNum ];
 		basisNstart = numOfOrbitalsForShellCount(1, nstart - 1);
+
+		atomWiseAtomicOrbitalInfoFile << atomicNum << " "
+																	<< tmp2 + 1 << " "
+																	<< tmp3 << " "
+																	<< atomTypeToBasisInfoStartNum[ atomicNum ]
+																	<< '\n';
 
 		for(unsigned int j = tmp2; j < tmp3; ++j)
 		{
@@ -253,10 +305,12 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	for(unsigned int i = 0; i < numOfAtomTypes; ++i)
 	{
 		atomType = atomTypesVec[i];
-		//atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
+
+		// atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
 		//	(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
-                 atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
-                        (atomType, 3, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
+
+    atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
+        (atomType, 3, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
 
 
 	}
@@ -354,23 +408,31 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	std::cout << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
 	printVector(upperTriaOfS);
 
+	writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
+
 	auto invS = inverseOfOverlapMatrix(upperTriaOfS, totalDimOfBasis);
 	std::cout << "Full S inverse matrix: \n";
 	printVector(invS);
 
 	auto arrayVecOfProj 
 					= matrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
-									   scaledKSOrbitalValues_FEnodes, n_dofs, numOfKSOrbitals);
+									   				 scaledKSOrbitalValues_FEnodes, n_dofs, numOfKSOrbitals);
 
 	std::cout << "Matrix of projections with atomic orbitals: \n";
 	printVector(arrayVecOfProj);
 
+	writeVectorAs2DMatrix(arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
+												"projOfKSOrbitalsWithAOs.txt");
+
 	auto coeffArrayVecOfProj
 					= matrixmatrixmul(invS, 		  totalDimOfBasis, totalDimOfBasis, 
-									  arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals);
+									  				arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals);
 
 	std::cout << "Matrix of coefficients of projections: \n";
 	printVector(coeffArrayVecOfProj);
+
+	writeVectorAs2DMatrix(coeffArrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
+												"coeffsOfKSOrbitalsProjOnAOs.txt");
 
 	auto spilling = spillFactorsOfProjection(coeffArrayVecOfProj, arrayVecOfProj, occupationNum);
 
@@ -383,7 +445,11 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	 d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
 					totalDimOfBasis,
 					ProjHam);
-         printVector(ProjHam);
+   printVector(ProjHam);
+
+   writeVectorAs2DMatrix(ProjHam, totalDimOfBasis, totalDimOfBasis,
+												"projHamiltonianMatrix.txt");
+
 #endif
 					
 					
@@ -424,14 +490,6 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	}
 
 	else std::cout << "couldn't open highLevelBasisInfo.txt file!\n";   
-
-	// functions to print the orbital hierarchy and numbering for atom types and atoms 
-	// for easy postprocessing 
-	// we have to output to 2 files 
-	// atomTypeWiseOrbitalNums.txt and
-	// atomWiseAtomicOrbitalInfo.txt   
-
-	
 
 	// printing the spilling information
 
