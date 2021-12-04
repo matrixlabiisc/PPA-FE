@@ -26,7 +26,30 @@ void constructQuantumNumbersHierarchy
 		}
 }
 
+void appendElemsOfRangeToFile(unsigned int start,
+							  unsigned int end,
+							  std::string filename){
 
+	std::ofstream outputFile;
+	outputFile.open(filename, std::ofstream::out | std::ofstream::app);
+
+	if (outputFile.is_open()) {
+		
+		for (int i = start; i <= end; ++i)
+		{
+			outputFile << i << '\n';
+		}
+	}
+
+	else {
+
+		std::cerr << "Couldn't open " << filename << " file!!" << std::endl;
+ 		exit(0);
+	}
+
+	outputFile.close();
+	// it is usually not required to close the file 
+}
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
