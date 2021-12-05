@@ -150,7 +150,7 @@ namespace dftfe
     bool         useELPAGPUKernel                               = false;
     std::string  xcFamilyType                                   = "";
     bool         gpuMemOptMode                                  = false;
-
+    unsigned int NumofKSOrbitalsproj                            = 7;
     void
     declare_parameters(ParameterHandler &prm)
     {
@@ -263,6 +263,14 @@ namespace dftfe
           "false",
           Patterns::Bool(),
           "[Standard] Computes localization lengths of all wavefunctions which is defined as the deviation around the mean position of a given wavefunction. Outputs a file name 'localizationLengths.out' containing 2 columns with first column indicating the wavefunction index and second column indicating localization length of the corresponding wavefunction.");
+      
+        prm.declare_entry(
+          "NUMBER OF PROJECTED KS ORBITALS",
+          "7",
+          Patterns::Integer(1),
+          "[Standard] Number of Kohn-Sham Orbitals projected");
+      
+      
       }
       prm.leave_subsection();
 
@@ -1114,7 +1122,8 @@ namespace dftfe
         dftParameters::readWfcForPdosPspFile =
           prm.get_bool("READ ATOMIC WFC PDOS FROM PSP FILE");
         dftParameters::writeLocalizationLengths =
-          prm.get_bool("WRITE LOCALIZATION LENGTHS");
+          prm.get_integer("NUMBER OF PROJECTED KS ORBITALS");
+        dftParameters::NumofKSOrbitalsproj;  
       }
       prm.leave_subsection();
 

@@ -146,6 +146,7 @@ namespace dftfe
     extern bool         useELPAGPUKernel;
     extern std::string  xcFamilyType;
     extern bool         gpuMemOptMode;
+    extern unsigned int NumofKSOrbitalsproj;
 
     /**
      * Declare parameters.
