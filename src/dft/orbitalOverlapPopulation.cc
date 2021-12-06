@@ -342,7 +342,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 
 
-	unsigned int numOfKSOrbitals = dftParameters::NumofKSOrbitalsproj; // For Hydrogen molecule case  
+	unsigned int numOfKSOrbitals = dftParameters::NumofKSOrbitalsproj; 
 	
 
 	//unsigned int numOfKSOrbitals = 8; // For CO molecule case  
