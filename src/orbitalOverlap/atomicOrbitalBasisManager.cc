@@ -89,6 +89,118 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
 
             break; 
 
+        case 3: // Lithium 
+
+            nMin = 1;
+            nMax = 2;
+            lMax = 0;
+            numOfOrbitals = 2;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.141279 * RofSTO(1, 4.3069, r)
+                + 0.874231 * RofSTO(1, 2.4573, r)
+                - 0.005201 * RofSTO(3, 6.7850, r)
+                - 0.002307 * RofSTO(2, 7.4527, r)
+                + 0.006985 * RofSTO(2, 1.8504, r)
+                - 0.000305 * RofSTO(2, 0.7667, r)
+                + 0.000760 * RofSTO(2, 0.6364, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.022416 * RofSTO(1, 4.3069, r)
+                - 0.135791 * RofSTO(1, 2.4573, r)
+                + 0.000389 * RofSTO(3, 6.7850, r)
+                - 0.000068 * RofSTO(2, 7.4527, r)
+                - 0.076544 * RofSTO(2, 1.8504, r)
+                + 0.340542 * RofSTO(2, 0.7667, r)
+                + 0.715708 * RofSTO(2, 0.6364, r);
+            });
+
+            break;
+
+        case 4: // Beryllium 
+
+            nMin = 1;
+            nMax = 2;
+            lMax = 0;
+            numOfOrbitals = 2;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.285107 * RofSTO(1, 5.7531, r)
+                + 0.474813 * RofSTO(1, 3.7156, r)
+                - 0.001620 * RofSTO(3, 9.9670, r)
+                + 0.052852 * RofSTO(3, 3.7128, r)
+                + 0.243499 * RofSTO(2, 4.4661, r)
+                + 0.000106 * RofSTO(2, 1.2919, r)
+                - 0.000032 * RofSTO(2, 0.8555, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.016378 * RofSTO(1, 5.7531, r)
+                - 0.155066 * RofSTO(1, 3.7156, r)
+                + 0.000426 * RofSTO(3, 9.9670, r)
+                - 0.059234 * RofSTO(3, 3.7128, r)
+                - 0.031925 * RofSTO(2, 4.4661, r)
+                + 0.387968 * RofSTO(2, 1.2919, r)
+                + 0.685674 * RofSTO(2, 0.8555, r);
+            });
+
+            break;
+
+        case 5: // Boron 
+
+            nMin = 1;
+            nMax = 2;
+            lMax = 1;
+            numOfOrbitals = (nMax*(nMax + 1))/2;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.381607 * RofSTO(1, 7.0178, r)
+                + 0.423958 * RofSTO(1, 3.9468, r)
+                - 0.001316 * RofSTO(3, 12.7297, r)
+                - 0.000822 * RofSTO(3, 2.7646, r)
+                + 0.237016 * RofSTO(2, 5.7420, r)
+                + 0.001062 * RofSTO(2, 1.5436, r)
+                - 0.000137 * RofSTO(2, 1.0802, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.022549 * RofSTO(1, 7.0178, r)
+                + 0.321716 * RofSTO(1, 3.9468, r)
+                - 0.000452 * RofSTO(3, 12.7297, r)
+                - 0.072032 * RofSTO(3, 2.7646, r)
+                - 0.050313 * RofSTO(2, 5.7420, r)
+                - 0.484281 * RofSTO(2, 1.5436, r)
+                - 0.518986 * RofSTO(2, 1.0802, r);
+            });
+
+            // 2p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.007600 * RofSTO(2, 5.7416, r)
+                + 0.045137 * RofSTO(2, 2.6341, r)
+                + 0.184206 * RofSTO(2, 1.8340, r)
+                + 0.394754 * RofSTO(2, 1.1919, r)
+                + 0.432795 * RofSTO(2, 0.8494, r);
+            });
+
+            break;
+
         case 6: // Carbon 
 
             nMin = 1;
@@ -218,6 +330,115 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
                 + 0.328966 * RofSTO(2, 2.7502, r)
                 + 0.395422 * RofSTO(2, 1.7525, r)
                 + 0.231788 * RofSTO(2, 1.2473, r);
+            });
+
+            break;
+
+        case 9: // Fluorine
+
+            nMin = 1;
+            nMax = 2;
+            lMax = 1;
+            numOfOrbitals = (nMax*(nMax + 1))/2;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.377498 * RofSTO(1, 12.6074, r)
+                + 0.443947 * RofSTO(1, 7.4101, r)
+                - 0.000797 * RofSTO(3, 23.2475, r)
+                + 0.213846 * RofSTO(2, 10.7416, r)
+                + 0.002183 * RofSTO(2, 3.7543, r)
+                + 0.000335 * RofSTO(2, 2.5009, r)
+                + 0.000147 * RofSTO(2, 1.8577, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.058489 * RofSTO(1, 12.6074, r)
+                + 0.426450 * RofSTO(1, 7.4101, r)
+                - 0.000274 * RofSTO(3, 23.2475, r)
+                - 0.063457 * RofSTO(2, 10.7416, r)
+                - 0.358939 * RofSTO(2, 3.7543, r)
+                - 0.516660 * RofSTO(2, 2.5009, r)
+                - 0.239143 * RofSTO(2, 1.8577, r);
+            });
+
+            // 2p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.004879 * RofSTO(2, 11.0134, r)
+                + 0.130794 * RofSTO(2, 4.9962, r)
+                + 0.337876 * RofSTO(2, 3.1540, r)
+                + 0.396122 * RofSTO(2, 1.9722, r)
+                + 0.225374 * RofSTO(2, 1.3632, r);
+            });
+
+            break;
+
+        case 11: // Sodium
+
+            nMin = 1;
+            nMax = 3;
+            lMax = 1;
+            numOfOrbitals = 4;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.387167 * RofSTO(1, 15.3319, r)
+                + 0.434278 * RofSTO(1, 9.0902, r)
+                + 0.213027 * RofSTO(2, 13.2013, r)
+                + 0.002205 * RofSTO(2, 4.7444, r)
+                + 0.000627 * RofSTO(2, 3.1516, r)
+                - 0.000044 * RofSTO(2, 2.4047, r)
+                - 0.000649 * RofSTO(3, 28.4273, r)
+                + 0.000026 * RofSTO(3, 1.3179, r)
+                - 0.000023 * RofSTO(3, 0.8911, r)
+                + 0.000008 * RofSTO(3, 0.6679, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.053722 * RofSTO(1, 15.3319, r)
+                - 0.430794 * RofSTO(1, 9.0902, r)
+                + 0.053654 * RofSTO(2, 13.2013, r)
+                + 0.347971 * RofSTO(2, 4.7444, r)
+                + 0.608890 * RofSTO(2, 3.1516, r)
+                + 0.157462 * RofSTO(2, 2.4047, r)
+                + 0.000280 * RofSTO(3, 28.4273, r)
+                - 0.000492 * RofSTO(3, 1.3179, r)
+                + 0.000457 * RofSTO(3, 0.8911, r)
+                + 0.000016 * RofSTO(3, 0.6679, r);
+            });
+
+            // 2p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.004308 * RofSTO(2, 13.6175, r)
+                + 0.157824 * RofSTO(2, 6.2193, r)
+                + 0.388545 * RofSTO(2, 3.8380, r)
+                + 0.489339 * RofSTO(2, 2.3633, r)
+                + 0.039759 * RofSTO(2, 1.5319, r);
+            });
+
+            // 3s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.011568 * RofSTO(1, 15.3319, r)
+                - 0.072430 * RofSTO(1, 9.0902, r)
+                + 0.011164 * RofSTO(2, 13.2013, r)
+                + 0.057679 * RofSTO(2, 4.7444, r)
+                + 0.089837 * RofSTO(2, 3.1516, r)
+                + 0.042114 * RofSTO(2, 2.4047, r)
+                - 0.000001 * RofSTO(3, 28.4273, r)
+                - 0.182627 * RofSTO(3, 1.3179, r)
+                - 0.471631 * RofSTO(3, 0.8911, r)
+                - 0.408817 * RofSTO(3, 0.6679, r);
             });
 
             break;
