@@ -1,17 +1,98 @@
+	    void
+    writeOrbitalDataIntoFile(const std::vector<std::vector<int>> &data,
+                      const std::string &                     fileName)
+    {
+      if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        {
+
+          std::ofstream outFile(fileName);
+          if (outFile.is_open())
+            {
+              for (unsigned int irow = 0; irow < data.size(); ++irow)
+                {
+                  for (unsigned int icol = 0; icol < data[irow].size(); ++icol)
+                    {
+                      outFile <<data[irow][icol];
+                      if (icol < data[irow].size() - 1)
+                        outFile << " ";
+                    }
+                  outFile << "\n";
+                }
+
+              outFile.close();
+            }
+        }
+    }
+	
+	
+	
+	
+	
+	
+	
+	
+	void
+    readBasisFile(const unsigned int                numColumns,
+             std::vector<std::vector<int>> &data,
+             const std::string &               fileName)
+    {
+      std::vector<int> rowData(numColumns, 0.0);
+      std::ifstream       readFile(fileName.c_str());
+      if (readFile.fail())
+        {
+          std::cerr << "Error opening file: " << fileName.c_str() << std::endl;
+          exit(-1);
+        }
+
+      //
+      // String to store line and word
+      //
+      std::string readLine;
+      std::string word;
+
+      //
+      // column index
+      //
+      int columnCount;
+
+      if (readFile.is_open())
+        {
+          while (std::getline(readFile, readLine))
+            {
+              std::istringstream iss(readLine);
+
+              columnCount = 0;
+
+              while (iss >> word && columnCount < numColumns)
+                rowData[columnCount++] = atoi(word.c_str());
+
+              data.push_back(rowData);
+            }
+        }
+      readFile.close();
+    }
+
+
+
+
+
+
+
+
 // using this class we create an Array of Objects
 // // each element corresponding to an atom type
 // // corresponding atomPositions should be as an external array or suitable in a datastructure
 
 void constructQuantumNumbersHierarchy
-		(unsigned int nstart, unsigned int nend, 
-		 std::vector<OrbitalQuantumNumbers>& quantumNumHierarchy)
+		(unsigned int n, unsigned int l, 
+		 std::vector<int>& rank)
 {
      // assume the vector of size 0 has already been reserved with space for N shells 
      // which is N(N+1)(2N+1)/6 orbitals for N shells 
      // N is maximum of the principal quantum number over each atomType
      // this function is called just once for the whole program 
   
-      	OrbitalQuantumNumbers orbitalTraverse;
+    	/*  	OrbitalQuantumNumbers orbitalTraverse;
 
 		for(unsigned int n = nstart; n <= nend; ++n) {
 			for(unsigned int l = 0; l < n; ++l) {
@@ -23,7 +104,13 @@ void constructQuantumNumbersHierarchy
 					quantumNumHierarchy.push_back(orbitalTraverse);
 				}
 			}
+
 		}
+		*/
+		rank.clear();
+		
+
+
 }
 
 void appendElemsOfRangeToFile(unsigned int start,
@@ -103,7 +190,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	if (atomCoordinatesFile.is_open()){
 		while(atomCoordinatesFile >> a >> b >> x >> y >> z){
 
-			atomicNumVec.push_back(a);
+			atomicNumVec.push_back(a);//Atom Number of each globalCharge
 			atomTypesSet.insert(a); // atom type is determined by the Atomic number 
 			valenceElectronsVec.push_back(b);
 			atomCoordinates.push_back({x, y, z});
@@ -125,7 +212,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	assert(count == numOfAtoms); // we can add an assert message later 
 	assert(numOfAtomTypes == atomTypesSet.size());
 
-	std::vector<unsigned int> atomTypesVec {atomTypesSet.begin(), atomTypesSet.end()};
+	std::vector<unsigned int> atomTypesVec {atomTypesSet.begin(), atomTypesSet.end()}; //Converting set to vector
 
 	// we can delete the atomTypesSet using clear() if needed, later after diff!  
 
@@ -169,7 +256,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	// atomWiseAtomicOrbitalInfo.txt  
 
 	// just to clear the contents of the file, if it already exists from previous runs 
-	std::ofstream atomTypeWiseOrbitalNumsFile;
+/*	std::ofstream atomTypeWiseOrbitalNumsFile;
 	atomTypeWiseOrbitalNumsFile.open("atomTypeWiseOrbitalNums.txt", 
 																		std::ofstream::out | std::ofstream::trunc);
 
@@ -179,13 +266,13 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
     exit(0);
 	}
 
-	atomTypeWiseOrbitalNumsFile.close();
+	atomTypeWiseOrbitalNumsFile.close(); */
 
 	unsigned int basisHierarchyStart, basisHierarchyEnd, basisCount = 1;
 
-	std::string basisInfoFile = "STOBasisInfo.inp";
+	std::string basisInfoFile = "BasisInfo.inp";
 
-	std::ifstream basisinfofile (basisInfoFile);
+/*	std::ifstream basisinfofile (basisInfoFile);
 	if (basisinfofile.is_open()){
 		while(basisinfofile >> a >> b1 >> b2 >> zeta){
 
@@ -228,20 +315,87 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
     exit(0);
 	}
 
-	basisinfofile.close();
-	std::cout << "reading " << basisInfoFile << " complete!\n";
+	basisinfofile.close();*/
 
-	assert(count == numOfAtomTypes);
+	std::vector<AtomicOrbitalBasisManager> atomTypewiseSTOvector;
+	//atomTypewiseSTOvector.reserve(numOfAtomTypes);
+	int atomType;
+	std::vector<std::vector<int>> atomTypesorbitals;
+	readBasisFile(3,atomTypesorbitals,"BasisInfo.inp");
 
-	std::cout << "reading and storing inputs done!\n";
 
+	for(unsigned int i = 0; i < numOfAtomTypes; ++i)
+	{
+		atomType = atomTypesVec[i];
+
+		// atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
+		//	(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
+
+    	atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, 3, true));
+
+
+	}
+	/*** constructQuantumNumbersHierarchy */
+	std::vector<std::vector<int>> atomTypewiseOrbitalist;
+	std::vector<bool> atomTypeflag(numOfAtomTypes,false);
+	std::vector<int> atomTypeoritalstart(numOfAtomTypes,0);
+	int counter = 1;
+	for (int i = 0; i < atomTypesorbitals.size(); i++)
+	{
+		for (int j = 0; j <atomTypewiseSTOvector.size(); j++ )
+		{
+			if (atomTypewiseSTOvector[j].atomType == atomTypesorbitals[i][0] )
+			{
+				if(atomTypeflag[j] == false )
+				{	
+					atomTypeoritalstart[j]=counter;
+					atomTypeflag[j] = true;
+
+				}
+				int n,l,m;
+				n = atomTypesorbitals[i][1];
+				l = atomTypesorbitals[i][2];
+				for(m = -l;m <=l; m++)
+				{	std::vector<int> tempvec(3,0);
+					atomTypewiseSTOvector[j].n.push_back(n);
+					atomTypewiseSTOvector[j].l.push_back(l);
+					atomTypewiseSTOvector[j].m.push_back(m);
+					tempvec[0] = n;
+					tempvec[1] = l;
+					tempvec[2] = m;
+					atomTypewiseOrbitalist.push_back(tempvec);
+					counter++;
+				}
+
+			
+			
+			}
+		}
+		writeOrbitalDataIntoFile(atomTypewiseOrbitalist,"atomTypeWiseOrbitalNums.txt");
+
+
+
+	}
+
+	std::cout << "vector of objects constructed!\n";
+
+
+	//std::cout << "reading " << basisInfoFile << " complete!\n";
+
+	//assert(count == numOfAtomTypes);
+
+	//std::cout << "reading and storing inputs done!\n";
+/* ********TO BE EDITED***************
 	std::set_difference(atomTypesSet.begin(), atomTypesSet.end(), 
-		atomTypeswithBasisInfo.begin(), atomTypeswithBasisInfo.end(), 
+		atomTypeswithBasisInfo.begin(), atomTypeswithBasisInfo.end(), //Checking if all the atomtypes are filled.. 
 		std::inserter(diff, diff.begin()));
 	assert(diff.empty()); 
 
 	atomTypesSet.clear();
 	atomTypeswithBasisInfo.clear();
+*/
+
+
 
 	// based on the elements in diff set we can ask the user 
 	// to update the info for those specific atoms  
@@ -269,18 +423,41 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	atomwiseGlobalbasisNum.push_back(count); // first entry is zero 
 	
-	for (auto& i : atomicNumVec) // atomicNumVec has entry for each atom, with atomType repetitions 
+/*	for (auto& i : atomicNumVec) // atomicNumVec has entry for each atom, with atomType repetitions 
 	{
 		count += atomTypetoBasisDim[i];	
 		atomwiseGlobalbasisNum.push_back(count);
 	}
+*/
+
+/* Change the above loop to: */	
+	for(int i = 0; i < atomicNumVec.size(); i++)
+	{
+
+		for (int j = 0; j < atomTypewiseSTOvector.size(); j++ )
+		{
+			if(atomicNumVec[i] == atomTypewiseSTOvector[j].atomType)
+			{
+				count += atomTypewiseSTOvector[j].sizeofbasis();
+				atomwiseGlobalbasisNum.push_back(count);		
+				
+				
+				
+				break;
+			
+			
+			
+			
+			}
+		}
+	}
+
 
 	unsigned int totalDimOfBasis = count; 
 
 	std::cout << "total basis dimension: " << totalDimOfBasis << '\n'
 			  << "total number of atoms: " << numOfAtoms << '\n'
-			  << "number of atoms types: " << numOfAtomTypes << '\n'
-			  << "max basis shell: " << maxBasisShell << '\n';
+			  << "number of atoms types: " << numOfAtomTypes << '\n';
 
 	std::vector<LocalAtomicBasisInfo> globalBasisInfo;
 	globalBasisInfo.reserve(totalDimOfBasis);
@@ -292,53 +469,41 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		tmp1 = atomTypetoAtomTypeID[ atomicNum ];
 		tmp2 =  atomwiseGlobalbasisNum[i];
 		tmp3 = atomwiseGlobalbasisNum[i+1];
-		nstart = atomTypetoNstart[ atomicNum ];
-		basisNstart = numOfOrbitalsForShellCount(1, nstart - 1);
+		//nstart = atomTypetoNstart[ atomicNum ];
+		//basisNstart = numOfOrbitalsForShellCount(1, nstart - 1);
 
 		atomWiseAtomicOrbitalInfoFile << atomicNum << " "
 																	<< tmp2 + 1 << " "
 																	<< tmp3 << " "
-																	<< atomTypeToBasisInfoStartNum[ atomicNum ]
+																	<<atomTypeoritalstart[tmp1]
 																	<< '\n';
 
 		for(unsigned int j = tmp2; j < tmp3; ++j)
 		{
-			globalBasisInfo.push_back({i, tmp1, basisNstart + j - tmp2}); 
+			//globalBasisInfo.push_back({i, tmp1, basisNstart + j - tmp2}); 
+			//globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n ,atomTypewiseSTOvector[tmp1].l ,atomTypewiseSTOvector[tmp1].m});
+			  globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n[j - tmp2] ,atomTypewiseSTOvector[tmp1].l[j - tmp2] ,atomTypewiseSTOvector[tmp1].m[j - tmp2]});	
 			// i required to get atom position coordinates 
 			// atomTypeID is required to construct the basis 
 			// basisNum in the quantumNumHierarchy
 		}
+
+
+
 	}
 
 	std::cout << "global basis info constructed!\n";
 
-	std::vector<OrbitalQuantumNumbers> quantumNumHierarchy;
-	quantumNumHierarchy.reserve(numOfOrbitalsForShellCount(1, maxBasisShell));
+	//std::vector<OrbitalQuantumNumbers> quantumNumHierarchy;
+	//quantumNumHierarchy.reserve(numOfOrbitalsForShellCount(1, maxBasisShell));
 	
-	constructQuantumNumbersHierarchy(1, maxBasisShell, quantumNumHierarchy);
+	//constructQuantumNumbersHierarchy(1, maxBasisShell, quantumNumHierarchy);
 
-	std::cout << "quantum hierarchy constructed!\n";
+	//std::cout << "quantum hierarchy constructed!\n";
 
 	// vector of AtomicOrbitalBasisManager objects 
 
-	std::vector<AtomicOrbitalBasisManager> atomTypewiseSTOvector;
-	atomTypewiseSTOvector.reserve(numOfAtomTypes);
-	int atomType;
-
-	for(unsigned int i = 0; i < numOfAtomTypes; ++i)
-	{
-		atomType = atomTypesVec[i];
-
-		// atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
-		//	(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
-
-    atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
-        (atomType, 3, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
-
-
-	}
-
-	std::cout << "vector of objects constructed!\n";
+	
 
 
 
@@ -392,13 +557,13 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	    for (unsigned int i = 0; i < totalDimOfBasis; ++i)
 	      {
-		auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
-		auto atomTypeID = globalBasisInfo[i].atomTypeID;
-		auto orbital = quantumNumHierarchy[ globalBasisInfo[i].localBasisNum ];
-
-		//scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
-		  //atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
-		  //(orbital, node, atomPos);
+			auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
+			auto atomTypeID = globalBasisInfo[i].atomTypeID;
+			//auto orbital = OrbitalQuantumNumber(globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m);
+			OrbitalQuantumNumbers orbital= {globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m};
+			//scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+		  	//atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
+		  	//(orbital, node, atomPos);
 		  
                  scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
                                    atomTypewiseSTOvector[atomTypeID].bungeOrbital

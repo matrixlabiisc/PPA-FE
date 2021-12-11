@@ -9,12 +9,18 @@
 #include <vector>
 #include <array>
 #include <cmath>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <functional>
-
+#include <fileReaders.h>
 #include <deal.II/grid/tria.h>
 
 #include "mathUtils.h"
 #include "matrixmatrixmul.h"
+
+
+
 
 
 struct OrbitalQuantumNumbers {
@@ -28,7 +34,9 @@ struct LocalAtomicBasisInfo {
 
 	unsigned int atomID; // required for atomPos
 	unsigned int atomTypeID; // required for atomBasis 
-	unsigned int localBasisNum; // for getting the quantum numbers 
+	unsigned int n; // for getting the prinicipal QN
+	unsigned int l; // for getting the angular momoemtum QN
+	int          m; //for getting the magnetic QN 
 };
 
 class AtomicOrbitalBasisManager // would be instantiated for each atom type 
@@ -36,7 +44,7 @@ class AtomicOrbitalBasisManager // would be instantiated for each atom type
 
 private:
 	
-	unsigned int atomType; // Atomic number, isotope cases can be considered later 
+	
 
 	unsigned int basisDataForm; 
 
@@ -60,14 +68,15 @@ private:
 	// if above is mentioned may be it wouldn't fit the complete n, l and m hierarchy 
 	// would be better to have the nearest complete shell of orbitals 
 
-	double zeta; 
+	
 
 	// the effective charge? = 0 implies no data provided try other basis 
 
 	unsigned int numOfSplineFuncParams; // this depends on the type of basis used 
 
 	std::vector<double> splineInterpolationConstants;
-
+	
+//orbitnumsvector.pushback(atomhierarch(n,l));
 	// a place for parameters is necessary
 	// usually atomic basis hierarchy is through n, l, and m and decided wholely by n  
 	// the radial part is only dependent on n for a given atom basis 
@@ -95,18 +104,29 @@ public:
 	// constructor with initialization list
 
 	AtomicOrbitalBasisManager
-		(unsigned int atype, unsigned int btype, bool nor, unsigned int basisdim, double z)
-		: atomType(atype), basisDataForm(btype), normalizedOrNot(nor), dimOfBasis(basisdim), 
-		zeta(z) {
+		(unsigned int atype, unsigned int btype, bool nor)
+		: atomType(atype), basisDataForm(btype), normalizedOrNot(nor) 
+		 {
 
 			if(basisDataForm == 3) // Bunge orbitals
 			{
 				ROfBungeBasisFunctions = getRofBungeOrbitalBasisFuncs(atomType);
+			
+
 			}
+			
+		
 		}  
-
-
-	void readBasisData(){} 
+	unsigned int atomType; // Atomic number, isotope cases can be considered later 
+	std::vector<int> n;
+	std::vector<int> l;
+	std::vector<int> m;
+	double zeta;
+	void setorbitalnums();
+	int sizeofbasis()
+	{
+		return(m.size());
+	} 
 
 	// check various types of format 
 	// https://www.basissetexchange.org/

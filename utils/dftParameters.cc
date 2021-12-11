@@ -1122,7 +1122,7 @@ namespace dftfe
         dftParameters::readWfcForPdosPspFile =
           prm.get_bool("READ ATOMIC WFC PDOS FROM PSP FILE");
         dftParameters::writeLocalizationLengths =
-          prm.get_integer("WRITE LOCALIZATION LENGTHS");
+          prm.get_bool("WRITE LOCALIZATION LENGTHS");
         dftParameters::NumofKSOrbitalsproj =  
           prm.get_integer("NUMBER OF PROJECTED KS ORBITALS"); 
       }
