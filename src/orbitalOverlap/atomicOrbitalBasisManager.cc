@@ -443,6 +443,87 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
 
             break;
 
+        case 13: // Aluminium
+
+            nMin = 1;
+            nMax = 3;
+            lMax = 1;
+            numOfOrbitals = 5;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.373865 * RofSTO(1, 18.1792, r)
+                + 0.456146 * RofSTO(1, 10.8835, r)
+                + 0.202560 * RofSTO(2, 15.7593, r)
+                + 0.001901 * RofSTO(2, 5.7600, r)
+                + 0.000823 * RofSTO(2, 4.0085, r)
+                - 0.000267 * RofSTO(2, 2.8676, r)
+                - 0.000560 * RofSTO(3, 33.5797, r)
+                + 0.000083 * RofSTO(3, 2.1106, r)
+                - 0.000044 * RofSTO(3, 1.3998, r)
+                + 0.000013 * RofSTO(3, 1.0003, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.061165 * RofSTO(1, 18.1792, r)
+                - 0.460373 * RofSTO(1, 10.8835, r)
+                + 0.055062 * RofSTO(2, 15.7593, r)
+                + 0.297052 * RofSTO(2, 5.7600, r)
+                + 0.750997 * RofSTO(2, 4.0085, r)
+                + 0.064079 * RofSTO(2, 2.8676, r)
+                + 0.000270 * RofSTO(3, 33.5797, r)
+                - 0.001972 * RofSTO(3, 2.1106, r)
+                + 0.000614 * RofSTO(3, 1.3998, r)
+                - 0.000064 * RofSTO(3, 1.0003, r);
+            });
+
+            // 2p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.015480 * RofSTO(2, 14.4976, r)
+                + 0.204774 * RofSTO(2, 6.6568, r)
+                + 0.474317 * RofSTO(2, 4.2183, r)
+                + 0.339646 * RofSTO(2, 3.0026, r)
+                + 0.024290 * RofSTO(3, 11.0822, r)
+                + 0.003529 * RofSTO(3, 1.6784, r)
+                - 0.000204 * RofSTO(3, 1.0788, r)
+                + 0.000199 * RofSTO(3, 0.7494, r);
+            });
+
+            // 3s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.020024 * RofSTO(1, 18.1792, r)
+                - 0.119051 * RofSTO(1, 10.8835, r)
+                + 0.017451 * RofSTO(2, 15.7593, r)
+                + 0.079185 * RofSTO(2, 5.7600, r)
+                + 0.130917 * RofSTO(2, 4.0085, r)
+                + 0.139113 * RofSTO(2, 2.8676, r)
+                + 0.000038 * RofSTO(3, 33.5797, r)
+                - 0.303750 * RofSTO(3, 2.1106, r)
+                - 0.547941 * RofSTO(3, 1.3998, r)
+                - 0.285949 * RofSTO(3, 1.0003, r);
+            });
+
+            // 3p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.001690 * RofSTO(2, 14.4976, r)
+                - 0.048903 * RofSTO(2, 6.6568, r)
+                - 0.058101 * RofSTO(2, 4.2183, r)
+                - 0.090680 * RofSTO(2, 3.0026, r)
+                - 0.001445 * RofSTO(3, 11.0822, r)
+                + 0.234760 * RofSTO(3, 1.6784, r)
+                + 0.496072 * RofSTO(3, 1.0788, r)
+                + 0.359277 * RofSTO(3, 0.7494, r);
+            });
+
+            break;
+
         default:
 
             std::cout << "Bunge orbital data not filled for "
