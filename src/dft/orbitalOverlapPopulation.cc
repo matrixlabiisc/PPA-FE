@@ -591,46 +591,74 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	// actually we must write such that only the symmetric upper triangular part is calculated
 	// observe in the above we used same variable at two arguments in the function
 	// and this function have those arguments in const referenced way! Let's see if it works.. 
-
+	
+	
+	// COOP Analysis Begin
 	auto upperTriaOfS = selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
 	std::cout << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
 	printVector(upperTriaOfS);
-
 	writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
-
 	auto invS = inverseOfOverlapMatrix(upperTriaOfS, totalDimOfBasis);
 	std::cout << "Full S inverse matrix: \n";
 	printVector(invS);
-
 	auto arrayVecOfProj 
 					= matrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
 									   				 scaledKSOrbitalValues_FEnodes, n_dofs, numOfKSOrbitals);
-
 	std::cout << "Matrix of projections with atomic orbitals: \n";
 	printVector(arrayVecOfProj);
-
 	writeVectorAs2DMatrix(arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs.txt");
-
 	auto coeffArrayVecOfProj
 					= matrixmatrixmul(invS, 		  totalDimOfBasis, totalDimOfBasis, 
 									  				arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals);
-
 	std::cout << "Matrix of coefficients of projections: \n";
 	printVector(coeffArrayVecOfProj);
-
 	writeVectorAs2DMatrix(coeffArrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOs.txt");
+	std::vector<double> CoeffofOrthonormalisedKSonAO = OrthonormalizationofProjectedWavefn(upperTriaOfS,totalDimOfBasis, totalDimOfBasis,
+														coeffArrayVecOfProj,totalDimOfBasis, numOfKSOrbitals);	
+	std::cout<<"C bar Output:"<<std::endl;
+	printVector(CoeffofOrthonormalisedKSonAO);
+	writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO, totalDimOfBasis, numOfKSOrbitals,
+												"OrthocoeffsOfKSOrbitalsProjOnAOsCOOP.txt");																							
 
+	//auto spillingortho = spillFactorsOfProjection(CoeffofOrthonormalisedKSonAO, arrayVecOfProj, occupationNum);
 	auto spilling = spillFactorsOfProjection(coeffArrayVecOfProj, arrayVecOfProj, occupationNum);
+	//COOP Analysis End
+	pcout<<"--------------------------COOP Data Saved------------------------------"<<std::endl;
+	
+	//COHP Analysis Begin	
+	auto OrthoscaledOrbitalValues_FEnodes = LowdenOrtho(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis,upperTriaOfS);	
+	auto upperTriaOfOrthoS = selfMatrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
+	std::cout << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
+	printVector(upperTriaOfOrthoS);
+	writeVectorToFile(upperTriaOfOrthoS, "OrthooverlapMatrix.txt");
+	auto coeffarrayVecOfOrthoProj 
+					= matrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
+									   				 scaledKSOrbitalValues_FEnodes, n_dofs, numOfKSOrbitals);
+	std::cout << "Matrix of projections with Ortho atomic orbitals: \n";
+	printVector(coeffarrayVecOfOrthoProj);
+	/*writeVectorAs2DMatrix(arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
+												"projOfKSOrbitalsWithAOs.txt");*/
+
+	std::cout << "Matrix of coefficients of projections: \n";
+	printVector(coeffarrayVecOfOrthoProj);
+	writeVectorAs2DMatrix(coeffarrayVecOfOrthoProj, totalDimOfBasis, numOfKSOrbitals,
+												"coeffsOfKSOrbitalsProjOnAOsforCOHP.txt");
+	std::vector<double> CoeffofOrthonormalisedKSonAO_COHP = OrthonormalizationofProjectedWavefn(upperTriaOfOrthoS,totalDimOfBasis, totalDimOfBasis,
+														coeffarrayVecOfOrthoProj,totalDimOfBasis, numOfKSOrbitals);	
+	std::cout<<"C hat Output:"<<std::endl;
+	printVector(CoeffofOrthonormalisedKSonAO_COHP);
+	writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_COHP, totalDimOfBasis, numOfKSOrbitals,
+												"OrthocoeffsOfKSOrbitalsProjOnAOsCOHP.txt");	
 
 	//Compute projected Hamiltonian of FE discretized Hamiltonian into 
 #ifdef USE_COMPLEX
 
 #else
-	 std::cout << "Matrix of projected Hamiltonian into the subspace of atomic orbitals: \n";
+
          std::vector<dataTypes::number> ProjHam;
-	 d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
+	 d_kohnShamDFTOperatorPtr->XtHX(OrthoscaledOrbitalValues_FEnodes,
 					totalDimOfBasis,
 					ProjHam);
    printVector(ProjHam);
@@ -679,10 +707,28 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	else std::cout << "couldn't open highLevelBasisInfo.txt file!\n";   
 
+	
 	// printing the spilling information
 
 	std::cout << "Total spilling = " << spilling.totalSpilling << '\n';
 	std::cout << "Absolute total spilling = " << spilling.absTotalSpilling << '\n';
 	std::cout << "Charge Spilling = " << spilling.chargeSpilling << '\n';
 	std::cout << "Absolute charge spilling = " << spilling.absChargeSpilling << '\n';
+
+	
+	std::cout<<"\n-------------------------------------------------------\n";
+	std::cout<<"Projected SpillFactors are:"<<std::endl;
+	spillFactorsofProjectionwithCS(coeffArrayVecOfProj,upperTriaOfS,occupationNum ,
+									totalDimOfBasis, numOfKSOrbitals,
+									totalDimOfBasis,totalDimOfBasis	);
+	std::cout<<"\n-------------------------------------------------------\n";
+		std::cout<<"\n-------------------------------------------------------\n";
+	std::cout<<"OrthoNormalised Projected SpillFactors are:"<<std::endl;
+	spillFactorsofProjectionwithCS(CoeffofOrthonormalisedKSonAO,upperTriaOfS,occupationNum ,
+									totalDimOfBasis, numOfKSOrbitals,
+									totalDimOfBasis,totalDimOfBasis	);
+	std::cout<<"\n-------------------------------------------------------\n";
+
+
+
 }

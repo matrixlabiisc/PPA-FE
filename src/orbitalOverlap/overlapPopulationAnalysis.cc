@@ -7,6 +7,7 @@
 #include <valarray>
 #include "distributions.h"
 #include "overlapPopulationAnalysis.h"
+#include "matrixmatrixmul.h"
 
 
 // this function assumes all filled Kohn-Sham orbitals/bands come first
@@ -83,6 +84,60 @@ spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecO
 	return spillvalues;
 }
 
+
+void spillFactorsofProjectionwithCS(const std::vector<double> & C,
+									const std::vector<double> & Sold,
+									const std::vector<double> & occupationNum,
+									int m1, int n1, int m2, int n2)
+{
+	int N = n1;
+	std::vector<double> S(m2*n2,0.0);
+	int count = 0;
+	for(int i = 0; i < m2; i++)
+	{
+		for(int j = i; j < n2; j++)
+		{
+			S[i*n1+j] = Sold[count];
+			S[j*m1+i] = Sold[count];
+			count++;
+		}
+	}
+	auto temp = matrixTmatrixmul(C,n1,m1,S,m2,n2);
+	auto O	  = matrixmatrixmul(temp,n1,n2,C,n1,m1);
+	double TSF = 0.0;
+	double CSF = 0.0;
+	double TSFabs = 0.0;
+	double CSFabs = 0.0;
+	double totalNumOfElectrons = 0.0;
+		unsigned int numOfFilledKSorbitals = std::distance(std::begin(occupationNum), 
+											 std::find_if(std::begin(occupationNum), std::end(occupationNum), 
+						                     [](double x) { return (std::abs(x) < 1e-05); }));
+		unsigned int numOfKSOrbitals = occupationNum.size();
+		for(auto &n : occupationNum){ totalNumOfElectrons += n; }
+
+        totalNumOfElectrons = 2*totalNumOfElectrons;	
+	for(int i = 0; i < N; i++)
+	{
+		TSF += 1- O[i*N+i];
+		TSFabs += std::fabs(1- O[i*N+i]);	
+		if(i < numOfFilledKSorbitals)
+		{
+			CSF += 2*(1- O[i*N+i]);
+			CSFabs += 2*(std::fabs(1- O[i*N+i]));
+		}
+	}
+	TSF /= N;
+	TSFabs /=N;
+	CSF /=(numOfFilledKSorbitals * totalNumOfElectrons);
+	CSFabs /=(numOfFilledKSorbitals * totalNumOfElectrons);
+	std::cout<<"TSF: "<<TSF<<std::endl;
+	std::cout<<"TSFabs: "<<TSF<<std::endl;
+	std::cout<<"CSF: "<<CSF<<std::endl;
+	std::cout<<"CSFabs: "<<CSFabs<<std::endl;
+
+
+
+}
 
 std::vector<double> 
 pCOOPvsEnergy(std::vector<double> epsvalues,

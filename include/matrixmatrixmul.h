@@ -57,4 +57,20 @@ matrixmatrixTmul(const std::vector<double>& A, unsigned int m1, unsigned int n1,
 
 
 
+
+/**
+ * Takes in the atomic orbital overlap matrix and the coefficient matrix. 
+ * Returns the coefficient matris that maps the othronormalised projected KS wavefn. to orbital wave fn.
+ * Step1: Calculate O = C^{T}SC
+ * Step2: Eigen value Decomposition of O = UDU^{T}
+ * Step3: Compute O^{-0.5} = UD^{-0.5}U^{T}
+ * Step4: Cnew = CO^{-0.5}
+ **/
+std::vector<double>
+OrthonormalizationofProjectedWavefn(const std::vector<double> &S, unsigned int m1, unsigned int n1,
+									const std::vector<double> &C, unsigned int m2, unsigned int n2);
+
+std::vector<double>
+LowdenOrtho(const std::vector<double> &phi, int n_dofs, int N, const std::vector<double> &UpperS);									
+
 #endif

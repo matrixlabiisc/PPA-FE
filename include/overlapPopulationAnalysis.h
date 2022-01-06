@@ -147,7 +147,10 @@ spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecO
 									  const std::vector<double>& arrayVecOfProj,
 									  const std::vector<double>& occupationNum);
 
-
+void spillFactorsofProjectionwithCS(const std::vector<double> & C,
+									const std::vector<double> & Sold,
+									const std::vector<double> & occupationNum,
+									int m1, int n1, int m2, int n2);
 std::vector<double> 
 pCOOPvsEnergy(std::vector<double> epsvalues,
 			  int globalBasisNum1, int globalBasisNum2, 

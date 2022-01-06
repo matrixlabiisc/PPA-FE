@@ -5,6 +5,16 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Cholesky> 
+#include <mkl.h>
+#include <linearAlgebraOperations.h>
+#include <linearAlgebraOperationsInternal.h>
+#include <vector>
+#include <math.h>
+#include<iostream>
+#include <algorithm>
+#include <numeric>
+#include <valarray>
+
 
 
 std::vector<double> 
@@ -191,4 +201,260 @@ matrixmatrixTmul(const std::vector<double>& A, unsigned int m1, unsigned int n1,
 	}
 
 	return C;
+}
+
+
+std::vector<double>
+OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned int m1, unsigned int n1,
+									const std::vector<double> &C, unsigned int m2, unsigned int n2
+									)
+{
+	//m1: Basis Dimension
+	//n1: Total number of Atomic Orbitals
+	//m2: Total Number of Atomic Orbitals
+	//n2: Number of KS orbitals.
+	assert((m2 == n1) && "Number of Atomic Orbitals not consistent");
+	
+	
+	std::cout<<"#Begin OrthoNormalization"<<std::endl;
+	std::vector<double> S(m1*n1,0.0);
+	int count = 0;
+	for(int i = 0; i < m1; i++)
+	{
+		for(int j = i; j < n1; j++)
+		{
+			S[i*n1+j] = Sold[count];
+			S[j*m1+i] = Sold[count];
+			count++;
+		}
+	}
+	for (int i = 0; i < m1; i++)
+	{
+		for(int j = 0; j < n1; j++)
+			std::cout<<S[i*n1+j]<<" ";
+		std::cout<<std::endl;
+	}
+
+
+	std::cout<<"#Created S full"<<std::endl;
+	std::cout<<"matrix C is: "<<std::endl;
+		for (int i = 0; i < m2; i++)
+	{
+		for(int j = 0; j < n2; j++)
+			std::cout<<C[i*n1+j]<<" ";
+		std::cout<<std::endl;
+	}
+
+	std::cout<<"#B=CtS"<<std::endl;
+	auto B = matrixTmatrixmul(C,m2,n2,S,m1,n1);
+		for (int i = 0; i < n2; i++)
+	{
+		for(int j = 0; j < n1; j++)
+			std::cout<<B[i*n1+j]<<" ";
+		std::cout<<std::endl;
+	}
+	std::cout<<"#O=(CtS)C"<<std::endl;
+	auto O = matrixmatrixmul(B,n2,n1,C,m2,n2);
+		for (int i = 0; i < n2; i++)
+	{
+		for(int j = 0; j < n2; j++)
+			std::cout<<O[i*n2+j]<<" ";
+		std::cout<<std::endl;
+	}	
+	int N = n2;
+	//double D[N];
+	std::vector<double> D(N,0.0);
+	count = 0;
+	//double upperO[N*N];
+	std::vector<double> upperO(N*N,0.0);
+	std::cout<<"#Begin Upper Triangle creation"<<std::endl;
+	for(int i = 0; i < N; i++)
+	{
+		for(int j = 0; j < N; j++)
+		{
+			if(j>=i)
+			upperO[i*N+j] = O[i*N+j];
+			else
+			upperO[i*N+j] = 0.0;
+			
+		} 
+	}
+	for (int i = 0; i < n2; i++)
+	{
+		for(int j = 0; j < n2; j++)
+			std::cout<<upperO[i*n2+j]<<" ";
+		std::cout<<std::endl;
+	}
+	std::cout<<"#Completed Upper Triangle creation"<<std::endl;	
+
+      std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
+	  int                info;
+      const  int lwork = 1 + 6*N +
+                                 2 * N*N,
+                         liwork = 3 + 5 *N;
+      std::vector<int>    iwork(liwork, 0);
+      const char          jobz = 'V', uplo = 'L';
+      std::vector<double> work(lwork);
+
+      dsyevd_(&jobz,
+              &uplo,
+              &N,
+              &upperO[0],
+              &N,
+              &D[0],
+              &work[0],
+              &lwork,
+              &iwork[0],
+              &liwork,
+              &info);
+
+      //
+      // free up memory associated with work
+      //
+    work.clear();
+    iwork.clear();
+    std::vector<double>().swap(work);
+    std::vector<int>().swap(iwork);
+	if(info > 0)
+		std::cout<<"Eigen Value Decomposition Falied!!"<<std::endl;
+	else
+	{
+		std::cout<<"The diagonal entried are:"<<std::endl;
+		for(int i = 0; i < N; i++)
+			std::cout<<D[i]<<" ";
+		std::cout<<std::endl;
+		std::cout<<"The U matrix is: "<<std::endl;
+		for(int i = 0; i < N; i++)
+		{
+			for(int j=0; j < N; j++)
+				std::cout<<upperO[i*N+j]<<" ";
+			std::cout<<std::endl;	
+		}	
+	}
+	std::vector<double>D_half(N*N,0.0);
+	std::vector<double> upperOvector(N*N,0);
+	for(int i = 0; i <N; i++)
+		D_half[i*N+i] = pow(D[i],-0.5);
+	std::cout<<"D half matrix: "<<std::endl;
+	for(int i = 0; i < N; i++)
+	{
+		for(int j = 0; j < N; j++)
+			std::cout<<D_half[i*N+j]<<" ";
+		std::cout<<std::endl;	
+	}
+	for(int i =0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+			upperOvector[i*N+j] = upperO[i*N+j];
+	}	
+	//U is in column major form.. O = U'DU
+    auto D_hfU = matrixmatrixmul(D_half,N,N,upperOvector,N,N);
+	auto O_half = matrixTmatrixmul(upperOvector,N,N,D_hfU,N,N);
+
+	auto Cnew = matrixmatrixmul(C,m2,n2,O_half,n2,n2);
+
+	auto temp = matrixTmatrixmul(Cnew,n2,n2,S,m1,n1);
+	auto temp2 = matrixmatrixmul(temp,m2,n1,Cnew,m2,n2);
+	std::cout<<"The I matrix is: "<<std::endl;
+	for(int i = 0; i < m2; i++)
+	{
+		for(int j = 0; j <n2; j++)
+			std::cout<<temp2[i*n2+j]<<" ";
+		std::cout<<std::endl;
+	}
+	
+	
+	return Cnew;
+
+
+
+}
+
+std::vector<double>  LowdenOrtho(const std::vector<double> &phi, int n_dofs, int N, const std::vector<double> &UpperS)
+{
+	std::vector<double> S(N*N,0.0);
+	int count = 0;
+	for(int i = 0; i < N; i++)
+	{
+		for(int j = 0; j < N; j++)
+		{
+			S[i*N+j] = 0.0;
+			if(j >= i)
+			{
+				S[i*N+j]=UpperS[count]; 
+				count++;
+			}
+		}
+	}
+      std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
+	  int                info;
+      const  int lwork = 1 + 6*N +
+                                 2 * N*N,
+                         liwork = 3 + 5 *N;
+      std::vector<int>    iwork(liwork, 0);
+      const char          jobz = 'V', uplo = 'L';
+      std::vector<double> work(lwork);
+	  std::vector<double> D(N,0.0);	
+      dsyevd_(&jobz,
+              &uplo,
+              &N,
+              &S[0],
+              &N,
+              &D[0],
+              &work[0],
+              &lwork,
+              &iwork[0],
+              &liwork,
+              &info);
+
+      //
+      // free up memory associated with work
+      //
+    work.clear();
+    iwork.clear();
+    std::vector<double>().swap(work);
+    std::vector<int>().swap(iwork);
+	if(info > 0)
+		std::cout<<"Eigen Value Decomposition Falied!!"<<std::endl;
+	else
+	{
+		std::cout<<"The diagonal entried are:"<<std::endl;
+		for(int i = 0; i < N; i++)
+			std::cout<<D[i]<<" ";
+		std::cout<<std::endl;
+		std::cout<<"The U matrix is: "<<std::endl;
+		for(int i = 0; i < N; i++)
+		{
+			for(int j=0; j < N; j++)
+				std::cout<<S[j*N+i]<<" ";
+			std::cout<<std::endl;	
+		}	
+	}
+	std::vector<double>D_half(N*N,0.0);
+	std::vector<double> Uvector(N*N,0);
+	for(int i = 0; i <N; i++)
+		D_half[i*N+i] = pow(D[i],-0.5);
+	std::cout<<"D half matrix: "<<std::endl;
+	for(int i = 0; i < N; i++)
+	{
+		for(int j = 0; j < N; j++)
+			std::cout<<D_half[i*N+j]<<" ";
+		std::cout<<std::endl;	
+	}
+	for(int i =0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+			Uvector[i*N+j] = S[i*N+j];
+	}	
+	//U is in column major form.. O = U'DU
+    auto D_hfU = matrixmatrixmul(D_half,N,N,Uvector,N,N);
+	auto S_half = matrixTmatrixmul(Uvector,N,N,D_hfU,N,N);
+
+	auto phinew = matrixmatrixmul(phi,n_dofs,N,S_half,N,N);
+
+	return phinew;
+
+
+
+
 }
