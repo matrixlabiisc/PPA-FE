@@ -331,7 +331,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		// atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
 		//	(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
 
-    	atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, 3, true));
+    	 // atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, 3, true));
+		atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, 0, true));
 
 
 	}
@@ -372,12 +373,20 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			}
 		}
 		writeOrbitalDataIntoFile(atomTypewiseOrbitalist,"atomTypeWiseOrbitalNums.txt");
+		
 
 
 
 	}
 
+	for(int j = 0; j <atomTypewiseSTOvector.size(); j++ )
+	{
+		atomTypewiseSTOvector[j].CreatePseudoAtomicOrbitalBasis();
+	}
+
 	std::cout << "vector of objects constructed!\n";
+
+	
 
 
 	//std::cout << "reading " << basisInfoFile << " complete!\n";
@@ -564,10 +573,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			//scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
 		  	//atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
 		  	//(orbital, node, atomPos);
-		  
+		  	/*
                  scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
                                    atomTypewiseSTOvector[atomTypeID].bungeOrbital
                                                     (orbital, node, atomPos);
+			*/
+                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+                                   atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbital
+                                                    (orbital, node, atomPos);												
                  
 
 

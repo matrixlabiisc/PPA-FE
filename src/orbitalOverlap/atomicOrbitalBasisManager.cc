@@ -654,6 +654,28 @@ double AtomicOrbitalBasisManager::slaterTypeOrbital
 			* realSphericalHarmonics(l, m, theta, phi);
 }
 
+double AtomicOrbitalBasisManager::PseudoAtomicOrbital
+		(const OrbitalQuantumNumbers& orbital, 
+		 const dealii::Point<3>& evalPoint, 
+		 const std::vector<double>& atomPos){
+
+	int n = orbital.n;
+	int l = orbital.l;
+	int m = orbital.m;
+
+	double r{}, theta{}, phi{}; 
+
+	auto relativeEvalPoint = relativeVector3d(evalPoint, atomPos);
+
+	convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
+
+	return RadialPseudoAtomicOrbital(n, l, r)
+			* realSphericalHarmonics(l, m, theta, phi);
+}
+
+
+
+
 double AtomicOrbitalBasisManager::slaterTypeOrbital
 		(const OrbitalQuantumNumbers& orbital, 
 		 const dealii::Point<3>& evalPoint, 
@@ -782,4 +804,40 @@ double hydrogenMoleculeBondingOrbital(const dealii::Point<3>& evalPoint)
 	const double s = 0.63634108;
 
 	return (phi1 + phi2)/sqrt(2*(1 + s)); // forgot the 1+s part 
+}
+
+//Function to create spline of PseudoAtomic Orbitals
+void CreatePseudoAtomicOrbitalBasis()
+{
+    if(PseudoAtomicOrbital == false)
+        return;
+    else
+    {
+        std::vector<std::vector<double>> values;
+        dftUtils::readFile(2,values,"H.txt");
+        int                 numRows = values.size();
+        std::vector<double> xData(numRows), yData(numRows);
+      for (int irow = 0; irow < numRows; ++irow)
+        {
+          xData[irow] = values[irow][0];
+          yData[irow] = values[irow][1];
+        }        
+      alglib::real_1d_array x;
+      x.setcontent(numRows, &xData[0]);
+      alglib::real_1d_array y;
+      y.setcontent(numRows, &yData[0]);
+      alglib::ae_int_t             natural_bound_type = 0;
+      alglib::spline1dinterpolant *spline = new alglib::spline1dinterpolant;
+      alglib::spline1dbuildcubic(x,
+                                 y,
+                                 numRows,
+                                 natural_bound_type,
+                                 0.0,
+                                 natural_bound_type,
+                                 0.0,
+                                 *spline);
+
+      radialSplineObject[n][l] = spline;          
+    
+    }    
 }

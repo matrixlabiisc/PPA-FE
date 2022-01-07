@@ -151,6 +151,7 @@ namespace dftfe
     std::string  xcFamilyType                                   = "";
     bool         gpuMemOptMode                                  = false;
     unsigned int NumofKSOrbitalsproj                            = 7;
+    std::string pseudoAtomicOrbitalsFile                        ="";
     void
     declare_parameters(ParameterHandler &prm)
     {
@@ -223,6 +224,13 @@ namespace dftfe
       prm.enter_subsection("Postprocessing");
       {
         prm.declare_entry(
+          "PSEUDOATOMIC ORBITALS FILE",
+          "",
+          Patterns::Anything(),
+          "[Standard] Pseudo Atomic Orbitals for COOP and COHP");
+
+
+        prm.declare_entry(
           "WRITE WFC",
           "false",
           Patterns::Bool(),
@@ -233,6 +241,8 @@ namespace dftfe
           "false",
           Patterns::Bool(),
           "[Standard] Writes DFT ground state electron-density solution fields (FEM mesh nodal values) to densityOutput.vtu file for visualization purposes. The electron-density solution field in densityOutput.vtu is named density. In case of spin-polarized calculation, two additional solution fields- density\_0 and density\_1 are also written where 0 and 1 denote the spin indices. In the case of geometry optimization, the electron-density corresponding to the last ground-state solve is written. Default: false.");
+
+
 
         prm.declare_entry(
           "WRITE DENSITY OF STATES",
@@ -1111,6 +1121,8 @@ namespace dftfe
 
       prm.enter_subsection("Postprocessing");
       {
+          dftParameters::pseudoAtomicOrbitalsFile =
+          prm.get("PSEUDOATOMIC ORBITALS FILE");
         dftParameters::writeWfcSolutionFields = prm.get_bool("WRITE WFC");
         dftParameters::writeDensitySolutionFields =
           prm.get_bool("WRITE DENSITY");
