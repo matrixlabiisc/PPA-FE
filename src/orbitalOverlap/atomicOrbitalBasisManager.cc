@@ -679,8 +679,8 @@ double AtomicOrbitalBasisManager::RadialPseudoAtomicOrbital(unsigned int n , uns
     return 0.0;
     if(r <= 0.01)
         r = 0.01;
-   double v = alglib::spline1dcalc(*radialSplineObject[n][l],r)/r/r;
-   std::cout<<"$$$"<<r<<"  "<<v<<std::endl;
+   double v = alglib::spline1dcalc(*radialSplineObject[n][l],r)/r;
+   std::cout<<"$$$ "<<r<<"  "<<v<<std::endl;
     return v;
     
 }                                      
