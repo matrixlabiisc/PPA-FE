@@ -654,7 +654,7 @@ double AtomicOrbitalBasisManager::slaterTypeOrbital
 			* realSphericalHarmonics(l, m, theta, phi);
 }
 
-double AtomicOrbitalBasisManager::PseudoAtomicOrbital
+double AtomicOrbitalBasisManager::PseudoAtomicOrbitalvalue
 		(const OrbitalQuantumNumbers& orbital, 
 		 const dealii::Point<3>& evalPoint, 
 		 const std::vector<double>& atomPos){
@@ -672,11 +672,36 @@ double AtomicOrbitalBasisManager::PseudoAtomicOrbital
 	return RadialPseudoAtomicOrbital(n, l, r)
 			* realSphericalHarmonics(l, m, theta, phi);
 }
-
+double AtomicOrbitalBasisManager::RadialPseudoAtomicOrbital(unsigned int n , unsigned int l, 
+			 				         double & r)
+{
+   double v = alglib::spline1dcalc(*radialSplineObject[n][l],r);
+    return v;
+    
+}                                      
 
 
 
 double AtomicOrbitalBasisManager::slaterTypeOrbital
+		(const OrbitalQuantumNumbers& orbital, 
+		 const dealii::Point<3>& evalPoint, 
+		 const std::array<double, 3>& atomPos){
+
+	int n = orbital.n;
+	int l = orbital.l;
+	int m = orbital.m;
+
+	double r{}, theta{}, phi{}; 
+
+	auto relativeEvalPoint = relativeVector3d(evalPoint, atomPos);
+
+	convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
+
+	return RadialPseudoAtomicOrbital(n, l, r)
+			* realSphericalHarmonics(l, m, theta, phi);
+}
+
+double AtomicOrbitalBasisManager::PseudoAtomicOrbitalvalue
 		(const OrbitalQuantumNumbers& orbital, 
 		 const dealii::Point<3>& evalPoint, 
 		 const std::array<double, 3>& atomPos){
@@ -807,14 +832,14 @@ double hydrogenMoleculeBondingOrbital(const dealii::Point<3>& evalPoint)
 }
 
 //Function to create spline of PseudoAtomic Orbitals
-void CreatePseudoAtomicOrbitalBasis()
+void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
 {
     if(PseudoAtomicOrbital == false)
         return;
     else
     {
         std::vector<std::vector<double>> values;
-        dftUtils::readFile(2,values,"H.txt");
+        dftfe::dftUtils::readFile(2,values,"H.txt");
         int                 numRows = values.size();
         std::vector<double> xData(numRows), yData(numRows);
       for (int irow = 0; irow < numRows; ++irow)
@@ -837,7 +862,7 @@ void CreatePseudoAtomicOrbitalBasis()
                                  0.0,
                                  *spline);
 
-      radialSplineObject[n][l] = spline;          
+      radialSplineObject[1][0] = spline;          
     
     }    
 }

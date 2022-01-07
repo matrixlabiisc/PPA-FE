@@ -14,6 +14,10 @@
 #include <sstream>
 #include <functional>
 #include <fileReaders.h>
+#include <dftParameters.h>
+#include <dftUtils.h>
+#include <interpolation.h>
+#include <headers.h>
 #include <deal.II/grid/tria.h>
 
 #include "mathUtils.h"
@@ -111,78 +115,11 @@ public:
 			if(basisDataForm == 0)
 			{
 				PseudoAtomicOrbital = true;
-				
 
-				/*
-				const double truncationTol =
-    			dftParameters::reproducible_output ? 1e-10 : 1e-8;
-				std::string psiFile = dftParameters::pseudoAtomicOrbitalsFile;
-				std::vector<std::vector<double>> values;
-				dftUtils::readFile(2, values, psiFile);
-
-				
-
-
-
-
-				//$$$ Read dftParameters::Radialofpseudo.inp
-				// $$$ Using atype read the radial file.
-				// $$$ Spline interpolation std::vector containing 
-			 
-  				if (fileReadFlag > 0)
-    			{
-      			double       maxTruncationRadius = 0.0;
-      			unsigned int truncRowId          = 0;
-      			if (!dftParameters::reproducible_output)
-        		pcout << "reading data from file: " << psiFile << std::endl;
-
-      			int                 numRows = values.size() - 1;
-      std::vector<double> xData(numRows), yData(numRows);
-
-      // x
-      for (int irow = 0; irow < numRows; ++irow)
-        {
-          xData[irow] = values[irow][0];
-        }
-      outerValues[Z][n][l] = xData[numRows - 1];
-      alglib::real_1d_array x;
-      x.setcontent(numRows, &xData[0]);
-
-      // y
-      for (int irow = 0; irow < numRows; ++irow)
-        {
-          yData[irow] = values[irow][1];
-
-          if (std::fabs(yData[irow]) > truncationTol)
-            truncRowId = irow;
-        }
-      alglib::real_1d_array y;
-      y.setcontent(numRows, &yData[0]);
-      alglib::ae_int_t             natural_bound_type = 0;
-      alglib::spline1dinterpolant *spline = new alglib::spline1dinterpolant;
-      alglib::spline1dbuildcubic(x,
-                                 y,
-                                 numRows,
-                                 natural_bound_type,
-                                 0.0,
-                                 natural_bound_type,
-                                 0.0,
-                                 *spline);
-
-      radValues[Z][n][l] = spline;
-
-      maxTruncationRadius = xData[truncRowId];
-      if (maxTruncationRadius > d_wfcInitTruncation)
-        d_wfcInitTruncation = maxTruncationRadius;
-
-		*/
-    }
-
-
-
-			}
+    		}
 			
-			else if(basisDataForm == 3) // Bunge orbitals
+			
+			else if (basisDataForm == 3) // Bunge orbitals
 			{
 				ROfBungeBasisFunctions = getRofBungeOrbitalBasisFuncs(atomType);
 			
@@ -244,9 +181,7 @@ public:
 			 				 const dealii::Point<3>& evalPoint, 
 			     			 const std::vector<double>& atomPos);
 
-	double PseudoAtomicOrbital(const OrbitalQuantumNumbers& orbital, 
-			 				 const dealii::Point<3>& evalPoint, 
-			     			 const std::vector<double>& atomPos);	
+	
 	double RadialPseudoAtomicOrbital(unsigned int n , unsigned int l, 
 			 				         double & r);	
 
@@ -272,7 +207,12 @@ public:
 						const dealii::Point<3>& evalPoint, 
 						const std::array<double, 3>& atomPos);
 	
-
+	double PseudoAtomicOrbitalvalue(const OrbitalQuantumNumbers& orbital, 
+			 				 const dealii::Point<3>& evalPoint, 
+			     			 const std::vector<double>& atomPos);
+	double PseudoAtomicOrbitalvalue(const OrbitalQuantumNumbers& orbital, 
+			 				 const dealii::Point<3>& evalPoint, 
+			     			 const std::array<double, 3>& atomPos);							  
 	~AtomicOrbitalBasisManager(){}
 };
 

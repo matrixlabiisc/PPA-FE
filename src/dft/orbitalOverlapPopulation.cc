@@ -579,7 +579,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
                                                     (orbital, node, atomPos);
 			*/
                  scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
-                                   atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbital
+                                   atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue
                                                     (orbital, node, atomPos);												
                  
 
