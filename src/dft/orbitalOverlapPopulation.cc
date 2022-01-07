@@ -356,6 +356,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 				int n,l,m;
 				n = atomTypesorbitals[i][1];
 				l = atomTypesorbitals[i][2];
+				
 				for(m = -l;m <=l; m++)
 				{	std::vector<int> tempvec(3,0);
 					atomTypewiseSTOvector[j].n.push_back(n);

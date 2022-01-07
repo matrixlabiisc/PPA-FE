@@ -183,7 +183,7 @@ public:
 
 	
 	double RadialPseudoAtomicOrbital(unsigned int n , unsigned int l, 
-			 				         double & r);	
+			 				         double  r);	
 
 
 

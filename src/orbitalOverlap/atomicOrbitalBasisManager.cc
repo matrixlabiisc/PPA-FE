@@ -673,9 +673,14 @@ double AtomicOrbitalBasisManager::PseudoAtomicOrbitalvalue
 			* realSphericalHarmonics(l, m, theta, phi);
 }
 double AtomicOrbitalBasisManager::RadialPseudoAtomicOrbital(unsigned int n , unsigned int l, 
-			 				         double & r)
+			 				         double  r)
 {
-   double v = alglib::spline1dcalc(*radialSplineObject[n][l],r);
+   if( r >= 11.5)
+    return 0.0;
+    if(r <= 0.01)
+        r = 0.01;
+   double v = alglib::spline1dcalc(*radialSplineObject[n][l],r)/r/r;
+   std::cout<<"$$$"<<r<<"  "<<v<<std::endl;
     return v;
     
 }                                      
@@ -716,7 +721,7 @@ double AtomicOrbitalBasisManager::PseudoAtomicOrbitalvalue
 
 	convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
 
-	return radialPartofSlaterTypeOrbital(n, r)
+	return RadialPseudoAtomicOrbital(n, l, r)
 			* realSphericalHarmonics(l, m, theta, phi);
 }
 
@@ -838,15 +843,18 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
         return;
     else
     {
+        std::cout<<"Entering CreatePseudoAtomicOrbitalBasis "<<std::endl;
         std::vector<std::vector<double>> values;
         dftfe::dftUtils::readFile(2,values,"H.txt");
         int                 numRows = values.size();
+        std::cout<<"Number of Rows in H.txt is"<<numRows<<std::endl;
         std::vector<double> xData(numRows), yData(numRows);
       for (int irow = 0; irow < numRows; ++irow)
         {
           xData[irow] = values[irow][0];
           yData[irow] = values[irow][1];
-        }        
+        } 
+        std::cout<<"Value of the Datas at : "<<xData[0]<<" is "<<yData[0]<<std::endl;       
       alglib::real_1d_array x;
       x.setcontent(numRows, &xData[0]);
       alglib::real_1d_array y;
@@ -862,7 +870,9 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
                                  0.0,
                                  *spline);
 
-      radialSplineObject[1][0] = spline;          
-    
+      radialSplineObject[1][0] = spline; 
+
+      double v = spline1dcalc(*radialSplineObject[1][0],0.5 );         
+      std::cout<<" Value of spline at 0.5 is "<<v<<std::endl;  
     }    
 }
