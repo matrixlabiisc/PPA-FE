@@ -885,7 +885,7 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
                                  0.0,
                                  *spline);
 
-                radialSplineObject[1][0] = spline; 
+                radialSplineObject[n[i]][l[i]] = spline; 
 
                 double v = spline1dcalc(*radialSplineObject[1][0],0.5 );         
                 std::cout<<" Value of spline at 0.5 is "<<v<<std::endl;
