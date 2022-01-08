@@ -675,11 +675,11 @@ double AtomicOrbitalBasisManager::PseudoAtomicOrbitalvalue
 double AtomicOrbitalBasisManager::RadialPseudoAtomicOrbital(unsigned int n , unsigned int l, 
 			 				         double  r)
 {
-   if( r >= 11.5)
+   if( r >= rmax)
     return 0.0;
-    if(r <= 0.01)
+    if(r <= rmin)
         r = 0.01;
-   double v = alglib::spline1dcalc(*radialSplineObject[n][l],r)/r;
+   double v = alglib::spline1dcalc(*radialSplineObject[n][l],r);
    std::cout<<"$$$ "<<r<<"  "<<v<<std::endl;
     return v;
     
@@ -845,34 +845,52 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
     {
         std::cout<<"Entering CreatePseudoAtomicOrbitalBasis "<<std::endl;
         std::vector<std::vector<double>> values;
-        dftfe::dftUtils::readFile(2,values,"H.txt");
-        int                 numRows = values.size();
-        std::cout<<"Number of Rows in H.txt is"<<numRows<<std::endl;
-        std::vector<double> xData(numRows), yData(numRows);
-      for (int irow = 0; irow < numRows; ++irow)
+        std::string path = "../PAorbitals/PA_";
+        for(int i = 0; i < n.size(); i++ )
         {
-          xData[irow] = values[irow][0];
-          yData[irow] = values[irow][1];
-        } 
-        std::cout<<"Value of the Datas at : "<<xData[0]<<" is "<<yData[0]<<std::endl;       
-      alglib::real_1d_array x;
-      x.setcontent(numRows, &xData[0]);
-      alglib::real_1d_array y;
-      y.setcontent(numRows, &yData[0]);
-      alglib::ae_int_t             natural_bound_type = 0;
-      alglib::spline1dinterpolant *spline = new alglib::spline1dinterpolant;
-      alglib::spline1dbuildcubic(x,
+            if(m[i] == 0)
+            {
+                std::string file = path + std::to_string(atomType)+"_"+std::to_string(n[i])+"_"+std::to_string(l[i])+".txt";
+                std::cout<<"Reading atomic orbital basis from file: "<<file<<std::endl;
+                dftfe::dftUtils::readFile(2,values,file);
+                int                 numRows = values.size();
+                std::cout<<"Number of Rows in "<<file<<" is"<<numRows<<std::endl;
+                std::vector<double> xData(numRows), yData(numRows);
+                for (int irow = 0; irow < numRows; ++irow)
+                {
+                    xData[irow] = values[irow][0];
+                    yData[irow] = values[irow][1];
+                    if (xData[irow] <= 0.00001)
+                        yData[irow] = yData[irow+1]/xData[irow+1];
+                    else
+                        yData[irow] = yData[irow]/xData[irow];    
+                } 
+                rmax = xData[xData.size()-1];
+                rmin = xData[1];
+                yData[0] = yData[1];
+                std::cout<<"Value of the Datas at : "<<xData[0]<<" is "<<yData[0]<<std::endl;       
+                alglib::real_1d_array x;
+                x.setcontent(numRows, &xData[0]);
+                alglib::real_1d_array y;
+                y.setcontent(numRows, &yData[0]);
+                alglib::ae_int_t             natural_bound_typeL = 0;
+                alglib::ae_int_t             natural_bound_typeR = 1;
+                alglib::spline1dinterpolant *spline = new alglib::spline1dinterpolant;
+                alglib::spline1dbuildcubic(x,
                                  y,
                                  numRows,
-                                 natural_bound_type,
+                                 natural_bound_typeL,
                                  0.0,
-                                 natural_bound_type,
+                                 natural_bound_typeR,
                                  0.0,
                                  *spline);
 
-      radialSplineObject[1][0] = spline; 
+                radialSplineObject[1][0] = spline; 
 
-      double v = spline1dcalc(*radialSplineObject[1][0],0.5 );         
-      std::cout<<" Value of spline at 0.5 is "<<v<<std::endl;  
+                double v = spline1dcalc(*radialSplineObject[1][0],0.5 );         
+                std::cout<<" Value of spline at 0.5 is "<<v<<std::endl;
+            }
+        }
+
     }    
 }

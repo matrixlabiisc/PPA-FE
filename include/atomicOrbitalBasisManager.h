@@ -133,6 +133,7 @@ public:
 	std::vector<int> n;
 	std::vector<int> l;
 	std::vector<int> m;
+	double rmax, rmin;
 	bool PseudoAtomicOrbital = false;
 	void CreatePseudoAtomicOrbitalBasis();
 	std::map<unsigned int,std::map<unsigned int, alglib::spline1dinterpolant *>> radialSplineObject;	
