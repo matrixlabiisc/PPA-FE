@@ -850,6 +850,7 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
         {
             if(m[i] == 0)
             {
+                values.clear();
                 std::string file = path + std::to_string(atomType)+"_"+std::to_string(n[i])+"_"+std::to_string(l[i])+".txt";
                 std::cout<<"Reading atomic orbital basis from file: "<<file<<std::endl;
                 dftfe::dftUtils::readFile(2,values,file);
@@ -887,7 +888,7 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
 
                 radialSplineObject[n[i]][l[i]] = spline; 
 
-                double v = spline1dcalc(*radialSplineObject[1][0],0.5 );         
+                double v = spline1dcalc(*radialSplineObject[n[i]][l[i]],0.5);         
                 std::cout<<" Value of spline at 0.5 is "<<v<<std::endl;
             }
         }

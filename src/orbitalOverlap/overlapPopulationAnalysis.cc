@@ -106,34 +106,45 @@ void spillFactorsofProjectionwithCS(const std::vector<double> & C,
 	auto O	  = matrixmatrixmul(temp,n1,n2,C,n1,m1);
 	double TSF = 0.0;
 	double CSF = 0.0;
+	double fCSF = 0.0;
 	double TSFabs = 0.0;
 	double CSFabs = 0.0;
+	double fCSFabs = 0.0;
+	double fsum = 0.0;
 	double totalNumOfElectrons = 0.0;
 		unsigned int numOfFilledKSorbitals = std::distance(std::begin(occupationNum), 
 											 std::find_if(std::begin(occupationNum), std::end(occupationNum), 
 						                     [](double x) { return (std::abs(x) < 1e-05); }));
+											 
 		unsigned int numOfKSOrbitals = occupationNum.size();
-		for(auto &n : occupationNum){ totalNumOfElectrons += n; }
-
-        totalNumOfElectrons = 2*totalNumOfElectrons;	
+	
 	for(int i = 0; i < N; i++)
 	{
 		TSF += 1- O[i*N+i];
-		TSFabs += std::fabs(1- O[i*N+i]);	
+		TSFabs += std::fabs(1- O[i*N+i]);
+			
 		if(i < numOfFilledKSorbitals)
 		{
-			CSF += 2*(1- O[i*N+i]);
-			CSFabs += 2*(std::fabs(1- O[i*N+i]));
+			CSF += (1- O[i*N+i]);
+			CSFabs += (std::fabs(1- O[i*N+i]));
 		}
+		fCSF += occupationNum[i]*O[i*N+i];
+		fCSFabs += std::fabs(occupationNum[i]*O[i*N+i]);
+		fsum += occupationNum[i];
 	}
 	TSF /= N;
 	TSFabs /=N;
-	CSF /=(numOfFilledKSorbitals * totalNumOfElectrons);
-	CSFabs /=(numOfFilledKSorbitals * totalNumOfElectrons);
+	CSF /=(numOfFilledKSorbitals );
+	CSFabs /=(numOfFilledKSorbitals);
+	fCSF = 1 - fCSF/fsum;
+	fCSFabs = 1 - fCSFabs/fsum;
+	std::cout<<"Number of Filled KS orbitals: "<<numOfFilledKSorbitals<<std::endl;
 	std::cout<<"TSF: "<<TSF<<std::endl;
 	std::cout<<"TSFabs: "<<TSF<<std::endl;
 	std::cout<<"CSF: "<<CSF<<std::endl;
 	std::cout<<"CSFabs: "<<CSFabs<<std::endl;
+	std::cout<<"fCSF: "<<fCSF<<std::endl;
+	std::cout<<"fCSFabs: "<<fCSFabs<<std::endl;
 
 
 
