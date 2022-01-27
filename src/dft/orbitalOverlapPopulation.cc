@@ -142,17 +142,17 @@ template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
 dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::vector<std::vector<double> > & eigenValuesInput)
 {
-	std::cout << std::fixed;
-	std::cout << std::setprecision(8);
+	pcout << std::fixed;
+	pcout << std::setprecision(8);
 
-	std::cout << "Started post-processing DFT results to obtain Bonding information..\n";
+	pcout << "Started post-processing DFT results to obtain Bonding information..\n";
 
 	// would it be good to replace (unsigned) int with (unsigned) short int?
 	// would it be better to replace unsigned short int with uint16_t?
 
 	//**************** Forming data structures of atom info ****************// 
 
-	std::cout << "reading input files..\n";
+	pcout << "reading input files..\n";
 
 	const unsigned int numOfAtoms = atomLocations.size();
 	const unsigned int numOfAtomTypes = atomTypes.size(); // is not more than 120
@@ -207,7 +207,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	atomCoordinatesFile.close();
 
-	std::cout << "reading " << coordinatesFile << " complete!\n";
+	pcout << "reading " << coordinatesFile << " complete!\n";
 
 	assert(count == numOfAtoms); // we can add an assert message later 
 	assert(numOfAtomTypes == atomTypesSet.size());
@@ -385,16 +385,16 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		atomTypewiseSTOvector[j].CreatePseudoAtomicOrbitalBasis();
 	}
 
-	std::cout << "vector of objects constructed!\n";
+	pcout << "vector of objects constructed!\n";
 
 	
 
 
-	//std::cout << "reading " << basisInfoFile << " complete!\n";
+	//pcout << "reading " << basisInfoFile << " complete!\n";
 
 	//assert(count == numOfAtomTypes);
 
-	//std::cout << "reading and storing inputs done!\n";
+	//pcout << "reading and storing inputs done!\n";
 /* ********TO BE EDITED***************
 	std::set_difference(atomTypesSet.begin(), atomTypesSet.end(), 
 		atomTypeswithBasisInfo.begin(), atomTypeswithBasisInfo.end(), //Checking if all the atomtypes are filled.. 
@@ -465,7 +465,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	unsigned int totalDimOfBasis = count; 
 
-	std::cout << "total basis dimension: " << totalDimOfBasis << '\n'
+	pcout << "total basis dimension: " << totalDimOfBasis << '\n'
 			  << "total number of atoms: " << numOfAtoms << '\n'
 			  << "number of atoms types: " << numOfAtomTypes << '\n';
 
@@ -502,14 +502,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	}
 
-	std::cout << "global basis info constructed!\n";
+	pcout << "global basis info constructed!\n";
 
 	//std::vector<OrbitalQuantumNumbers> quantumNumHierarchy;
 	//quantumNumHierarchy.reserve(numOfOrbitalsForShellCount(1, maxBasisShell));
 	
 	//constructQuantumNumbersHierarchy(1, maxBasisShell, quantumNumHierarchy);
 
-	//std::cout << "quantum hierarchy constructed!\n";
+	//pcout << "quantum hierarchy constructed!\n";
 
 	// vector of AtomicOrbitalBasisManager objects 
 
@@ -524,7 +524,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
         //unsigned int numOfKSOrbitals = 6; //For H2O molecule
 
-	std::cout << "Number of Kohn-Sham orbitals: " << numOfKSOrbitals << '\n';
+	pcout << "Number of Kohn-Sham orbitals: " << numOfKSOrbitals << '\n';
 
 
 	//std::vector<std::function<double(const dealii::Point<3>)>> MOsOfCO; 
@@ -540,7 +540,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
         for(unsigned int iEigen = 0; iEigen < numOfKSOrbitals; ++iEigen)
            {
              occupationNum[iEigen] = dftUtils::getPartialOccupancy(eigenValuesInput[0][iEigen],fermiEnergy,C_kb,dftParameters::TVal);
-             std::cout<<occupationNum[iEigen]<<std::endl;
+             pcout<<occupationNum[iEigen]<<std::endl;
            }
 
 
@@ -550,55 +550,311 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	std::vector<IndexSet::size_type> locallyOwnedDOFs;
 	locallyOwnedSet.fill_index_vector(locallyOwnedDOFs);
 	unsigned int n_dofs = locallyOwnedDOFs.size();
+	MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout<<"Processor ID: "<<this_mpi_process<<" has dofs total: "<<n_dofs<<std::endl;
 	std::vector<double> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis, 0.0);
 	std::vector<double> scaledKSOrbitalValues_FEnodes(n_dofs * numOfKSOrbitals, 0.0);
+/*	std::vector<double> dummyphi_1(n_dofs,0.0);
+	std::vector<double> dummyphi_2(n_dofs,0.0);
+	std::vector<double> dummyshi_1(n_dofs,0.0);
+	std::vector<double> dummyshi_2(n_dofs,0.0);	
+	std::vector<double> phi_1Norm(totalDimOfBasis,0.0);
+	std::vector<double> phi_2Norm(totalDimOfBasis,0.0);
+	std::vector<double> shi_1Norm(numOfKSOrbitals,0.0);
+	std::vector<double> shi_2Norm(numOfKSOrbitals,0.0);		
+	std::vector<double> phi_1NormTotal(totalDimOfBasis,0.0);
+	std::vector<double> phi_2NormTotal(totalDimOfBasis,0.0);
+	std::vector<double> shi_1NormTotal(numOfKSOrbitals,0.0);
+	std::vector<double> shi_2NormTotal(numOfKSOrbitals,0.0);	*/	
+
 #ifdef USE_COMPLEX
 
 #else
+	MPI_Barrier(MPI_COMM_WORLD);
+/*	for(int dof = 0; dof < n_dofs; dof++)
+	{
+		const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
+		Point<3> node  = d_supportPointsEigen[dofID];
+		dummyphi_1[dof] = dofID*2;
+		dummyshi_1[dof] = dofID/2;
+		auto atomPos = atomCoordinates[ globalBasisInfo[0].atomID ];
+		auto atomTypeID = globalBasisInfo[0].atomTypeID;
+		OrbitalQuantumNumbers orbital= {globalBasisInfo[0].n, globalBasisInfo[0].l,globalBasisInfo[0].m};	
+		dummyphi_2[dof] = atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue
+                                                    (orbital, node, atomPos);
+		dummyshi_2[dof] = d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + 0];
+												
+	}
+	auto dummy1_upperTriaOfSserial = selfMatrixTmatrixmul(dummyphi_1, n_dofs, 1);
+	std::vector<double> dummy1_upperTriaOfS(1,0.0);
+	// Use MPI_all reduce to get S contribution from other procs.
+    MPI_Allreduce(&dummy1_upperTriaOfSserial[0],
+                          &dummy1_upperTriaOfS[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+
+	pcout<< "Overlap of dummy1_phi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+
+		printVector(dummy1_upperTriaOfS);
+	}
+	auto dummy1_upperTriaOfOserial = selfMatrixTmatrixmul(dummyshi_1, n_dofs, 1);
+	std::vector<double> dummy1_upperTriaOfO(1,0.0);
+	// Use MPI_all reduce to get S contribution from other procs.
+    MPI_Allreduce(&dummy1_upperTriaOfOserial[0],
+                          &dummy1_upperTriaOfO[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+
+	pcout<< "Overlap of dummy1_shi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+
+		printVector(dummy1_upperTriaOfO);
+	}	
+	auto dummy2_upperTriaOfSserial = selfMatrixTmatrixmul(dummyphi_2, n_dofs, 1);
+	std::vector<double> dummy2_upperTriaOfS(1,0.0);
+	// Use MPI_all reduce to get S contribution from other procs.
+    MPI_Allreduce(&dummy2_upperTriaOfSserial[0],
+                          &dummy2_upperTriaOfS[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+
+	pcout<< "Overlap of dummy2_phi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+
+		printVector(dummy2_upperTriaOfS);
+	}
+	auto dummy2_upperTriaOfOserial = selfMatrixTmatrixmul(dummyshi_2, n_dofs, 1);
+	std::vector<double> dummy2_upperTriaOfO(1,0.0);
+	// Use MPI_all reduce to get S contribution from other procs.
+    MPI_Allreduce(&dummy2_upperTriaOfOserial[0],
+                          &dummy2_upperTriaOfO[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+
+	pcout<< "Overlap of dummy2_shi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+
+		printVector(dummy2_upperTriaOfO);
+	}	
+ 	auto dummy1_arrayVecOfProjserial = matrixTmatrixmul(dummyphi_1, n_dofs, 1, 
+									   				 dummyshi_1, n_dofs, 1);
+	std::vector<double> dummy1_arrayVecOfProj(1,0.0);
+    MPI_Allreduce(&dummy1_arrayVecOfProjserial[0],
+                          &dummy1_arrayVecOfProj[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+				  
+				  
+	pcout << "dummy1 phi^Tshi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{	
+
+		printVector(dummy1_arrayVecOfProj);
+
+	}
+ 	auto dummy2_arrayVecOfProjserial = matrixTmatrixmul(dummyphi_2, n_dofs, 1, 
+									   				 dummyshi_2, n_dofs, 1);
+	std::vector<double> dummy2_arrayVecOfProj(1,0.0);
+    MPI_Allreduce(&dummy2_arrayVecOfProjserial[0],
+                          &dummy2_arrayVecOfProj[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+				  
+				  
+	pcout << "dummy2 phi^Tshi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{	
+
+		printVector(dummy2_arrayVecOfProj);
+
+	}	
+ 	auto dummy12_arrayVecOfProjserial = matrixTmatrixmul(dummyphi_1, n_dofs, 1, 
+									   				 dummyshi_2, n_dofs, 1);
+	std::vector<double> dummy12_arrayVecOfProj(1,0.0);
+    MPI_Allreduce(&dummy12_arrayVecOfProjserial[0],
+                          &dummy12_arrayVecOfProj[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+				  
+				  
+	pcout << "dummy12 phi^Tshi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{	
+
+		printVector(dummy12_arrayVecOfProj);
+
+	}
+ 	auto dummy21_arrayVecOfProjserial = matrixTmatrixmul(dummyphi_2, n_dofs, 1, 
+									   				 dummyshi_1, n_dofs, 1);
+	std::vector<double> dummy21_arrayVecOfProj(1,0.0);
+    MPI_Allreduce(&dummy21_arrayVecOfProjserial[0],
+                          &dummy21_arrayVecOfProj[0],
+                          1,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+				  
+				  
+	pcout << "dummy21 phi^Tshi \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{	
+
+		printVector(dummy21_arrayVecOfProj);
+
+	}	
+	*/
+	
 	for (unsigned int dof = 0; dof < n_dofs; ++dof)
 	  {
 	    // get nodeID 
 	    const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
-    
+		if (!constraintsNone.is_constrained(dofID))
+		{
 	    // get coordinates of the finite-element node
-	    Point<3> node  = d_supportPointsEigen[dofID];
+	    	Point<3> node  = d_supportPointsEigen[dofID];
 
-	    auto count1 = totalDimOfBasis*dof;
+	    	auto count1 = totalDimOfBasis*dof;
 
-	    for (unsigned int i = 0; i < totalDimOfBasis; ++i)
-	      {
-			auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
-			auto atomTypeID = globalBasisInfo[i].atomTypeID;
+	    	for (unsigned int i = 0; i < totalDimOfBasis; ++i)
+	      	{
+				auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
+				auto atomTypeID = globalBasisInfo[i].atomTypeID;
 			//auto orbital = OrbitalQuantumNumber(globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m);
-			OrbitalQuantumNumbers orbital= {globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m};
+				OrbitalQuantumNumbers orbital= {globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m};
 			//scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
 		  	//atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
 		  	//(orbital, node, atomPos);
 		  	/*
-                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].bungeOrbital
                                                     (orbital, node, atomPos);
 			*/
-                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
+                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue
-                                                    (orbital, node, atomPos);												
-                 
+                                                    (orbital, node, atomPos);
+
+                /*phi_1Norm[i] +=  atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue
+                                                    (orbital, node, atomPos);
+				phi_2Norm[i] += atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue(orbital, node, atomPos)*atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue(orbital, node, atomPos);
+                 */                                   									
 
 
-	      }
+	      	}
+		}	
+	    	auto count2 = numOfKSOrbitals*dof;
 
-	    auto count2 = numOfKSOrbitals*dof;
-
-	    for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
-	      {
-		scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] * d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];
-		// hydrogenMoleculeBondingOrbital(node);  MOsOfCO[j](node);
-	      }
-
+	    	for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
+	      		{
+					scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) * d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];
+				/*	shi_1Norm[j] += d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];
+					shi_2Norm[j] +=  d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j]*d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];
+		// hydrogenMoleculeBondingOrbital(node);  MOsOfCO[j](node); 
+		if (constraintsNone.is_constrained(dofID))
+		{
+			std::cout<<"Processor ID: "<<this_mpi_process<<" Mass matrix: "<<d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof)<<" eigen vector: "<<d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j]
+						<<std::endl;
+		
+		}	*/    
+		 
+		  		}
+  
+		
 	  }
 #endif
-	// matrix of orbital values at FE nodes constructed!
-	std::cout << "matrices of orbital values at the nodes constructed!\n";
+	MPI_Barrier(MPI_COMM_WORLD);
+/*	    MPI_Allreduce(&phi_1Norm[0],
+                          &phi_1NormTotal[0],
+                          totalDimOfBasis,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+		    MPI_Allreduce(&phi_2Norm[0],
+                          &phi_2NormTotal[0],
+                          totalDimOfBasis,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);		
+		MPI_Barrier(MPI_COMM_WORLD);
+	    MPI_Allreduce(&shi_1Norm[0],
+                          &shi_1NormTotal[0],
+                          numOfKSOrbitals,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+		    MPI_Allreduce(&shi_2Norm[0],
+                          &shi_2NormTotal[0],
+                          numOfKSOrbitals,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+	pcout<<"Phi_1Norm"<<std::endl;					  					  			  
+	for(int i = 0; i <totalDimOfBasis; i++ )
+	{
+		pcout<<phi_1NormTotal[i]<<" ";
+	}
+	pcout<<std::endl;
+	pcout<<"Phi_2Normsq"<<std::endl;					  					  			  
+	for(int i = 0; i <totalDimOfBasis; i++ )
+	{
+		pcout<<phi_2NormTotal[i]<<" ";
+	}
+	pcout<<std::endl;	
+	pcout<<"Shi_1Norm"<<std::endl;					  					  			  
+	for(int i = 0; i <numOfKSOrbitals; i++ )
+	{
+		pcout<<shi_1NormTotal[i]<<" ";
+	}
+	pcout<<std::endl;
+	pcout<<"Shi_2Normsq"<<std::endl;					  					  			  
+	for(int i = 0; i <numOfKSOrbitals; i++ )
+	{
+		pcout<<shi_2NormTotal[i]<<" ";
+	}
+	pcout<<std::endl;	
+	*/
+	pcout << "matrices of orbital values at the nodes constructed!\n";
+	pcout<< "Over lap matrix of Psi \n";
+	
+	auto OverlapPsiSerial = selfMatrixTmatrixmul(scaledKSOrbitalValues_FEnodes, n_dofs,  numOfKSOrbitals);
+	std::vector<double> OverlapPsi((numOfKSOrbitals*(numOfKSOrbitals+1)/2),0.0);
+	    MPI_Allreduce(&OverlapPsiSerial[0],
+                          &OverlapPsi[0],
+                          (numOfKSOrbitals*(numOfKSOrbitals+1)/2),
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+		writeVectorToFile(OverlapPsi, "overlapPsi.txt");
+		printVector(OverlapPsi);
+	}
 
 	// direct assembly of Overlap matrix S using Mass diagonal matrix from Gauss Lobatto
 
@@ -608,69 +864,135 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	
 	
 	// COOP Analysis Begin
-	auto upperTriaOfS = selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
-	std::cout << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
-	printVector(upperTriaOfS);
-	writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
+	
+	auto upperTriaOfSserial = selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
+	std::vector<double> upperTriaOfS((totalDimOfBasis*(totalDimOfBasis+1)/2),0.0);
+	// Use MPI_all reduce to get S contribution from other procs.
+    MPI_Allreduce(&upperTriaOfSserial[0],
+                          &upperTriaOfS[0],
+                          (totalDimOfBasis*(totalDimOfBasis+1)/2),
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+
+	pcout<< "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+		writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
+		printVector(upperTriaOfS);
+	}		
+	
 	auto invS = inverseOfOverlapMatrix(upperTriaOfS, totalDimOfBasis);
-	std::cout << "Full S inverse matrix: \n";
-	printVector(invS);
-	auto arrayVecOfProj 
-					= matrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
+
+
+	
+ 	auto arrayVecOfProjserial = matrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
 									   				 scaledKSOrbitalValues_FEnodes, n_dofs, numOfKSOrbitals);
-	std::cout << "Matrix of projections with atomic orbitals: \n";
-	printVector(arrayVecOfProj);
-	writeVectorAs2DMatrix(arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
+	std::vector<double> arrayVecOfProj(totalDimOfBasis*numOfKSOrbitals,0.0);
+    MPI_Allreduce(&arrayVecOfProjserial[0],
+                          &arrayVecOfProj[0],
+                          (totalDimOfBasis*numOfKSOrbitals),
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+				  
+				  
+	pcout << "Matrix of projections with atomic orbitals: \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{	
+		writeVectorAs2DMatrix(arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs.txt");
+		printVector(arrayVecOfProj);
+		pcout<< "Full S inverse matrix: \n";
+		printVector(invS);
+	}											
+	
+
 	auto coeffArrayVecOfProj
 					= matrixmatrixmul(invS, 		  totalDimOfBasis, totalDimOfBasis, 
 									  				arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals);
-	std::cout << "Matrix of coefficients of projections: \n";
-	printVector(coeffArrayVecOfProj);
-	writeVectorAs2DMatrix(coeffArrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
+	pcout << "Matrix of coefficients of projections: \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+		writeVectorAs2DMatrix(coeffArrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOs.txt");
+		printVector(coeffArrayVecOfProj);
+	}											
+	
+	
 	std::vector<double> CoeffofOrthonormalisedKSonAO = OrthonormalizationofProjectedWavefn(upperTriaOfS,totalDimOfBasis, totalDimOfBasis,
 														coeffArrayVecOfProj,totalDimOfBasis, numOfKSOrbitals);	
-	std::cout<<"C bar Output:"<<std::endl;
-	printVector(CoeffofOrthonormalisedKSonAO);
-	writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO, totalDimOfBasis, numOfKSOrbitals,
+	pcout<<"C bar Output:"<<std::endl;
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{	writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO, totalDimOfBasis, numOfKSOrbitals,
 												"OrthocoeffsOfKSOrbitalsProjOnAOsCOOP.txt");																							
-
+		printVector(CoeffofOrthonormalisedKSonAO);
+	}	
 	//auto spillingortho = spillFactorsOfProjection(CoeffofOrthonormalisedKSonAO, arrayVecOfProj, occupationNum);
 	auto spilling = spillFactorsOfProjection(coeffArrayVecOfProj, arrayVecOfProj, occupationNum);
 	//COOP Analysis End
 	pcout<<"--------------------------COOP Data Saved------------------------------"<<std::endl;
 	
 	//COHP Analysis Begin	
-	auto OrthoscaledOrbitalValues_FEnodes = LowdenOrtho(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis,upperTriaOfS);	
-	auto upperTriaOfOrthoS = selfMatrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
-	std::cout << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
-	printVector(upperTriaOfOrthoS);
-	writeVectorToFile(upperTriaOfOrthoS, "OrthooverlapMatrix.txt");
-	auto coeffarrayVecOfOrthoProj 
-					= matrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
-									   				 scaledKSOrbitalValues_FEnodes, n_dofs, numOfKSOrbitals);
-	std::cout << "Matrix of projections with Ortho atomic orbitals: \n";
-	printVector(coeffarrayVecOfOrthoProj);
-	/*writeVectorAs2DMatrix(arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
-												"projOfKSOrbitalsWithAOs.txt");*/
 
-	std::cout << "Matrix of coefficients of projections: \n";
-	printVector(coeffarrayVecOfOrthoProj);
-	writeVectorAs2DMatrix(coeffarrayVecOfOrthoProj, totalDimOfBasis, numOfKSOrbitals,
+	auto OrthoscaledOrbitalValues_FEnodes = LowdenOrtho(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis,upperTriaOfS);	
+	auto upperTriaOfOrthoSserial = selfMatrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
+	std::vector<double> upperTriaOfOrthoS(totalDimOfBasis*(totalDimOfBasis+1)/2,0.0);
+    MPI_Allreduce(&upperTriaOfOrthoSserial[0],
+                          &upperTriaOfOrthoS[0],
+                          (totalDimOfBasis*(totalDimOfBasis+1))/2,
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);	
+	pcout << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+		writeVectorToFile(upperTriaOfOrthoS, "OrthooverlapMatrix.txt");
+		printVector(upperTriaOfOrthoS);
+	}	
+	
+ 	auto coeffarrayVecOfOrthoProjserial = matrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
+									   				 scaledKSOrbitalValues_FEnodes, n_dofs, numOfKSOrbitals);
+	
+	std::vector<double> coeffarrayVecOfOrthoProj(totalDimOfBasis*numOfKSOrbitals,0.0);
+    MPI_Allreduce(&coeffarrayVecOfOrthoProjserial[0],
+                          &coeffarrayVecOfOrthoProj[0],
+                          (totalDimOfBasis*numOfKSOrbitals),
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);	
+					  
+	pcout << "Matrix of projections with Ortho atomic orbitals: \n";
+
+	pcout << "Matrix of coefficients of projections: \n";
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+		writeVectorAs2DMatrix(coeffarrayVecOfOrthoProj, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOsforCOHP.txt");
+		printVector(coeffarrayVecOfOrthoProj);
+	}											
 	std::vector<double> CoeffofOrthonormalisedKSonAO_COHP = OrthonormalizationofProjectedWavefn(upperTriaOfOrthoS,totalDimOfBasis, totalDimOfBasis,
 														coeffarrayVecOfOrthoProj,totalDimOfBasis, numOfKSOrbitals);	
-	std::cout<<"C hat Output:"<<std::endl;
-	printVector(CoeffofOrthonormalisedKSonAO_COHP);
-	writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_COHP, totalDimOfBasis, numOfKSOrbitals,
-												"OrthocoeffsOfKSOrbitalsProjOnAOsCOHP.txt");	
+	pcout<<"C hat Output:"<<std::endl;
+	
+	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+		writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_COHP, totalDimOfBasis, numOfKSOrbitals,
+												"OrthocoeffsOfKSOrbitalsProjOnAOsCOHP.txt");
+		printVector(CoeffofOrthonormalisedKSonAO_COHP);
+	}											
 
 	//Compute projected Hamiltonian of FE discretized Hamiltonian into 
 #ifdef USE_COMPLEX
 
 #else
-
+/*
          std::vector<dataTypes::number> ProjHam;
 	 d_kohnShamDFTOperatorPtr->XtHX(OrthoscaledOrbitalValues_FEnodes,
 					totalDimOfBasis,
@@ -678,71 +1000,74 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
    printVector(ProjHam);
 
    writeVectorAs2DMatrix(ProjHam, totalDimOfBasis, totalDimOfBasis,
-												"projHamiltonianMatrix.txt");
+												"projHamiltonianMatrix.txt"); */
 
 #endif
-					
+	if(this_mpi_process == 0)
+	{					
 					
 	// writing the energy levels and the occupation numbers 
 
-  unsigned int kPointDummy = 0;
+  		unsigned int kPointDummy = 0;
  
-	std::ofstream energyLevelsOccNumsFile ("energyLevelsOccNums.txt");
+		std::ofstream energyLevelsOccNumsFile ("energyLevelsOccNums.txt");
 
-	if (energyLevelsOccNumsFile.is_open())
-	{
-		for (unsigned int i = 0; i < eigenValues[0].size(); ++i)
+		if (energyLevelsOccNumsFile.is_open())
 		{
+		for (unsigned int i = 0; i < eigenValues[0].size(); ++i)
+			{
 			const double partialOccupancy = dftUtils::getPartialOccupancy(
                               eigenValues[kPointDummy][i], fermiEnergy, C_kb, TVal);
 			
 			energyLevelsOccNumsFile << eigenValues[kPointDummy][i]
                               << " " << partialOccupancy << '\n';
-		}
+			}
 
 		energyLevelsOccNumsFile.close();
-	}
+		}
 
-	else std::cout << "couldn't open energyLevelsOccNums.txt file!\n";
+		else 
+		pcout << "couldn't open energyLevelsOccNums.txt file!\n";
 
-	// and writing the high level basis information  
+		// and writing the high level basis information  
 
-  std::ofstream highLevelBasisInfoFile ("highLevelBasisInfo.txt");	
+  		std::ofstream highLevelBasisInfoFile ("highLevelBasisInfo.txt");	
 
-	if (highLevelBasisInfoFile.is_open())
-	{
-		highLevelBasisInfoFile << numOfAtoms << '\n'
+		if (highLevelBasisInfoFile.is_open())
+			{
+				highLevelBasisInfoFile << numOfAtoms << '\n'
 													 << numOfAtomTypes << '\n'
 													 << totalDimOfBasis << '\n'
 													 << numOfKSOrbitals << '\n';
 
-		highLevelBasisInfoFile.close();
-	}
+				highLevelBasisInfoFile.close();
+			}
 
-	else std::cout << "couldn't open highLevelBasisInfo.txt file!\n";   
-
-	
-	// printing the spilling information
-
-	std::cout << "Total spilling = " << spilling.totalSpilling << '\n';
-	std::cout << "Absolute total spilling = " << spilling.absTotalSpilling << '\n';
-	std::cout << "Charge Spilling = " << spilling.chargeSpilling << '\n';
-	std::cout << "Absolute charge spilling = " << spilling.absChargeSpilling << '\n';
+		else 
+		pcout << "couldn't open highLevelBasisInfo.txt file!\n";   
 
 	
-	std::cout<<"\n-------------------------------------------------------\n";
-	std::cout<<"Projected SpillFactors are:"<<std::endl;
-	spillFactorsofProjectionwithCS(coeffArrayVecOfProj,upperTriaOfS,occupationNum ,
+		// printing the spilling information
+
+		pcout << "Total spilling = " << spilling.totalSpilling << '\n';
+		pcout << "Absolute total spilling = " << spilling.absTotalSpilling << '\n';
+		pcout << "Charge Spilling = " << spilling.chargeSpilling << '\n';
+		pcout << "Absolute charge spilling = " << spilling.absChargeSpilling << '\n';
+
+	
+		pcout<<"\n-------------------------------------------------------\n";
+		pcout<<"Projected SpillFactors are:"<<std::endl;
+		spillFactorsofProjectionwithCS(coeffArrayVecOfProj,upperTriaOfS,occupationNum ,
 									totalDimOfBasis, numOfKSOrbitals,
 									totalDimOfBasis,totalDimOfBasis	);
-	std::cout<<"\n-------------------------------------------------------\n";
-		std::cout<<"\n-------------------------------------------------------\n";
-	std::cout<<"OrthoNormalised Projected SpillFactors are:"<<std::endl;
-	spillFactorsofProjectionwithCS(CoeffofOrthonormalisedKSonAO,upperTriaOfS,occupationNum ,
+		pcout<<"\n-------------------------------------------------------\n";
+		pcout<<"\n-------------------------------------------------------\n";
+		pcout<<"OrthoNormalised Projected SpillFactors are:"<<std::endl;
+		spillFactorsofProjectionwithCS(CoeffofOrthonormalisedKSonAO,upperTriaOfS,occupationNum ,
 									totalDimOfBasis, numOfKSOrbitals,
 									totalDimOfBasis,totalDimOfBasis	);
-	std::cout<<"\n-------------------------------------------------------\n";
-
-
+		pcout<<"\n-------------------------------------------------------\n";
+		}
+	MPI_Barrier(MPI_COMM_WORLD);
 
 }

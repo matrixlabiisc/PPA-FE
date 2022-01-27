@@ -680,7 +680,7 @@ double AtomicOrbitalBasisManager::RadialPseudoAtomicOrbital(unsigned int n , uns
     if(r <= rmin)
         r = 0.01;
    double v = alglib::spline1dcalc(*radialSplineObject[n][l],r);
-   std::cout<<"$$$ "<<r<<"  "<<v<<std::endl;
+   // std::cout<<"$$$ "<<r<<"  "<<v<<std::endl;
     return v;
     
 }                                      
@@ -843,7 +843,7 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
         return;
     else
     {
-        std::cout<<"Entering CreatePseudoAtomicOrbitalBasis "<<std::endl;
+        //std::cout<<"Entering CreatePseudoAtomicOrbitalBasis "<<std::endl;
         std::vector<std::vector<double>> values;
         std::string path = "../PAorbitals/PA_";
         for(int i = 0; i < n.size(); i++ )
@@ -852,10 +852,10 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
             {
                 values.clear();
                 std::string file = path + std::to_string(atomType)+"_"+std::to_string(n[i])+"_"+std::to_string(l[i])+".txt";
-                std::cout<<"Reading atomic orbital basis from file: "<<file<<std::endl;
+                //std::cout<<"Reading atomic orbital basis from file: "<<file<<std::endl;
                 dftfe::dftUtils::readFile(2,values,file);
                 int                 numRows = values.size();
-                std::cout<<"Number of Rows in "<<file<<" is"<<numRows<<std::endl;
+                //std::cout<<"Number of Rows in "<<file<<" is"<<numRows<<std::endl;
                 std::vector<double> xData(numRows), yData(numRows);
                 for (int irow = 0; irow < numRows; ++irow)
                 {
@@ -869,7 +869,7 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
                 rmax = xData[xData.size()-1];
                 rmin = xData[1];
                 yData[0] = yData[1];
-                std::cout<<"Value of the Datas at : "<<xData[0]<<" is "<<yData[0]<<std::endl;       
+                //std::cout<<"Value of the Datas at : "<<xData[0]<<" is "<<yData[0]<<std::endl;       
                 alglib::real_1d_array x;
                 x.setcontent(numRows, &xData[0]);
                 alglib::real_1d_array y;
@@ -889,7 +889,7 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
                 radialSplineObject[n[i]][l[i]] = spline; 
 
                 double v = spline1dcalc(*radialSplineObject[n[i]][l[i]],0.5);         
-                std::cout<<" Value of spline at 0.5 is "<<v<<std::endl;
+                //std::cout<<" Value of spline at 0.5 is "<<v<<std::endl;
             }
         }
 

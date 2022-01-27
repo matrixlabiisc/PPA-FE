@@ -22,26 +22,33 @@
 #include <string>
 #include <cassert>
 #include "distributions.h"
+#include <dft.h>
+#include <dftUtils.h>
+#include <dftParameters.h>
 
 
 template <typename T>
 void printVector(const std::vector<T>& vec)
-{
+{	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
 	for (const auto& elem : vec)
 	{
 		std::cout << elem << ' ';
 	}
 	std::cout << '\n';
+	}
 }
 
 template <typename T, std::size_t N>
 void printArray(const std::array<T, N>& array)
-{
+{	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
 	for (const auto& elem : array)
 	{
 		std::cout << elem << ' ';
 	}
 	std::cout << '\n';
+	}
 }
 
 template <typename T>

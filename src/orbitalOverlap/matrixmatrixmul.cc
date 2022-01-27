@@ -216,7 +216,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 	assert((m2 == n1) && "Number of Atomic Orbitals not consistent");
 	
 	
-	std::cout<<"#Begin OrthoNormalization"<<std::endl;
+	//std::cout<<"#Begin OrthoNormalization"<<std::endl;
 	std::vector<double> S(m1*n1,0.0);
 	int count = 0;
 	for(int i = 0; i < m1; i++)
@@ -228,6 +228,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 			count++;
 		}
 	}
+	/*
 	for (int i = 0; i < m1; i++)
 	{
 		for(int j = 0; j < n1; j++)
@@ -244,30 +245,30 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 			std::cout<<C[i*n1+j]<<" ";
 		std::cout<<std::endl;
 	}
-
-	std::cout<<"#B=CtS"<<std::endl;
+	*/
+	//std::cout<<"#B=CtS"<<std::endl;
 	auto B = matrixTmatrixmul(C,m2,n2,S,m1,n1);
-		for (int i = 0; i < n2; i++)
+	/*	for (int i = 0; i < n2; i++)
 	{
 		for(int j = 0; j < n1; j++)
 			std::cout<<B[i*n1+j]<<" ";
 		std::cout<<std::endl;
-	}
-	std::cout<<"#O=(CtS)C"<<std::endl;
+	} 
+	std::cout<<"#O=(CtS)C"<<std::endl; */
 	auto O = matrixmatrixmul(B,n2,n1,C,m2,n2);
-		for (int i = 0; i < n2; i++)
+	/*	for (int i = 0; i < n2; i++)
 	{
 		for(int j = 0; j < n2; j++)
 			std::cout<<O[i*n2+j]<<" ";
 		std::cout<<std::endl;
-	}	
+	} */	
 	int N = n2;
 	//double D[N];
 	std::vector<double> D(N,0.0);
 	count = 0;
 	//double upperO[N*N];
 	std::vector<double> upperO(N*N,0.0);
-	std::cout<<"#Begin Upper Triangle creation"<<std::endl;
+	// std::cout<<"#Begin Upper Triangle creation"<<std::endl;
 	for(int i = 0; i < N; i++)
 	{
 		for(int j = 0; j < N; j++)
@@ -278,7 +279,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 			upperO[i*N+j] = 0.0;
 			
 		} 
-	}
+	}/*
 	for (int i = 0; i < n2; i++)
 	{
 		for(int j = 0; j < n2; j++)
@@ -287,7 +288,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 	}
 	std::cout<<"#Completed Upper Triangle creation"<<std::endl;	
 
-      std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
+      std::cout<<"#Begin Eigen Value Decomposition"<<std::endl; */
 	  int                info;
       const  int lwork = 1 + 6*N +
                                  2 * N*N,
@@ -317,7 +318,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
     std::vector<int>().swap(iwork);
 	if(info > 0)
 		std::cout<<"Eigen Value Decomposition Falied!!"<<std::endl;
-	else
+	/*else
 	{
 		std::cout<<"The diagonal entried are:"<<std::endl;
 		for(int i = 0; i < N; i++)
@@ -330,18 +331,18 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 				std::cout<<upperO[i*N+j]<<" ";
 			std::cout<<std::endl;	
 		}	
-	}
+	} */
 	std::vector<double>D_half(N*N,0.0);
 	std::vector<double> upperOvector(N*N,0);
 	for(int i = 0; i <N; i++)
 		D_half[i*N+i] = pow(D[i],-0.5);
-	std::cout<<"D half matrix: "<<std::endl;
+	/*std::cout<<"D half matrix: "<<std::endl;
 	for(int i = 0; i < N; i++)
 	{
 		for(int j = 0; j < N; j++)
 			std::cout<<D_half[i*N+j]<<" ";
-		std::cout<<std::endl;	
-	}
+		std::cout<<std::endl; 	
+	} */
 	for(int i =0; i < N; i++)
 	{
 		for (int j = 0; j < N; j++)
@@ -355,13 +356,14 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 
 	auto temp = matrixTmatrixmul(Cnew,n2,n2,S,m1,n1);
 	auto temp2 = matrixmatrixmul(temp,m2,n1,Cnew,m2,n2);
-	std::cout<<"The I matrix is: "<<std::endl;
+/*	std::cout<<"The I matrix is: "<<std::endl;
 	for(int i = 0; i < m2; i++)
 	{
 		for(int j = 0; j <n2; j++)
 			std::cout<<temp2[i*n2+j]<<" ";
 		std::cout<<std::endl;
 	}
+	*/
 	
 	
 	return Cnew;
@@ -386,7 +388,7 @@ std::vector<double>  LowdenOrtho(const std::vector<double> &phi, int n_dofs, int
 			}
 		}
 	}
-      std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
+      //std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
 	  int                info;
       const  int lwork = 1 + 6*N +
                                  2 * N*N,
@@ -416,7 +418,7 @@ std::vector<double>  LowdenOrtho(const std::vector<double> &phi, int n_dofs, int
     std::vector<int>().swap(iwork);
 	if(info > 0)
 		std::cout<<"Eigen Value Decomposition Falied!!"<<std::endl;
-	else
+/*	else
 	{
 		std::cout<<"The diagonal entried are:"<<std::endl;
 		for(int i = 0; i < N; i++)
@@ -429,18 +431,18 @@ std::vector<double>  LowdenOrtho(const std::vector<double> &phi, int n_dofs, int
 				std::cout<<S[j*N+i]<<" ";
 			std::cout<<std::endl;	
 		}	
-	}
+	} */
 	std::vector<double>D_half(N*N,0.0);
 	std::vector<double> Uvector(N*N,0);
 	for(int i = 0; i <N; i++)
 		D_half[i*N+i] = pow(D[i],-0.5);
-	std::cout<<"D half matrix: "<<std::endl;
+	/*std::cout<<"D half matrix: "<<std::endl;
 	for(int i = 0; i < N; i++)
 	{
 		for(int j = 0; j < N; j++)
 			std::cout<<D_half[i*N+j]<<" ";
 		std::cout<<std::endl;	
-	}
+	} */
 	for(int i =0; i < N; i++)
 	{
 		for (int j = 0; j < N; j++)
