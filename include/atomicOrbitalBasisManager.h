@@ -119,7 +119,7 @@ public:
     		}
 			
 			
-			else if (basisDataForm == 3) // Bunge orbitals
+			else if (basisDataForm == 1) // Bunge orbitals
 			{
 				ROfBungeBasisFunctions = getRofBungeOrbitalBasisFuncs(atomType);
 			

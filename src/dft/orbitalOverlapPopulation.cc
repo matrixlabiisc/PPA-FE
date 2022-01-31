@@ -332,7 +332,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		//	(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
 
     	 // atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, 3, true));
-		atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, 0, true));
+		atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, dftParameters::AtomicOrbitalBasis, true));
 
 
 	}
@@ -751,12 +751,15 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			//scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector[dof] *
 		  	//atomTypewiseSTOvector[atomTypeID].hydrogenicOrbital
 		  	//(orbital, node, atomPos);
-		  	/*
-                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+		  		if(dftParameters::AtomicOrbitalBasis == 1)
+            	{     
+					scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].bungeOrbital
                                                     (orbital, node, atomPos);
-			*/
-                 scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+				}										
+				if(dftParameters::AtomicOrbitalBasis == 0)
+				{
+                 	scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue
                                                     (orbital, node, atomPos);
 
@@ -764,7 +767,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
                                                     (orbital, node, atomPos);
 				phi_2Norm[i] += atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue(orbital, node, atomPos)*atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue(orbital, node, atomPos);
                  */                                   									
-
+				}		
 
 	      	}
 		}	

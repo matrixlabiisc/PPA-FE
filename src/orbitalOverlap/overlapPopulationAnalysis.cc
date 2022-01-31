@@ -88,7 +88,7 @@ spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecO
 void spillFactorsofProjectionwithCS(const std::vector<double> & C,
 									const std::vector<double> & Sold,
 									const std::vector<double> & occupationNum,
-									int m1, int n1, int m2, int n2)
+									int m1, int n1`, int m2, int n2)
 {
 	int N = n1;
 	std::vector<double> S(m2*n2,0.0);
@@ -116,7 +116,7 @@ void spillFactorsofProjectionwithCS(const std::vector<double> & C,
 											 std::find_if(std::begin(occupationNum), std::end(occupationNum), 
 						                     [](double x) { return (std::abs(x) < 1e-05); }));
 											 
-		unsigned int numOfKSOrbitals = occupationNum.size();
+		//unsigned int numOfKSOrbitals = occupationNum.size();
 	
 	for(int i = 0; i < N; i++)
 	{
@@ -128,7 +128,7 @@ void spillFactorsofProjectionwithCS(const std::vector<double> & C,
 			CSF += (1- O[i*N+i]);
 			CSFabs += (std::fabs(1- O[i*N+i]));
 		}
-		fCSF += occupationNum[i]*O[i*N+i];
+		fCSF += (occupationNum[i]*O[i*N+i]);
 		fCSFabs += std::fabs(occupationNum[i]*O[i*N+i]);
 		fsum += occupationNum[i];
 	}

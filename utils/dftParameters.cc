@@ -150,7 +150,8 @@ namespace dftfe
     bool         useELPAGPUKernel                               = false;
     std::string  xcFamilyType                                   = "";
     bool         gpuMemOptMode                                  = false;
-    unsigned int NumofKSOrbitalsproj                            = 7;
+    unsigned int NumofKSOrbitalsproj                            = 0;
+    unsigned int AtomicOrbitalBasis                             = 0;
     std::string pseudoAtomicOrbitalsFile                        ="";
     void
     declare_parameters(ParameterHandler &prm)
@@ -276,9 +277,14 @@ namespace dftfe
       
         prm.declare_entry(
           "NUMBER OF PROJECTED KS ORBITALS",
-          "7",
+          "1",
           Patterns::Integer(1),
           "[Standard] Number of Kohn-Sham Orbitals projected");
+        prm.declare_entry(
+          "BASIS TO PROJECT",
+          "0",
+          Patterns::Integer(0),
+          "[Standard] Parameter that selects the atomic orbital basis function 0: Pseudoatomic basis 1: BungeOrbitals basis");          
       
       
       }
@@ -1137,6 +1143,9 @@ namespace dftfe
           prm.get_bool("WRITE LOCALIZATION LENGTHS");
         dftParameters::NumofKSOrbitalsproj =  
           prm.get_integer("NUMBER OF PROJECTED KS ORBITALS"); 
+        dftParameters::AtomicOrbitalBasis =  
+          prm.get_integer("BASIS TO PROJECT");  
+
       }
       prm.leave_subsection();
 
