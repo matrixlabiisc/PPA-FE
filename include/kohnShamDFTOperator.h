@@ -251,6 +251,10 @@ node is stored
     reinitkPointSpinIndex(const unsigned int kPointIndex,
                           const unsigned int spinIndex);
 
+
+    void
+    resetExtPotHamFlag();
+
     //
     // initialize eigen class
     //
@@ -484,8 +488,7 @@ node is stored
 
     /// storage for  matrix-free cell data
     const unsigned int        d_numberNodesPerElement;
-    const unsigned int        d_numberMacroCells;
-    std::vector<unsigned int> d_macroCellSubCellMap;
+    const unsigned int        d_numberCellsLocallyOwned;
     std::vector<unsigned int> d_nodesPerCellClassificationMap;
     std::vector<unsigned int> d_globalArrayClassificationMap;
 

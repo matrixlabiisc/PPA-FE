@@ -161,7 +161,8 @@ namespace dftfe
     void
     initNoRemesh(const bool updateImagesAndKPointsAndVselfBins = true,
                  const bool checkSmearedChargeWidthsForOverlap = true,
-                 const bool useSingleAtomSolutionOverride      = false);
+                 const bool useSingleAtomSolutionOverride      = false,
+                 const bool isMeshDeformed                     = false);
 
     /**
      * @brief Selects between only electronic field relaxation or combined electronic and geometry relaxation
@@ -883,7 +884,13 @@ namespace dftfe
      * stores required data for Kohn-Sham problem
      */
     unsigned int numElectrons, numElectronsUp, numElectronsDown, numLevels;
-    std::set<unsigned int>           atomTypes;
+    std::set<unsigned int> atomTypes;
+
+    /// FIXME: eventually it should be a map of atomic number to struct-
+    /// {valence number, mesh input etc}
+    std::map<unsigned int, unsigned int> d_atomTypeAtributes;
+
+    /// FIXME: remove atom type atributes from atomLocations
     std::vector<std::vector<double>> atomLocations, atomLocationsFractional,
       d_reciprocalLatticeVectors, d_domainBoundingVectors,
       d_atomLocationsInitial;
@@ -1267,7 +1274,6 @@ namespace dftfe
     // storage of densities for xl-bomd
     std::deque<distributedCPUVec<double>> d_groundStateDensityHistory;
 
-    double                                        d_pspTail = 8.0;
     std::map<dealii::CellId, std::vector<double>> d_pseudoVLoc;
 
     /// Internal data:: map for cell id to Vpseudo local of individual atoms.

@@ -455,9 +455,9 @@ namespace dftfe
 
           prm.declare_entry(
             "REUSE DENSITY",
-            "2",
+            "0",
             Patterns::Integer(0, 2),
-            "[Standard] Parameter controlling the reuse of ground-state density during geometry optimization. The options are 0 (reinitialize density based on superposition of atomic densities), 1 (reuse ground-state density of previous relaxation step), and 2 (subtract superposition of atomic densities from the previous step's ground-state density and add superposition of atomic densities from the new atomic positions. Option 2 is not enabled for spin-polarized case. Default setting is 2 for spin-unpolarized and 1 for spin-polarized cases.");
+            "[Standard] Parameter controlling the reuse of ground-state density during geometry optimization. The options are 0 (reinitialize density based on superposition of atomic densities), 1 (reuse ground-state density of previous relaxation step), and 2 (subtract superposition of atomic densities from the previous step's ground-state density and add superposition of atomic densities from the new atomic positions. Option 2 is not enabled for spin-polarized case. Default setting is 0.");
         }
         prm.leave_subsection();
       }
@@ -1468,7 +1468,7 @@ namespace dftfe
             << "=========================================================================================================="
             << std::endl;
           std::cout
-            << "			Welcome to the Open Source program DFT-FE version	1.1-pre		        "
+            << "			Welcome to the Open Source program DFT-FE version	1.1.0-pre		        "
             << std::endl;
           std::cout
             << "This is a C++ code for materials modeling from first principles using Kohn-Sham density functional theory."
@@ -1489,15 +1489,12 @@ namespace dftfe
             << " DFT-FE Principal developers and Mentors (alphabetically) :									"
             << std::endl;
           std::cout << "														" << std::endl;
-          std::cout
-            << " Sambit Das               - University of Michigan, USA"
-            << std::endl;
-          std::cout
-            << " Vikram Gavini (Mentor)   - University of Michigan, USA"
-            << std::endl;
-          std::cout
-            << " Krishnendu Ghosh         - Intel Corporation, USA"
-            << std::endl;
+          std::cout << " Sambit Das               - University of Michigan, USA"
+                    << std::endl;
+          std::cout << " Vikram Gavini (Mentor)   - University of Michigan, USA"
+                    << std::endl;
+          std::cout << " Krishnendu Ghosh         - Intel Corporation, USA"
+                    << std::endl;
           std::cout
             << " Phani Motamarri          - Indian Institute of Science, India"
             << std::endl;
@@ -1614,6 +1611,13 @@ namespace dftfe
           !dftParameters::constraintMagnetization,
           ExcMessage(
             "DFT-FE Error: This is a SPIN UNPOLARIZED calculation. Can't have CONSTRAINT MAGNETIZATION ON."));
+
+      if (dftParameters::spinPolarized == 1 &&
+          !dftParameters::constraintMagnetization)
+        AssertThrow(
+          std::abs(std::abs(dftParameters::start_magnetization) - 0.5) > 1e-6,
+          ExcMessage(
+            "DFT-FE Error: START MAGNETIZATION =+-0.5 only applicable in case of CONSTRAINT MAGNETIZATION set to ON."));
 
       if (dftParameters::verbosity >= 1 &&
           Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)

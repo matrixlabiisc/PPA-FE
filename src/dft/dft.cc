@@ -354,6 +354,8 @@ using namespace dealii;
              it++)
           {
             atomTypes.insert((unsigned int)((*it)[0]));
+            d_atomTypeAtributes[(unsigned int)((*it)[0])] =
+              (unsigned int)((*it)[1]);
 
             if (!dftParameters::isPseudopotential)
               AssertThrow(
@@ -399,6 +401,8 @@ using namespace dealii;
              it++)
           {
             atomTypes.insert((unsigned int)((*it)[0]));
+            d_atomTypeAtributes[(unsigned int)((*it)[0])] =
+              (unsigned int)((*it)[1]);
 
             if (!dftParameters::isPseudopotential)
               AssertThrow(
@@ -759,8 +763,8 @@ using namespace dealii;
 
     d_elpaScala.processGridELPASetup(d_numEigenValues,
                                      d_numEigenValuesRR,
-				     interBandGroupComm,
-				     interpoolcomm);
+                                     interBandGroupComm,
+                                     interpoolcomm);
 
     MPI_Barrier(MPI_COMM_WORLD);
     computingTimerStandard.leave_subsection("Atomic system initialization");
@@ -1173,7 +1177,8 @@ using namespace dealii;
   dftClass<FEOrder, FEOrderElectro>::initNoRemesh(
     const bool updateImagesAndKPointsAndVselfBins,
     const bool checkSmearedChargeWidthsForOverlap,
-    const bool useSingleAtomSolutionOverride)
+    const bool useSingleAtomSolutionOverride,
+    const bool isMeshDeformed)
   {
     computingTimerStandard.enter_subsection("KSDFT problem initialization");
     if (updateImagesAndKPointsAndVselfBins)
@@ -1308,7 +1313,19 @@ using namespace dealii;
                                     d_kPointWeights.size(),
                                   true);
 
-    initializeKohnShamDFTOperator();
+    double init_ksoperator;
+    MPI_Barrier(MPI_COMM_WORLD);
+    init_ksoperator = MPI_Wtime();
+
+    if (isMeshDeformed)
+      initializeKohnShamDFTOperator();
+    else
+      reInitializeKohnShamDFTOperator();
+
+    init_ksoperator = MPI_Wtime() - init_ksoperator;
+    if (dftParameters::verbosity >= 2)
+      pcout << "Time taken for kohnShamDFTOperator class reinitialization: "
+            << init_ksoperator << std::endl;
 
     computingTimerStandard.leave_subsection("KSDFT problem initialization");
   }
@@ -1474,7 +1491,7 @@ using namespace dealii;
       }
     else
       {
-        initNoRemesh(false, true, false);
+        initNoRemesh(true, true, false, true);
       }
   }
 
@@ -1826,17 +1843,15 @@ using namespace dealii;
   dftClass<FEOrder, FEOrderElectro>::reInitializeKohnShamDFTOperator()
   {
     if (!dftParameters::useGPU)
-      {
-        d_kohnShamDFTOperatorPtr->init();
-      }
+      d_kohnShamDFTOperatorPtr->resetExtPotHamFlag();
 
 #ifdef DFTFE_WITH_GPU
     if (dftParameters::useGPU)
       {
-        d_kohnShamDFTOperatorCUDAPtr->init();
+        d_kohnShamDFTOperatorCUDAPtr->resetExtPotHamFlag();
 
-        d_kohnShamDFTOperatorCUDAPtr->reinitNoRemesh(
-          std::min(dftParameters::chebyWfcBlockSize, d_numEigenValues));
+        d_kohnShamDFTOperatorCUDAPtr->reinit(
+          std::min(dftParameters::chebyWfcBlockSize, d_numEigenValues), true);
       }
 #endif
   }
@@ -3550,8 +3565,7 @@ using namespace dealii;
 #ifdef DFTFE_WITH_GPU
     if (dftParameters::useGPU &&
         (dftParameters::writeWfcSolutionFields ||
-         dftParameters::writeLdosFile || dftParameters::writePdosFile ||
-         std::is_same<dataTypes::number, std::complex<double>>::value))
+         dftParameters::writeLdosFile || dftParameters::writePdosFile))
       for (unsigned int kPoint = 0;
            kPoint < (1 + dftParameters::spinPolarized) * d_kPointWeights.size();
            ++kPoint)
