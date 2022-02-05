@@ -88,7 +88,7 @@ spillFactors spillFactorsOfProjection(const std::vector<double>& coeffMatrixVecO
 void spillFactorsofProjectionwithCS(const std::vector<double> & C,
 									const std::vector<double> & Sold,
 									const std::vector<double> & occupationNum,
-									int m1, int n1`, int m2, int n2)
+									int m1, int n1, int m2, int n2)
 {
 	int N = n1;
 	std::vector<double> S(m2*n2,0.0);
@@ -149,6 +149,81 @@ void spillFactorsofProjectionwithCS(const std::vector<double> & C,
 
 
 }
+void spillFactorsofProjectionwithCS(const std::vector<double> & C_up,const std::vector<double> & C_down,
+									const std::vector<double> & Sold,
+									const std::vector<double> & occupationNum,
+									int m1, int n1, int m2, int n2)
+{
+	int N = n1;
+	std::vector<double> S(m2*n2,0.0);
+	int count = 0;
+	for(int i = 0; i < m2; i++)
+	{
+		for(int j = i; j < n2; j++)
+		{
+			S[i*n1+j] = Sold[count];
+			S[j*m1+i] = Sold[count];
+			count++;
+		}
+	}
+	auto temp_up = matrixTmatrixmul(C_up,n1,m1,S,m2,n2);
+	auto O_up	  = matrixmatrixmul(temp_up,n1,n2,C_up,n1,m1);
+	auto temp_down = matrixTmatrixmul(C_down,n1,m1,S,m2,n2);
+	auto O_down	  = matrixmatrixmul(temp_down,n1,n2,C_down,n1,m1);
+	double TSF_up = 0.0;
+	double CSF_up = 0.0;
+	double fCSF_up = 0.0;
+	double TSF_down = 0.0;
+	double CSF_down = 0.0;
+	double fCSF_down = 0.0;
+	double fsum_up = 0.0;
+	double fsum_down = 0.0;
+	double totalNumOfElectrons = 0.0;										 
+	unsigned int numOfeigenValues = occupationNum.size()/2;
+	unsigned int nstates_up=0;
+	unsigned int nstates_down = 0;
+	for(int i = 0; i < N; i++)
+	{
+		TSF_up += (1- O_up[i*N+i]);
+		TSF_down += +(1- O_down[i*N+i]);
+			
+		if(occupationNum[i]> 1e-05)
+		{
+			CSF_up += (1- O_up[i*N+i]);
+			nstates_up++;
+		}
+		if(occupationNum[i+numOfeigenValues]> 1e-05)
+		{
+			CSF_down += (1- O_down[i*N+i]);
+
+			nstates_down++;
+		}		
+
+		fCSF_up += occupationNum[i]*O_up[i*N+i];
+		fCSF_down += occupationNum[i+numOfeigenValues]*O_down[i*N+i];
+		fsum_up += occupationNum[i];
+		fsum_down +=occupationNum[i+numOfeigenValues];
+	}
+	TSF_up /= N;
+	TSF_down /=N;
+	CSF_up /=nstates_up;
+	CSF_down /=nstates_down;
+	fCSF_up = 1 - fCSF_up/fsum_up;
+	fCSF_down = 1 - fCSF_down/fsum_down;
+	std::cout<<"Number of Filled KS orbitals fo spin up: "<<nstates_up<<std::endl;
+	std::cout<<"TSF: "<<TSF_up<<std::endl;
+	std::cout<<"CSF: "<<CSF_up<<std::endl;
+	std::cout<<"fCSF: "<<fCSF_up<<std::endl;
+	std::cout<<std::endl;
+	std::cout<<"Number of Filled KS orbitals fo spin down: "<<nstates_down<<std::endl;
+	std::cout<<"TSF: "<<TSF_down<<std::endl;
+	std::cout<<"CSF: "<<CSF_down<<std::endl;
+	std::cout<<"fCSF: "<<fCSF_down<<std::endl;	
+
+
+
+}
+
 
 std::vector<double> 
 pCOOPvsEnergy(std::vector<double> epsvalues,
