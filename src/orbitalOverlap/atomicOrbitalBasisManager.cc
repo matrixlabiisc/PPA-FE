@@ -523,7 +523,273 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum){
             });
 
             break;
+        case 27: // Cobalt
 
+            nMin = 1;
+            nMax = 4;
+            lMax = 2;
+            numOfOrbitals = 7;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.943995 * RofSTO(1, 27.7200, r)
+                + 0.061559 * RofSTO(2, 23.6470 , r)
+                + 0.000242 * RofSTO(2, 11.4491, r)
+                + 0.008379 * RofSTO(3, 34.0340, r)
+                - 0.000061 * RofSTO(3, 8.3235, r)
+                - 0.000079 * RofSTO(3, 5.8668, r)
+                + 0.000014 * RofSTO(3, 3.9712, r)
+                + 0.000194 * RofSTO(4, 13.7147, r)
+                - 0.000007 * RofSTO(4, 2.3510, r)
+                + 0.000004 * RofSTO(4, 1.4789, r)
+                - 0.000002 * RofSTO(4, 0.9682, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.287759 * RofSTO(1, 27.7200, r)
+                - 0.187848 * RofSTO(2, 23.6470 , r)
+                + 1.037770 * RofSTO(2, 11.4491, r)
+                - 0.000495 * RofSTO(3, 34.0340, r)
+                + 0.080271 * RofSTO(3, 8.3235, r)
+                - 0.008894 * RofSTO(3, 5.8668, r)
+                + 0.003249 * RofSTO(3, 3.9712, r)
+                + 0.068031 * RofSTO(4, 13.7147, r)
+                - 0.000376 * RofSTO(4, 2.3510, r)
+                + 0.000212 * RofSTO(4, 1.4789, r)
+                - 0.000072 * RofSTO(4, 0.9682, r);
+            });
+
+            // 2p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.000537 * RofSTO(2, 44.2550, r)
+                - 0.324287 * RofSTO(2, 17.0241, r)
+                - 0.431492 * RofSTO(2, 9.1323, r)
+                - 0.006429 * RofSTO(2, 4.3892, r)
+                - 0.289377 * RofSTO(3, 13.8562, r)
+                + 0.000501 * RofSTO(3, 3.5952, r)
+                - 0.000226 * RofSTO(3, 2.3606, r);
+
+            });
+
+            // 3s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.107248 * RofSTO(1, 27.7200, r)
+                + 0.082163 * RofSTO(2, 23.6470 , r)
+                - 0.462596 * RofSTO(2, 11.4491, r)
+                + 0.000918 * RofSTO(3, 34.0340, r)
+                - 0.069603 * RofSTO(3, 8.3235, r)
+                + 0.656282 * RofSTO(3, 5.8668, r)
+                + 0.544100 * RofSTO(3, 3.9712, r)
+                - 0.104340 * RofSTO(4, 13.7147, r)
+                + 0.006522 * RofSTO(4, 2.3510, r)
+                - 0.001372 * RofSTO(4, 1.4789, r)
+                + 0.000344 * RofSTO(4, 0.9682, r);
+            });
+
+            // 3p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.000138 * RofSTO(2, 44.2550, r)
+                - 0.068746 * RofSTO(2, 17.0241, r)
+                - 0.524198 * RofSTO(2, 9.1323, r)
+                + 0.802168 * RofSTO(2, 4.3892, r)
+                - 0.018893 * RofSTO(3, 13.8562, r)
+                + 0.427837 * RofSTO(3, 3.5952, r)
+                + 0.050135 * RofSTO(3, 2.3606, r);
+            });
+            // 3d RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.017145 * RofSTO(3, 13.3848, r)
+                + 0.215033 * RofSTO(3, 7.0420, r)
+                + 0.412560 * RofSTO(3, 4.2891, r)
+                + 0.385376 * RofSTO(3, 2.5511, r)
+                + 0.135684 * RofSTO(3, 1.5435, r);
+
+            });
+            // 4s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.022574 * RofSTO(1, 27.7200, r)
+                + 0.017611 * RofSTO(2, 23.6470 , r)
+                - 0.099332 * RofSTO(2, 11.4491, r)
+                + 0.000208 * RofSTO(3, 34.0340, r)
+                - 0.021162 * RofSTO(3, 8.3235, r)
+                + 0.176287 * RofSTO(3, 5.8668, r)
+                + 0.116449 * RofSTO(3, 3.9712, r)
+                - 0.024406 * RofSTO(4, 13.7147, r)
+                - 0.281087 * RofSTO(4, 2.3510, r)
+                - 0.539890 * RofSTO(4, 1.4789, r)
+                - 0.308876 * RofSTO(4, 0.9682, r);
+            });
+            break;
+        case 52: // Telerium
+
+            nMin = 1;
+            nMax = 5;
+            lMax = 3;
+            numOfOrbitals = 11;
+            bungeFunctions.reserve(numOfOrbitals);
+
+            // 1s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.943995 * RofSTO(1, 27.7200, r)
+                + 0.061559 * RofSTO(2, 23.6470 , r)
+                + 0.000242 * RofSTO(2, 11.4491, r)
+                + 0.008379 * RofSTO(3, 34.0340, r)
+                - 0.000061 * RofSTO(3, 8.3235, r)
+                - 0.000079 * RofSTO(3, 5.8668, r)
+                + 0.000014 * RofSTO(3, 3.9712, r)
+                + 0.000194 * RofSTO(4, 13.7147, r)
+                - 0.000007 * RofSTO(4, 2.3510, r)
+                + 0.000004 * RofSTO(4, 1.4789, r)
+                - 0.000002 * RofSTO(4, 0.9682, r);
+            });
+
+            // 2s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.287759 * RofSTO(1, 27.7200, r)
+                - 0.187848 * RofSTO(2, 23.6470 , r)
+                + 1.037770 * RofSTO(2, 11.4491, r)
+                - 0.000495 * RofSTO(3, 34.0340, r)
+                + 0.080271 * RofSTO(3, 8.3235, r)
+                - 0.008894 * RofSTO(3, 5.8668, r)
+                + 0.003249 * RofSTO(3, 3.9712, r)
+                + 0.068031 * RofSTO(4, 13.7147, r)
+                - 0.000376 * RofSTO(4, 2.3510, r)
+                + 0.000212 * RofSTO(4, 1.4789, r)
+                - 0.000072 * RofSTO(4, 0.9682, r);
+            });
+
+            // 2p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.000537 * RofSTO(2, 44.2550, r)
+                - 0.324287 * RofSTO(2, 17.0241, r)
+                - 0.431492 * RofSTO(2, 9.1323, r)
+                - 0.006429 * RofSTO(2, 4.3892, r)
+                - 0.289377 * RofSTO(3, 13.8562, r)
+                + 0.000501 * RofSTO(3, 3.5952, r)
+                - 0.000226 * RofSTO(3, 2.3606, r);
+
+            });
+
+            // 3s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.107248 * RofSTO(1, 27.7200, r)
+                + 0.082163 * RofSTO(2, 23.6470 , r)
+                - 0.462596 * RofSTO(2, 11.4491, r)
+                + 0.000918 * RofSTO(3, 34.0340, r)
+                - 0.069603 * RofSTO(3, 8.3235, r)
+                + 0.656282 * RofSTO(3, 5.8668, r)
+                + 0.544100 * RofSTO(3, 3.9712, r)
+                - 0.104340 * RofSTO(4, 13.7147, r)
+                + 0.006522 * RofSTO(4, 2.3510, r)
+                - 0.001372 * RofSTO(4, 1.4789, r)
+                + 0.000344 * RofSTO(4, 0.9682, r);
+            });
+
+            // 3p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.000138 * RofSTO(2, 44.2550, r)
+                - 0.068746 * RofSTO(2, 17.0241, r)
+                - 0.524198 * RofSTO(2, 9.1323, r)
+                + 0.802168 * RofSTO(2, 4.3892, r)
+                - 0.018893 * RofSTO(3, 13.8562, r)
+                + 0.427837 * RofSTO(3, 3.5952, r)
+                + 0.050135 * RofSTO(3, 2.3606, r);
+            });
+            // 3d RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.017145 * RofSTO(3, 13.3848, r)
+                + 0.215033 * RofSTO(3, 7.0420, r)
+                + 0.412560 * RofSTO(3, 4.2891, r)
+                + 0.385376 * RofSTO(3, 2.5511, r)
+                + 0.135684 * RofSTO(3, 1.5435, r);
+
+            });
+            // 4s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.022574 * RofSTO(1, 27.7200, r)
+                + 0.017611 * RofSTO(2, 23.6470 , r)
+                - 0.099332 * RofSTO(2, 11.4491, r)
+                + 0.000208 * RofSTO(3, 34.0340, r)
+                - 0.021162 * RofSTO(3, 8.3235, r)
+                + 0.176287 * RofSTO(3, 5.8668, r)
+                + 0.116449 * RofSTO(3, 3.9712, r)
+                - 0.024406 * RofSTO(4, 13.7147, r)
+                - 0.281087 * RofSTO(4, 2.3510, r)
+                - 0.539890 * RofSTO(4, 1.4789, r)
+                - 0.308876 * RofSTO(4, 0.9682, r);
+            });
+            // 4p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.000138 * RofSTO(2, 44.2550, r)
+                - 0.068746 * RofSTO(2, 17.0241, r)
+                - 0.524198 * RofSTO(2, 9.1323, r)
+                + 0.802168 * RofSTO(2, 4.3892, r)
+                - 0.018893 * RofSTO(3, 13.8562, r)
+                + 0.427837 * RofSTO(3, 3.5952, r)
+                + 0.050135 * RofSTO(3, 2.3606, r);
+            });            
+ 
+            // 4d RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.017145 * RofSTO(3, 13.3848, r)
+                + 0.215033 * RofSTO(3, 7.0420, r)
+                + 0.412560 * RofSTO(3, 4.2891, r)
+                + 0.385376 * RofSTO(3, 2.5511, r)
+                + 0.135684 * RofSTO(3, 1.5435, r);
+
+            });   
+            // 4f RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.0 * RofSTO(4, 0.0, r);
+
+
+            });   
+            // 5s RHF orbital
+            bungeFunctions.push_back([&](double r){return 
+                
+                + 0.022574 * RofSTO(1, 27.7200, r)
+                + 0.017611 * RofSTO(2, 23.6470 , r)
+                - 0.099332 * RofSTO(2, 11.4491, r)
+                + 0.000208 * RofSTO(3, 34.0340, r)
+                - 0.021162 * RofSTO(3, 8.3235, r)
+                + 0.176287 * RofSTO(3, 5.8668, r)
+                + 0.116449 * RofSTO(3, 3.9712, r)
+                - 0.024406 * RofSTO(4, 13.7147, r)
+                - 0.281087 * RofSTO(4, 2.3510, r)
+                - 0.539890 * RofSTO(4, 1.4789, r)
+                - 0.308876 * RofSTO(4, 0.9682, r);
+            });
+            // 5p RHF orbital 
+            bungeFunctions.push_back([&](double r){return 
+                
+                - 0.000138 * RofSTO(2, 44.2550, r)
+                - 0.068746 * RofSTO(2, 17.0241, r)
+                - 0.524198 * RofSTO(2, 9.1323, r)
+                + 0.802168 * RofSTO(2, 4.3892, r)
+                - 0.018893 * RofSTO(3, 13.8562, r)
+                + 0.427837 * RofSTO(3, 3.5952, r)
+                + 0.050135 * RofSTO(3, 2.3606, r);
+            });            
+            break;
         default:
 
             std::cout << "Bunge orbital data not filled for "
