@@ -246,76 +246,12 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	// b1 and b2 are the range of principal quantum numbers, ends inclusive
 	// where the slater type basis are constructed based on n, l, m values or each orbital 
 
-	// at present zeta is fixed for the atom but soon we ll have 
-	// to construct it on own using the slater rules function 
-
-	// functions to print the orbital hierarchy and numbering for atom types and atoms 
-	// for easy postprocessing 
-	// we have to output to 2 files 
-	// atomTypeWiseOrbitalNums.txt and
-	// atomWiseAtomicOrbitalInfo.txt  
-
-	// just to clear the contents of the file, if it already exists from previous runs 
-/*	std::ofstream atomTypeWiseOrbitalNumsFile;
-	atomTypeWiseOrbitalNumsFile.open("atomTypeWiseOrbitalNums.txt", 
-																		std::ofstream::out | std::ofstream::trunc);
-
-	if (!atomTypeWiseOrbitalNumsFile.is_open())
-	{
-		std::cerr << "Couldn't open " << "atomTypeWiseOrbitalNums.txt" << " file!!" << std::endl;
-    exit(0);
-	}
-
-	atomTypeWiseOrbitalNumsFile.close(); */
 
 	unsigned int basisHierarchyStart, basisHierarchyEnd, basisCount = 1;
 
 	std::string basisInfoFile = "BasisInfo.inp";
 
-/*	std::ifstream basisinfofile (basisInfoFile);
-	if (basisinfofile.is_open()){
-		while(basisinfofile >> a >> b1 >> b2 >> zeta){
 
-			tmpBasisDim = numOfOrbitalsForShellCount(b1, b2);
-
-			atomTypeswithBasisInfo.insert(a);
-			atomTypetoBasisDim.insert({a, tmpBasisDim});
-			atomTypetoZeta.insert({a, zeta});
-
-			// observe that all the above are from atomType and not atomTypeID or atomID
-			// principal quantum number range 
-
-			atomTypetoNstart.insert({a, b1});
-			atomTypetoNend.insert({a, b2});
-
-			// to construct quantum number hierarchy 
-
-			maxBasisShell = std::max(maxBasisShell, b2);
-
-			basisHierarchyStart = numofOrbitalsUntilShell(b1-1) + 1;
-			basisHierarchyEnd = numofOrbitalsUntilShell(b2);
-
-			// the above are the positioning in the basis hierarchy 
-
-			atomTypeToBasisInfoStartNum.insert({a, basisCount});
-			basisCount += tmpBasisDim; 
-
-			// for atomTypeWiseOrbitalNums.txt
-			appendElemsOfRangeToFile(basisHierarchyStart,
-															 basisHierarchyEnd,
-															 "atomTypeWiseOrbitalNums.txt"); 
-
-			++count;
-		}
-	}
-
-	else {
-
-		std::cerr << "Couldn't open " << basisInfoFile << " file!!" << std::endl;
-    exit(0);
-	}
-
-	basisinfofile.close();*/
 
 	std::vector<AtomicOrbitalBasisManager> atomTypewiseSTOvector;
 	//atomTypewiseSTOvector.reserve(numOfAtomTypes);
@@ -327,14 +263,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	for(unsigned int i = 0; i < numOfAtomTypes; ++i)
 	{
 		atomType = atomTypesVec[i];
-
-		// atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager
-		//	(atomType, 1, true, atomTypetoBasisDim[atomType], atomTypetoZeta[atomType]));
-
-    	 // atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, 3, true));
 		atomTypewiseSTOvector.push_back(AtomicOrbitalBasisManager(atomType, dftParameters::AtomicOrbitalBasis, true));
-
-
 	}
 	/*** constructQuantumNumbersHierarchy */
 	std::vector<std::vector<int>> atomTypewiseOrbitalist;
@@ -387,35 +316,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	pcout << "vector of objects constructed!\n";
 
-	
 
 
-	//pcout << "reading " << basisInfoFile << " complete!\n";
-
-	//assert(count == numOfAtomTypes);
-
-	//pcout << "reading and storing inputs done!\n";
-/* ********TO BE EDITED***************
-	std::set_difference(atomTypesSet.begin(), atomTypesSet.end(), 
-		atomTypeswithBasisInfo.begin(), atomTypeswithBasisInfo.end(), //Checking if all the atomtypes are filled.. 
-		std::inserter(diff, diff.begin()));
-	assert(diff.empty()); 
-
-	atomTypesSet.clear();
-	atomTypeswithBasisInfo.clear();
-*/
-
-
-
-	// based on the elements in diff set we can ask the user 
-	// to update the info for those specific atoms  
-
-	// we need a function now to convert between global basis numbering
-	// and atom ID (as per the coordinates, not atom type ID, and atomic number) 
-	// and its local basis numbering 
-
-	// by the way can we automatically have an inverse function from a defined function
-	// if it is given that that the function is one-one and onto  -- seems not easy! 
 
 	std::ofstream atomWiseAtomicOrbitalInfoFile("atomWiseAtomicOrbitalInfo.txt");
 
@@ -433,12 +335,6 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	atomwiseGlobalbasisNum.push_back(count); // first entry is zero 
 	
-/*	for (auto& i : atomicNumVec) // atomicNumVec has entry for each atom, with atomType repetitions 
-	{
-		count += atomTypetoBasisDim[i];	
-		atomwiseGlobalbasisNum.push_back(count);
-	}
-*/
 
 /* Change the above loop to: */	
 	for(int i = 0; i < atomicNumVec.size(); i++)
@@ -504,15 +400,6 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	pcout << "global basis info constructed!\n";
 
-	//std::vector<OrbitalQuantumNumbers> quantumNumHierarchy;
-	//quantumNumHierarchy.reserve(numOfOrbitalsForShellCount(1, maxBasisShell));
-	
-	//constructQuantumNumbersHierarchy(1, maxBasisShell, quantumNumHierarchy);
-
-	//pcout << "quantum hierarchy constructed!\n";
-
-	// vector of AtomicOrbitalBasisManager objects 
-
 	
 
 
@@ -520,20 +407,15 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	unsigned int numOfKSOrbitals = dftParameters::NumofKSOrbitalsproj; 
 	
 
-	//unsigned int numOfKSOrbitals = 8; // For CO molecule case  
-
-        //unsigned int numOfKSOrbitals = 6; //For H2O molecule
 
 	pcout << "Number of Kohn-Sham orbitals: " << numOfKSOrbitals << '\n';
 
 
-	//std::vector<std::function<double(const dealii::Point<3>)>> MOsOfCO; 
 	std::vector<double> energyLevelsKS;
 	std::vector<double> occupationNum;
 
 
 
-	//assembleCO_LCAO_MOorbitals(energyLevelsKS, MOsOfCO, occupationNum); // for CO molecule
 
         occupationNum.resize(numOfKSOrbitals*(dftParameters::spinPolarized==1?2:1));
 		pcout<<"Size of Occupance vector"<<occupationNum.size()<<std::endl;
@@ -588,25 +470,57 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	    	for (unsigned int i = 0; i < totalDimOfBasis; ++i)
 	      	{
-				auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
 				auto atomTypeID = globalBasisInfo[i].atomTypeID;
+				auto atomChargeID =globalBasisInfo[i].atomID;
+                
+				  std::vector<int> imageIdsList;
+                  if (dftParameters::periodicX || dftParameters::periodicY ||
+                      dftParameters::periodicZ)
+                    {
+                      imageIdsList = d_globalChargeIdToImageIdMap[atomChargeID];
+                    }
+                  else
+                    {
+                      imageIdsList.push_back(atomChargeID);
+                    } 
 
-				OrbitalQuantumNumbers orbital= {globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m};
+				for(int imageID = 0; imageID <imageIdsList.size(); imageID++)
+				{
+					int chargeId = imageIdsList[imageID];
+					std::vector<double> atomPos(3,0.0);
+                    if (chargeId < numOfAtoms)
+                        {
+                          atomPos[0] = atomLocations[chargeId][2];
+                          atomPos[1] = atomLocations[chargeId][3];
+                          atomPos[2] = atomLocations[chargeId][4];
+                        }
+                    else
+                        {
+                          atomPos[0] =
+                            d_imagePositions[chargeId - numOfAtoms][0];
+                          atomPos[1] =
+                            d_imagePositions[chargeId - numOfAtoms][1];
+                          atomPos[2] =
+                            d_imagePositions[chargeId - numOfAtoms][2];
+                        }								
 
-		  		if(dftParameters::AtomicOrbitalBasis == 1)
-            	{     
-					scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+					OrbitalQuantumNumbers orbital= {globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m};
+
+		  			if(dftParameters::AtomicOrbitalBasis == 1)
+            		{     
+						scaledOrbitalValues_FEnodes[count1 + i] += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].bungeOrbital
                                                     (orbital, node, atomPos);
-				}										
-				if(dftParameters::AtomicOrbitalBasis == 0)
-				{
-                 	scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+					}										
+					if(dftParameters::AtomicOrbitalBasis == 0)
+					{
+                 		scaledOrbitalValues_FEnodes[count1 + i] += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue
                                                     (orbital, node, atomPos);
 
                               									
-				}		
+					}
+			  	}			
 
 	      	}
 		}	
