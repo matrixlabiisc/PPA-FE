@@ -388,7 +388,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			//globalBasisInfo.push_back({i, tmp1, basisNstart + j - tmp2}); 
 			//globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n ,atomTypewiseSTOvector[tmp1].l ,atomTypewiseSTOvector[tmp1].m});
-			  globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n[j - tmp2] ,atomTypewiseSTOvector[tmp1].l[j - tmp2] ,atomTypewiseSTOvector[tmp1].m[j - tmp2]});	
+			LocalAtomicBasisInfo temp;
+			temp.atomID = i;
+			temp. atomTypeID=tmp1;
+			temp.n=atomTypewiseSTOvector[tmp1].n[j - tmp2];
+			temp.l=atomTypewiseSTOvector[tmp1].l[j - tmp2];
+			temp.m=atomTypewiseSTOvector[tmp1].m[j - tmp2];
+			globalBasisInfo.push_back(temp);	
+			//  globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n[j - tmp2] ,atomTypewiseSTOvector[tmp1].l[j - tmp2] ,atomTypewiseSTOvector[tmp1].m[j - tmp2]});	
 			// i required to get atom position coordinates 
 			// atomTypeID is required to construct the basis 
 			// basisNum in the quantumNumHierarchy
