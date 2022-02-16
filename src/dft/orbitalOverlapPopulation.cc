@@ -600,7 +600,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
 		{
 			writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
-			printVector(upperTriaOfS);
+			//printVector(upperTriaOfS);
 		}		
 	
 		auto invS = inverseOfOverlapMatrix(upperTriaOfS, totalDimOfBasis);
@@ -633,14 +633,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			{	
 				writeVectorAs2DMatrix(arrayVecOfProj_spinup, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs_spinup.txt");
-				printVector(arrayVecOfProj_spinup);
+				//printVector(arrayVecOfProj_spinup);
 				pcout<<std::endl;
-				writeVectorAs2DMatrix(arrayVecOfProj_spindown, totalDimOfBasis, numOfKSOrbitals,
+				//writeVectorAs2DMatrix(arrayVecOfProj_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs_spindown.txt");
-				printVector(arrayVecOfProj_spindown);
+				//printVector(arrayVecOfProj_spindown);
 				pcout<<std::endl;				
 				pcout<< "Full S inverse matrix: \n";
-				printVector(invS);
+				//printVector(invS);
 			}											
 	
 	
@@ -657,11 +657,11 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			writeVectorAs2DMatrix(coeffArrayVecOfProj_spinup, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOs_spinup.txt");
-			printVector(coeffArrayVecOfProj_spinup);
+			//printVector(coeffArrayVecOfProj_spinup);
 			pcout<<std::endl;
 			writeVectorAs2DMatrix(coeffArrayVecOfProj_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOs_spindown.txt");
-			printVector(coeffArrayVecOfProj_spindown);			
+			//printVector(coeffArrayVecOfProj_spindown);			
 		}											
 	
 	
@@ -675,11 +675,11 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{	
 			writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_spinup, totalDimOfBasis, numOfKSOrbitals,
 												"OrthocoeffsOfKSOrbitalsProjOnAOsCOOP_spinup.txt");																							
-			printVector(CoeffofOrthonormalisedKSonAO_spinup);
+			//printVector(CoeffofOrthonormalisedKSonAO_spinup);
 			pcout<<std::endl;
 			writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"OrthocoeffsOfKSOrbitalsProjOnAOsCOOP_spindown.txt");																							
-			printVector(CoeffofOrthonormalisedKSonAO_spindown);			
+			//printVector(CoeffofOrthonormalisedKSonAO_spindown);			
 		}	
 
 		//COOP Analysis End
@@ -701,7 +701,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
 		{
 			writeVectorToFile(upperTriaOfOrthoS, "OrthooverlapMatrix.txt");
-			printVector(upperTriaOfOrthoS);
+			//printVector(upperTriaOfOrthoS);
 		}	
 	
  		auto coeffarrayVecOfOrthoProjserial_spinup = matrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
@@ -733,11 +733,11 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			writeVectorAs2DMatrix(coeffarrayVecOfOrthoProj_spinup, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOsforCOHP_spinup.txt");
-			printVector(coeffarrayVecOfOrthoProj_spinup);
+			//printVector(coeffarrayVecOfOrthoProj_spinup);
 			pcout<<std::endl;
 			writeVectorAs2DMatrix(coeffarrayVecOfOrthoProj_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOsforCOHP_spindown.txt");
-			printVector(coeffarrayVecOfOrthoProj_spindown);			
+			//printVector(coeffarrayVecOfOrthoProj_spindown);			
 
 		}											
 		std::vector<double> CoeffofOrthonormalisedKSonAO_COHP_spinup = OrthonormalizationofProjectedWavefn(upperTriaOfOrthoS,totalDimOfBasis, totalDimOfBasis,
@@ -750,11 +750,11 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_COHP_spinup, totalDimOfBasis, numOfKSOrbitals,
 												"OrthocoeffsOfKSOrbitalsProjOnAOsCOHP_spinup.txt");
-			printVector(CoeffofOrthonormalisedKSonAO_COHP_spinup);
+			//printVector(CoeffofOrthonormalisedKSonAO_COHP_spinup);
 			pcout<<std::endl;
 			writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_COHP_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"OrthocoeffsOfKSOrbitalsProjOnAOsCOHP_spindown.txt");
-			printVector(CoeffofOrthonormalisedKSonAO_COHP_spindown);			
+			//printVector(CoeffofOrthonormalisedKSonAO_COHP_spindown);			
 		}											
 
 		//Compute projected Hamiltonian of FE discretized Hamiltonian into 
@@ -817,9 +817,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			{	
 				writeVectorAs2DMatrix(arrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs.txt");
-				printVector(arrayVecOfProj);
+				//printVector(arrayVecOfProj);
 				pcout<< "Full S inverse matrix: \n";
-				printVector(invS);
+				//printVector(invS);
 			}											
 	
 	
@@ -832,7 +832,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			writeVectorAs2DMatrix(coeffArrayVecOfProj, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOs.txt");
-			printVector(coeffArrayVecOfProj);
+			//printVector(coeffArrayVecOfProj);
 		}											
 	
 	
@@ -844,7 +844,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{	
 			writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO, totalDimOfBasis, numOfKSOrbitals,
 												"OrthocoeffsOfKSOrbitalsProjOnAOsCOOP.txt");																							
-			printVector(CoeffofOrthonormalisedKSonAO);
+			//printVector(CoeffofOrthonormalisedKSonAO);
 		}	
 
 		//COOP Analysis End
@@ -866,7 +866,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
 		{
 			writeVectorToFile(upperTriaOfOrthoS, "OrthooverlapMatrix.txt");
-			printVector(upperTriaOfOrthoS);
+			//printVector(upperTriaOfOrthoS);
 		}	
 	
  		auto coeffarrayVecOfOrthoProjserial = matrixTmatrixmul(OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
@@ -888,7 +888,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			writeVectorAs2DMatrix(coeffarrayVecOfOrthoProj, totalDimOfBasis, numOfKSOrbitals,
 												"coeffsOfKSOrbitalsProjOnAOsforCOHP.txt");
-			printVector(coeffarrayVecOfOrthoProj);
+			//printVector(coeffarrayVecOfOrthoProj);
 		}											
 		std::vector<double> CoeffofOrthonormalisedKSonAO_COHP = OrthonormalizationofProjectedWavefn(upperTriaOfOrthoS,totalDimOfBasis, totalDimOfBasis,
 														coeffarrayVecOfOrthoProj,totalDimOfBasis, numOfKSOrbitals);	
@@ -898,7 +898,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			writeVectorAs2DMatrix(CoeffofOrthonormalisedKSonAO_COHP, totalDimOfBasis, numOfKSOrbitals,
 												"OrthocoeffsOfKSOrbitalsProjOnAOsCOHP.txt");
-			printVector(CoeffofOrthonormalisedKSonAO_COHP);
+			//printVector(CoeffofOrthonormalisedKSonAO_COHP);
 		}											
 
 		//Compute projected Hamiltonian of FE discretized Hamiltonian into 
