@@ -635,7 +635,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 												"projOfKSOrbitalsWithAOs_spinup.txt");
 				//printVector(arrayVecOfProj_spinup);
 				pcout<<std::endl;
-				//writeVectorAs2DMatrix(arrayVecOfProj_spindown, totalDimOfBasis, numOfKSOrbitals,
+				writeVectorAs2DMatrix(arrayVecOfProj_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs_spindown.txt");
 				//printVector(arrayVecOfProj_spindown);
 				pcout<<std::endl;				
