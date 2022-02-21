@@ -5,7 +5,6 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Cholesky> 
-#include <mkl.h>
 #include <linearAlgebraOperations.h>
 #include <linearAlgebraOperationsInternal.h>
 #include <vector>
@@ -314,7 +313,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 			std::cout<<O[i*n2+j]<<" ";
 		std::cout<<std::endl;
 	} */	
-	int N = n2;
+	const unsigned int N = n2;
 	//double D[N];
 	std::vector<double> D(N,0.0);
 	count = 0;
@@ -342,14 +341,14 @@ OrthonormalizationofProjectedWavefn(const std::vector<double> &Sold, unsigned in
 
       std::cout<<"#Begin Eigen Value Decomposition"<<std::endl; */
 	  int                info;
-      const  int lwork = 1 + 6*N +
+      const unsigned int lwork = 1 + 6*N +
                                  2 * N*N,
                          liwork = 3 + 5 *N;
       std::vector<int>    iwork(liwork, 0);
       const char          jobz = 'V', uplo = 'L';
       std::vector<double> work(lwork);
 
-      dsyevd_(&jobz,
+      dftfe::dsyevd_(&jobz,
               &uplo,
               &N,
               &upperO[0],
@@ -441,19 +440,20 @@ std::vector<double>  LowdenOrtho(const std::vector<double> &phi, int n_dofs, int
 		}
 	}
       //std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
+	  const unsigned int Nrow = N;
 	  int                info;
-      const  int lwork = 1 + 6*N +
+      const unsigned int lwork = 1 + 6*N +
                                  2 * N*N,
                          liwork = 3 + 5 *N;
       std::vector<int>    iwork(liwork, 0);
       const char          jobz = 'V', uplo = 'L';
       std::vector<double> work(lwork);
 	  std::vector<double> D(N,0.0);	
-      dsyevd_(&jobz,
+      dftfe::dsyevd_(&jobz,
               &uplo,
-              &N,
+              &Nrow,
               &S[0],
-              &N,
+              &Nrow,
               &D[0],
               &work[0],
               &lwork,
