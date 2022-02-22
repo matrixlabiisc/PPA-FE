@@ -29,14 +29,14 @@ inverseOfOverlapMatrix(const std::vector<double>& SmatrixVec, const size_t matri
 // both matrices are full matrices written as rowwise flattened vectors 
 // A is m1 by n1 matrix, and B is m2 by n2 matrix 
 std::vector<double> 
-matrixmatrixmul(const std::vector<double>&, unsigned int, unsigned int,
-				const std::vector<double>&, unsigned int, unsigned int);
+matrixmatrixmul(const std::vector<double>&, const unsigned int, const unsigned int,
+				const std::vector<double>&, const unsigned int, const unsigned int);
 
 // matrix A is m1 by n1 and B is m2 by n2 
 // this function achieves A^T * B, where both A and B are stored rowwise as a vector  
 std::vector<double> 
-matrixTmatrixmul(const std::vector<double>& A, unsigned int m1, unsigned int n1,
-				 const std::vector<double>& B, unsigned int m2, unsigned int n2);
+matrixTmatrixmul(const std::vector<double>& A, const unsigned int m1, const unsigned int n1,
+				 const std::vector<double>& B, const unsigned int m2, const unsigned int n2);
 
 
 // matrix A is m1 by n1 and B is m2 by n2 
@@ -44,7 +44,7 @@ matrixTmatrixmul(const std::vector<double>& A, unsigned int m1, unsigned int n1,
 // this function is for cases where same matrix is transpose and multiplied
 // in this case the result is a symmetric matrix so we store only upper triangular part 
 std::vector<double> 
-selfMatrixTmatrixmul(const std::vector<double>& A, unsigned int m, unsigned int n);
+selfMatrixTmatrixmul(const std::vector<double>& A, const unsigned int m, const unsigned int n);
 
 // both matrices are full matrices written as rowwise flattened vectors 
 // A is m1 by n1 matrix, and BT is n2 by m2 matrix i.e. B is m2 by n2 matrix 
@@ -52,8 +52,8 @@ selfMatrixTmatrixmul(const std::vector<double>& A, unsigned int m, unsigned int 
 // or equivalently B is stored as a vector column wise
 // and A*B is evaluated efficiently 
 std::vector<double> 
-matrixmatrixTmul(const std::vector<double>& A, unsigned int m1, unsigned int n1,
-				 const std::vector<double>& B, unsigned int m2, unsigned int n2);
+matrixmatrixTmul(const std::vector<double>& A, const unsigned int m1, const unsigned int n1,
+				 const std::vector<double>& B, const unsigned int m2, const unsigned int n2);
 
 
 
@@ -67,8 +67,8 @@ matrixmatrixTmul(const std::vector<double>& A, unsigned int m1, unsigned int n1,
  * Step4: Cnew = CO^{-0.5}
  **/
 std::vector<double>
-OrthonormalizationofProjectedWavefn(const std::vector<double> &S, unsigned int m1, unsigned int n1,
-									const std::vector<double> &C, unsigned int m2, unsigned int n2);
+OrthonormalizationofProjectedWavefn(const std::vector<double> &S, const unsigned int m1, const unsigned int n1,
+									const std::vector<double> &C, const unsigned int m2, const unsigned int n2);
 
 std::vector<double>
 LowdenOrtho(const std::vector<double> &phi, int n_dofs, int N, const std::vector<double> &UpperS);									

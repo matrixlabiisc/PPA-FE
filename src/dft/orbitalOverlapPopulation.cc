@@ -633,14 +633,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			{	
 				writeVectorAs2DMatrix(arrayVecOfProj_spinup, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs_spinup.txt");
-				//printVector(arrayVecOfProj_spinup);
+				printVector(arrayVecOfProj_spinup);
 				pcout<<std::endl;
 				writeVectorAs2DMatrix(arrayVecOfProj_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs_spindown.txt");
-				//printVector(arrayVecOfProj_spindown);
+				printVector(arrayVecOfProj_spindown);
 				pcout<<std::endl;				
 				pcout<< "Full S inverse matrix: \n";
-				//printVector(invS);
+				printVector(invS);
 			}											
 	
 	
