@@ -451,7 +451,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	locallyOwnedSet.fill_index_vector(locallyOwnedDOFs);
 	unsigned int n_dofs = locallyOwnedDOFs.size();
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::cout<<"Processor ID: "<<this_mpi_process<<" has dofs total: "<<n_dofs<<std::endl;
+	//std::cout<<"Processor ID: "<<this_mpi_process<<" has dofs total: "<<n_dofs<<std::endl;
 	std::vector<double> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis, 0.0);
 	std::vector<double> scaledKSOrbitalValues_FEnodes((n_dofs * numOfKSOrbitals)*(dftParameters::spinPolarized?0:1), 0.0);
 	std::vector<double> scaledKSOrbitalValues_FEnodes_spinup((n_dofs * numOfKSOrbitals)*(dftParameters::spinPolarized?1:0), 0.0);
@@ -463,7 +463,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 #else
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	
+
 	for (unsigned int dof = 0; dof < n_dofs; ++dof)
 	  {
 	    // get nodeID 
@@ -518,6 +518,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 						scaledOrbitalValues_FEnodes[count1 + i] += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].bungeOrbital
                                                     (orbital, node, atomPos);
+							
 					}										
 					if(dftParameters::AtomicOrbitalBasis == 0)
 					{
@@ -542,39 +543,29 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 																	 d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];	
 						//pcout<<"Accessing spin down"<<std::endl;											 
 						scaledKSOrbitalValues_FEnodes_spindown[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) * 
-																	 d_eigenVectorsFlattenedSTL[1][dof * d_numEigenValues + j];																	 
+																	 d_eigenVectorsFlattenedSTL[1][dof * d_numEigenValues + j];	
+											 																 
 
 					}	
 					else
 					{
 					
 						scaledKSOrbitalValues_FEnodes[count2 + j] =  d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) * 
-																d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];						
+																d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];	
+						
 					}
 		 
 		  		}
   
 		
 	  }
+	 
+
 #endif
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	pcout << "matrices of orbital values at the nodes constructed!\n";
-/*	pcout<< "Over lap matrix of Psi \n";
-	
-	auto OverlapPsiSerial = selfMatrixTmatrixmul(scaledKSOrbitalValues_FEnodes, n_dofs,  numOfKSOrbitals);
-	std::vector<double> OverlapPsi((numOfKSOrbitals*(numOfKSOrbitals+1)/2),0.0);
-	    MPI_Allreduce(&OverlapPsiSerial[0],
-                          &OverlapPsi[0],
-                          (numOfKSOrbitals*(numOfKSOrbitals+1)/2),
-                          MPI_DOUBLE,
-                          MPI_SUM,
-                          MPI_COMM_WORLD);
-	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
-	{
-		writeVectorToFile(OverlapPsi, "overlapPsi.txt");
-		printVector(OverlapPsi);
-	} */
+
 
 		// direct assembly of Overlap matrix S using Mass diagonal matrix from Gauss Lobatto
 
@@ -600,7 +591,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
 		{
 			writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
-			//printVector(upperTriaOfS);
+			printVector(upperTriaOfS);
 		}		
 	
 		auto invS = inverseOfOverlapMatrix(upperTriaOfS, totalDimOfBasis);

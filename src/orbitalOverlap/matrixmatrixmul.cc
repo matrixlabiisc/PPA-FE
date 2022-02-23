@@ -136,7 +136,7 @@ matrixmatrixmul(const std::vector<double>& A, const unsigned int m1, const unsig
     char transA = 'N';
     char transB = 'N';
     const double alpha = 1.0, beta = 0.0;
-	std::cout<<"Start Matrix matrix multiplication\n";
+	//std::cout<<"Start Matrix matrix multiplication\n";
     dftfe::dgemm_(&transB,
            &transA,
            &n2,
@@ -151,7 +151,7 @@ matrixmatrixmul(const std::vector<double>& A, const unsigned int m1, const unsig
            &C[0],
            &n2);
 
-	std::cout<<"Finish Matrix matrix multiplication\n";
+	//std::cout<<"Finish Matrix matrix multiplication\n";
 	return C;
 }
 
@@ -192,7 +192,7 @@ matrixTmatrixmul(const std::vector<double>& A, const unsigned int m1, const unsi
     char transA = 'T';
     char transB = 'N';
     const double alpha = 1.0, beta = 0.0;
-	std::cout<<"Start MatrixT matrix multiplication\n";
+	//std::cout<<"Start MatrixT matrix multiplication\n";
     dftfe::dgemm_(&transB,
            &transA,
            &n2,
@@ -206,7 +206,7 @@ matrixTmatrixmul(const std::vector<double>& A, const unsigned int m1, const unsi
            &beta,
            &C[0],
            &n2);
-	std::cout<<"Finish MatrixT matrix multiplication\n";
+	//std::cout<<"Finish MatrixT matrix multiplication\n";
 	// std::cout << '\n';
 	return C;
 }

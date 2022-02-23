@@ -151,6 +151,7 @@ namespace dftfe
     std::string  xcFamilyType                                   = "";
     bool         gpuMemOptMode                                  = false;
     unsigned int NumofKSOrbitalsproj                            = 0;
+    bool         ComputeFeOHP                                   = false;
     unsigned int AtomicOrbitalBasis                             = 0;
     std::string pseudoAtomicOrbitalsFile                        ="";
     void
@@ -280,6 +281,11 @@ namespace dftfe
           "1",
           Patterns::Integer(1),
           "[Standard] Number of Kohn-Sham Orbitals projected");
+        prm.declare_entry(
+          "COMPUTE FeOHP",
+          "false",
+          Patterns::Bool(),
+          "[Standard] COmputes COOP/COHP if switched on");  
         prm.declare_entry(
           "BASIS TO PROJECT",
           "0",
@@ -1142,9 +1148,13 @@ namespace dftfe
         dftParameters::writeLocalizationLengths =
           prm.get_bool("WRITE LOCALIZATION LENGTHS");
         dftParameters::NumofKSOrbitalsproj =  
-          prm.get_integer("NUMBER OF PROJECTED KS ORBITALS"); 
+          prm.get_integer("NUMBER OF PROJECTED KS ORBITALS");
+        dftParameters::ComputeFeOHP =  
+          prm.get_bool("COMPUTE FeOHP");  
         dftParameters::AtomicOrbitalBasis =  
-          prm.get_integer("BASIS TO PROJECT");  
+          prm.get_integer("BASIS TO PROJECT"); 
+        dftParameters::writePdosFile = 
+        prm.get_bool("WRITE PROJECTED DENSITY OF STATES") ;
 
       }
       prm.leave_subsection();

@@ -147,6 +147,7 @@ namespace dftfe
     extern std::string  xcFamilyType;
     extern bool         gpuMemOptMode;
     extern unsigned int NumofKSOrbitalsproj;
+    extern bool         ComputeFeOHP;
     extern unsigned int AtomicOrbitalBasis;
     extern std::string pseudoAtomicOrbitalsFile;
 

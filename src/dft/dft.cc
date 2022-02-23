@@ -1695,8 +1695,8 @@ using namespace dealii;
 
     if (dftParameters::writeLocalizationLengths)
       compute_localizationLength("localizationLengths.out");
-
-    orbitalOverlapPopulationCompute(eigenValues);
+    if(dftParameters::ComputeFeOHP)
+      orbitalOverlapPopulationCompute(eigenValues);
 
 
     if (dftParameters::verbosity >= 1)
@@ -1740,7 +1740,7 @@ using namespace dealii;
       &kohnShamDFTEigenOperatorCUDA = *d_kohnShamDFTOperatorCUDAPtr;
 #endif
 
-    if (!dftParameters::useGPU)
+    if (!dftParameters::useGPU || dftParameters::ComputeFeOHP )
       {
         kohnShamDFTEigenOperator.init();
       }
@@ -3565,8 +3565,10 @@ using namespace dealii;
 #ifdef DFTFE_WITH_GPU
     if (dftParameters::useGPU &&
         (dftParameters::writeWfcSolutionFields ||
-         dftParameters::writeLdosFile || dftParameters::writePdosFile))
-      for (unsigned int kPoint = 0;
+         dftParameters::writeLdosFile || dftParameters::writePdosFile|| dftParameters::ComputeFeOHP))
+      {
+        pcout<<"Copying Data from GPU to CPU"<<std::endl;
+        for (unsigned int kPoint = 0;
            kPoint < (1 + dftParameters::spinPolarized) * d_kPointWeights.size();
            ++kPoint)
         {
@@ -3577,6 +3579,7 @@ using namespace dealii;
               &d_eigenVectorsFlattenedSTL[kPoint][0]),
             d_eigenVectorsFlattenedSTL[kPoint].size());
         }
+      }  
 #endif
 
     const unsigned int numberBandGroups =
