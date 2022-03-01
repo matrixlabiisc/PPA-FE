@@ -492,7 +492,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			//globalBasisInfo.push_back({i, tmp1, basisNstart + j - tmp2}); 
 			//globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n ,atomTypewiseSTOvector[tmp1].l ,atomTypewiseSTOvector[tmp1].m});
-			  globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n[j - tmp2] ,atomTypewiseSTOvector[tmp1].l[j - tmp2] ,atomTypewiseSTOvector[tmp1].m[j - tmp2]});	
+			LocalAtomicBasisInfo temp;
+			temp.atomID = i;
+			temp. atomTypeID=tmp1;
+			temp.n=atomTypewiseSTOvector[tmp1].n[j - tmp2];
+			temp.l=atomTypewiseSTOvector[tmp1].l[j - tmp2];
+			temp.m=atomTypewiseSTOvector[tmp1].m[j - tmp2];
+			globalBasisInfo.push_back(temp);	
+			//globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n[j - tmp2] ,atomTypewiseSTOvector[tmp1].l[j - tmp2] ,atomTypewiseSTOvector[tmp1].m[j - tmp2]});	
 			// i required to get atom position coordinates 
 			// atomTypeID is required to construct the basis 
 			// basisNum in the quantumNumHierarchy
@@ -588,28 +595,61 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 	    	for (unsigned int i = 0; i < totalDimOfBasis; ++i)
 	      	{
-				auto atomPos = atomCoordinates[ globalBasisInfo[i].atomID ];
 				auto atomTypeID = globalBasisInfo[i].atomTypeID;
+				auto atomChargeID =globalBasisInfo[i].atomID;
+                
+				  std::vector<int> imageIdsList;
+                  if (dftParameters::periodicX || dftParameters::periodicY ||
+                      dftParameters::periodicZ)
+                    {
+                      imageIdsList = d_globalChargeIdToImageIdMap[atomChargeID];
+                    }
+                  else
+                    {
+                      imageIdsList.push_back(atomChargeID);
+                    } 
 
-				OrbitalQuantumNumbers orbital= {globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m};
+				for(int imageID = 0; imageID <imageIdsList.size(); imageID++)
+				{
+					int chargeId = imageIdsList[imageID];
+					std::vector<double> atomPos(3,0.0);
+                    if (chargeId < numOfAtoms)
+                        {
+                          atomPos[0] = atomLocations[chargeId][2];
+                          atomPos[1] = atomLocations[chargeId][3];
+                          atomPos[2] = atomLocations[chargeId][4];
+                        }
+                    else
+                        {
+                          atomPos[0] =
+                            d_imagePositions[chargeId - numOfAtoms][0];
+                          atomPos[1] =
+                            d_imagePositions[chargeId - numOfAtoms][1];
+                          atomPos[2] =
+                            d_imagePositions[chargeId - numOfAtoms][2];
+                        }								
 
-		  		if(dftParameters::AtomicOrbitalBasis == 1)
-            	{     
-					scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+					OrbitalQuantumNumbers orbital= {globalBasisInfo[i].n, globalBasisInfo[i].l,globalBasisInfo[i].m};
+
+		  			if(dftParameters::AtomicOrbitalBasis == 1)
+            		{     
+						scaledOrbitalValues_FEnodes[count1 + i] += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].bungeOrbital
                                                     (orbital, node, atomPos);
-				}										
-				if(dftParameters::AtomicOrbitalBasis == 0)
-				{
-                 	scaledOrbitalValues_FEnodes[count1 + i] = d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+							
+					}										
+					if(dftParameters::AtomicOrbitalBasis == 0)
+					{
+                 		scaledOrbitalValues_FEnodes[count1 + i] += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                                    atomTypewiseSTOvector[atomTypeID].PseudoAtomicOrbitalvalue
                                                     (orbital, node, atomPos);
 
                               									
-				}		
+					}
+			  	}			
 
 	      	}
-		}	
+		}		
 	    	auto count2 = numOfKSOrbitals*dof;
 
 	    	for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
@@ -639,21 +679,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	pcout << "matrices of orbital values at the nodes constructed!\n";
-/*	pcout<< "Over lap matrix of Psi \n";
-	
-	auto OverlapPsiSerial = selfMatrixTmatrixmul(scaledKSOrbitalValues_FEnodes, n_dofs,  numOfKSOrbitals);
-	std::vector<double> OverlapPsi((numOfKSOrbitals*(numOfKSOrbitals+1)/2),0.0);
-	    MPI_Allreduce(&OverlapPsiSerial[0],
-                          &OverlapPsi[0],
-                          (numOfKSOrbitals*(numOfKSOrbitals+1)/2),
-                          MPI_DOUBLE,
-                          MPI_SUM,
-                          MPI_COMM_WORLD);
-	if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
-	{
-		writeVectorToFile(OverlapPsi, "overlapPsi.txt");
-		printVector(OverlapPsi);
-	} */
+
 
 		// direct assembly of Overlap matrix S using Mass diagonal matrix from Gauss Lobatto
 
