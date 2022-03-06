@@ -121,7 +121,7 @@ public:
 			
 			else if (basisDataForm == 1) // Bunge orbitals
 			{
-				ROfBungeBasisFunctions = getRofBungeOrbitalBasisFuncs(atomType);
+				getRofBungeOrbitalBasisFuncs(atomType);
 			
 
 			}
@@ -136,7 +136,8 @@ public:
 	double rmax, rmin;
 	bool PseudoAtomicOrbital = false;
 	void CreatePseudoAtomicOrbitalBasis();
-	std::map<unsigned int,std::map<unsigned int, alglib::spline1dinterpolant *>> radialSplineObject;	
+	std::map<unsigned int,std::map<unsigned int, alglib::spline1dinterpolant *>> radialSplineObject;
+	std::map<unsigned int,std::map<unsigned int, std::function<double(double)> >> ROfBungeBasisFunct;	
 	double zeta;
 	void setorbitalnums();
 	int sizeofbasis()
@@ -157,7 +158,7 @@ public:
 	double RofHydrogenicOrbital(unsigned int n, unsigned int l, 
 								double zetaEff, double r);
 
-	std::vector< std::function<double(double)> >
+	void	
 			getRofBungeOrbitalBasisFuncs(unsigned int atomicNum);
 
 	double radialPartofSlaterTypeOrbital(unsigned int n, double r);
