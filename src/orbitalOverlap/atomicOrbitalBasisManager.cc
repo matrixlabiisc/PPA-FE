@@ -1500,7 +1500,7 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum)
                 - 0.781454 * RofSTO(3, 11.9116, r)
                 + 0.182028 * RofSTO(3, 8.2893, r)
                 + 0.008693 * RofSTO(4, 26.1132, r)
-                - 0.280698 * RofSTO(4, 15.2954, r)
+                + 0.280698 * RofSTO(4, 15.2954, r)
                 + 0.536227 * RofSTO(4, 5.8285, r)
                 + 0.456122 * RofSTO(4, 3.8606, r)
                 + 0.070461 * RofSTO(4, 2.4677, r);
