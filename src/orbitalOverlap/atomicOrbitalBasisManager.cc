@@ -1254,6 +1254,83 @@ AtomicOrbitalBasisManager::getRofBungeOrbitalBasisFuncs(unsigned int atomicNum)
             };
 
             break;
+        case 14: // Silicon
+
+
+            // 1s RHF orbital
+            ROfBungeBasisFunct[1][0]=[&](double r){return 
+                
+                + 0.377006 * RofSTO(1, 19.5017, r)
+                + 0.454461 * RofSTO(1, 11.7539, r)
+                + 0.200676 * RofSTO(2, 16.9664, r)
+                + 0.001490 * RofSTO(2, 6.3693, r)
+                + 0.001201 * RofSTO(2, 4.5748, r)
+                - 0.000454 * RofSTO(2, 3.3712, r)
+                - 0.000507 * RofSTO(3, 36.5764, r)
+                + 0.000103 * RofSTO(3, 2.4996, r)
+                - 0.000053 * RofSTO(3, 1.6627, r)
+                + 0.000013 * RofSTO(3, 1.1812, r);
+            };
+
+            // 2s RHF orbital
+            ROfBungeBasisFunct[2][0]=[&](double r){return 
+                
+                + 0.064222 * RofSTO(1, 19.5017, r)
+                - 0.472631 * RofSTO(1, 11.7539, r)
+                + 0.055383 * RofSTO(2, 16.9664, r)
+                + 0.233799 * RofSTO(2, 6.3693, r)
+                + 0.781919 * RofSTO(2, 4.5748, r)
+                + 0.096627 * RofSTO(2, 3.3712, r)
+                + 0.000257 * RofSTO(3, 36.5764, r)
+                - 0.001832 * RofSTO(3, 2.4996, r)
+                + 0.000879 * RofSTO(3, 1.6627, r)
+                - 0.000033 * RofSTO(3, 1.1812, r);
+            };
+
+            // 2p RHF orbital 
+            ROfBungeBasisFunct[2][1]=[&](double r){return 
+                
+                + 0.015661 * RofSTO(2, 15.7304, r)
+                + 0.196557 * RofSTO(2, 7.2926, r)
+                + 0.510448 * RofSTO(2, 4.6514, r)
+                + 0.303956 * RofSTO(2, 3.3983, r)
+                + 0.025586 * RofSTO(3, 12.0786, r)
+                + 0.003153 * RofSTO(3, 2.0349, r)
+                + 0.000167 * RofSTO(3, 1.3221, r)
+                + 0.000156 * RofSTO(3, 0.9143, r);
+            };
+
+            // 3s RHF orbital
+            ROfBungeBasisFunct[3][0]=[&](double r){return 
+                
+                + 0.023528 * RofSTO(1, 19.5017, r)
+                - 0.136207 * RofSTO(1, 11.7539, r)
+                + 0.019663 * RofSTO(2, 16.9664, r)
+                + 0.074362 * RofSTO(2, 6.3693, r)
+                + 0.122580 * RofSTO(2, 4.5748, r)
+                + 0.206180 * RofSTO(2, 3.3712, r)
+                + 0.000048 * RofSTO(3, 36.5764, r)
+                - 0.319063 * RofSTO(3, 2.4996, r)
+                - 0.562578 * RofSTO(3, 1.6627, r)
+                - 0.280471 * RofSTO(3, 1.1812, r);
+            };
+
+            // 3p RHF orbital 
+            ROfBungeBasisFunct[3][1]=[&](double r){return 
+                
+                - 0.001966 * RofSTO(2, 15.7304, r)
+                - 0.057175 * RofSTO(2, 7.2926, r)
+                - 0.068127 * RofSTO(2, 4.6514, r)
+                - 0.114298 * RofSTO(2, 3.3983, r)
+                - 0.001976 * RofSTO(3, 12.0786, r)
+                + 0.263703 * RofSTO(3, 2.0349, r)
+                + 0.522698 * RofSTO(3, 1.3221, r)
+                + 0.314467 * RofSTO(3, 0.9143, r);
+            };
+
+            break;
+
+
         case 27: // Cobalt
 
 
