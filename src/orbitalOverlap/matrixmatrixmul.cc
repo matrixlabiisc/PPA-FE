@@ -20,10 +20,13 @@
 std::vector<double> 
 inverseOfOverlapMatrix(const std::vector<double>& SmatrixVec, const size_t matrixDim){
 
-	//std::vector<double> invS(matrixDim * matrixDim, 0.0); // storing full inverse matrix
-	std::vector<double> S(matrixDim * matrixDim, 0.0);
-	int count = 0;
-	for(int i = 0; i < matrixDim; i++)
+/*	std::vector<double> invS(matrixDim * matrixDim, 0.0); // storing full inverse matrix
+
+	Eigen::MatrixXd S(matrixDim, matrixDim);
+
+	unsigned int count = 0;
+
+	for (unsigned int i = 0; i < matrixDim; ++i)
 	{
 		for(int j=0; j < matrixDim; j++)
 		{
@@ -89,13 +92,88 @@ inverseOfOverlapMatrix(const std::vector<double>& SmatrixVec, const size_t matri
 
 	for(int i =0; i < N; i++)
 	{
+		for (unsigned int j = 0; j < matrixDim; ++j)
+		{
+			// invS[count] = invS_eigen(i, j); // rowwise storage
+			invS[count] = invS_direct(i, j);
+			++count; 
+		}
+	}
+	*/
+	std::vector<double> S(matrixDim * matrixDim, 0.0);
+	int count = 0;
+	for(int i = 0; i < matrixDim; i++)
+	{
+		for(int j=0; j < matrixDim; j++)
+		{
+			if(j >=i)
+			{
+				S[i*matrixDim+j] = SmatrixVec[count];
+				count++;
+			}
+		}
+	}
+
+	
+	  int                info;
+	  const unsigned int N = matrixDim;
+      const unsigned int lwork = 1 + 6*N +
+                                 2 * N*N,
+                         liwork = 3 + 5 *N;
+      std::vector<int>    iwork(liwork, 0);
+      const char          jobz = 'V', uplo = 'L';
+      std::vector<double> work(lwork);
+	  std::vector<double> D(N,0.0);
+      dftfe::dsyevd_(&jobz,
+              &uplo,
+              &N,
+              &S[0],
+              &N,
+              &D[0],
+              &work[0],
+              &lwork,
+              &iwork[0],
+              &liwork,
+              &info);
+
+      //
+      // free up memory associated with work
+      //
+    work.clear();
+    iwork.clear();
+    std::vector<double>().swap(work);
+    std::vector<int>().swap(iwork);
+	if(info > 0)
+		std::cout<<"Eigen Value Decomposition Failed!!"<<std::endl;
+	/* if(dftfe::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+	{
+		std::cout<<"EigenValues of S are: "<<std::endl;
+		double min = 999999;
+		for(int i = 0; i < N; i++)
+		{	
+			std::cout<<D[i]<<" ";
+			if(min > D[i])
+				min = D[i];
+		}		
+		std::cout<<std::endl;
+		std::cout<<"Min Eigenvalue of S is: "<<min<<std::endl;
+	}	*/	
+
+
+
+	std::vector<double>D_inv(N*N,0.0);
+	std::vector<double> Uvector(N*N,0);
+	for(int i = 0; i <N; i++)
+		D_inv[i*N+i] = pow(D[i],-1.0);
+
+	for(int i =0; i < N; i++)
+	{
 		for (int j = 0; j < N; j++)
 			Uvector[i*N+j] = S[i*N+j];
 	}	
 	//U is in column major form.. O = U'DU
     auto D_invU = matrixmatrixmul(D_inv,N,N,Uvector,N,N);
 	auto invS = matrixTmatrixmul(Uvector,N,N,D_invU,N,N);
-
 	return invS;
 
 

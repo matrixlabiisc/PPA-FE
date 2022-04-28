@@ -396,6 +396,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			temp.m=atomTypewiseSTOvector[tmp1].m[j - tmp2];
 			globalBasisInfo.push_back(temp);	
 			//  globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n[j - tmp2] ,atomTypewiseSTOvector[tmp1].l[j - tmp2] ,atomTypewiseSTOvector[tmp1].m[j - tmp2]});	
+			//globalBasisInfo.push_back({i, tmp1,atomTypewiseSTOvector[tmp1].n[j - tmp2] ,atomTypewiseSTOvector[tmp1].l[j - tmp2] ,atomTypewiseSTOvector[tmp1].m[j - tmp2]});	
 			// i required to get atom position coordinates 
 			// atomTypeID is required to construct the basis 
 			// basisNum in the quantumNumHierarchy
@@ -531,7 +532,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			  	}			
 
 	      	}
-		}	
+		}		
 	    	auto count2 = numOfKSOrbitals*dof;
 
 	    	for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
