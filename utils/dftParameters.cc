@@ -119,6 +119,13 @@ namespace dftfe
       prm.enter_subsection("Postprocessing");
       {
         prm.declare_entry(
+          "PSEUDOATOMIC ORBITALS FILE",
+          "",
+          Patterns::Anything(),
+          "[Standard] Pseudo Atomic Orbitals for COOP and COHP");
+
+
+        prm.declare_entry(
           "WRITE WFC",
           "false",
           Patterns::Bool(),
@@ -129,6 +136,8 @@ namespace dftfe
           "false",
           Patterns::Bool(),
           "[Standard] Writes DFT ground state electron-density solution fields (FEM mesh nodal values) to densityOutput.vtu file for visualization purposes. The electron-density solution field in densityOutput.vtu is named density. In case of spin-polarized calculation, two additional solution fields- density\_0 and density\_1 are also written where 0 and 1 denote the spin indices. In the case of geometry optimization, the electron-density corresponding to the last ground-state solve is written. Default: false.");
+
+
 
         prm.declare_entry(
           "WRITE DENSITY OF STATES",
@@ -159,6 +168,24 @@ namespace dftfe
           "false",
           Patterns::Bool(),
           "[Standard] Computes localization lengths of all wavefunctions which is defined as the deviation around the mean position of a given wavefunction. Outputs a file name 'localizationLengths.out' containing 2 columns with first column indicating the wavefunction index and second column indicating localization length of the corresponding wavefunction.");
+      
+        prm.declare_entry(
+          "NUMBER OF PROJECTED KS ORBITALS",
+          "1",
+          Patterns::Integer(1),
+          "[Standard] Number of Kohn-Sham Orbitals projected");
+        prm.declare_entry(
+          "COMPUTE FeOHP",
+          "false",
+          Patterns::Bool(),
+          "[Standard] COmputes COOP/COHP if switched on");  
+        prm.declare_entry(
+          "BASIS TO PROJECT",
+          "0",
+          Patterns::Integer(0),
+          "[Standard] Parameter that selects the atomic orbital basis function 0: Pseudoatomic basis 1: BungeOrbitals basis");          
+      
+      
       }
       prm.leave_subsection();
 
@@ -413,7 +440,7 @@ namespace dftfe
           prm.declare_entry(
             "ATOM BALL RADIUS",
             "0.0",
-            Patterns::Double(0, 20),
+            Patterns::Double(0, 100),
             "[Standard] Radius of ball enclosing every atom, inside which the mesh size is set close to MESH SIZE AROUND ATOM and coarse-grained in the region outside the enclosing balls. For the default value of 0.0, a heuristically determined value is used, which is good enough for most cases but can be a bit conservative choice for fully non-periodic and semi-periodic problems as well as all-electron problems. To improve the computational efficiency user may experiment with values of ATOM BALL RADIUS ranging between 3.0 to 6.0 for pseudopotential problems, and ranging between 1.0 to 2.5 for all-electron problems.  Units: a.u.");
 
           prm.declare_entry(
@@ -1261,6 +1288,15 @@ namespace dftfe
       readWfcForPdosPspFile =
         prm.get_bool("READ ATOMIC WFC PDOS FROM PSP FILE");
       writeLocalizationLengths = prm.get_bool("WRITE LOCALIZATION LENGTHS");
+      NumofKSOrbitalsproj =  
+          prm.get_integer("NUMBER OF PROJECTED KS ORBITALS");
+      ComputeFeOHP =  
+          prm.get_bool("COMPUTE FeOHP");  
+      AtomicOrbitalBasis =  
+          prm.get_integer("BASIS TO PROJECT"); 
+      writePdosFile = 
+        prm.get_bool("WRITE PROJECTED DENSITY OF STATES") ;
+
     }
     prm.leave_subsection();
 

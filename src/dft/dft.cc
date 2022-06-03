@@ -42,7 +42,12 @@
 #include <pseudoUtils.h>
 #include <symmetry.h>
 #include <vectorUtilities.h>
-
+#include <distributions.h>
+#include <CO_LCAO_MOorbitals.h>
+#include <atomicOrbitalBasisManager.h>
+#include <overlapPopulationAnalysis.h>
+#include <mathUtils.h>
+#include <matrixmatrixmul.h>
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -54,7 +59,9 @@
 #include <spglib.h>
 #include <stdafx.h>
 #include <sys/stat.h>
-
+#include <array>
+#include <cassert>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -63,7 +70,11 @@
 #include <chrono>
 #include <sys/time.h>
 #include <ctime>
-
+#include <string>
+#include <valarray>
+#include <vector>
+#include <set>
+#include <map>
 #ifdef DFTFE_WITH_GPU
 #  include <densityCalculatorCUDA.h>
 #  include <linearAlgebraOperationsCUDA.h>
@@ -100,6 +111,7 @@ namespace dftfe
 #include "moveMeshToAtoms.cc"
 #include "nodalDensityMixingSchemes.cc"
 #include "nscf.cc"
+#include "orbitalOverlapPopulation.cc"
 #include "pRefinedDoFHandler.cc"
 #include "psiInitialGuess.cc"
 #include "publicMethods.cc"
@@ -1736,7 +1748,8 @@ namespace dftfe
 
     if (d_dftParamsPtr->writeLocalizationLengths)
       compute_localizationLength("localizationLengths.out");
-
+    if(d_dftParamsPtr->ComputeFeOHP)
+      orbitalOverlapPopulationCompute(eigenValues);
 
     if (d_dftParamsPtr->verbosity >= 1)
       pcout
@@ -1780,7 +1793,7 @@ namespace dftfe
       &kohnShamDFTEigenOperatorCUDA = *d_kohnShamDFTOperatorCUDAPtr;
 #endif
 
-    if (!d_dftParamsPtr->useGPU)
+    if (!d_dftParamsPtr->useGPU|| d_dftParamsPtr->ComputeFeOHP)
       {
         kohnShamDFTEigenOperator.init();
       }
@@ -3631,7 +3644,7 @@ namespace dftfe
 #ifdef DFTFE_WITH_GPU
     if (d_dftParamsPtr->useGPU &&
         (d_dftParamsPtr->writeWfcSolutionFields ||
-         d_dftParamsPtr->writeLdosFile || d_dftParamsPtr->writePdosFile))
+         d_dftParamsPtr->writeLdosFile || d_dftParamsPtr->writePdosFile||d_dftParamsPtr->ComputeFeOHP))
       for (unsigned int kPoint = 0;
            kPoint <
            (1 + d_dftParamsPtr->spinPolarized) * d_kPointWeights.size();

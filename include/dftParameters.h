@@ -163,6 +163,11 @@ namespace dftfe
     std::string tempControllerTypeBOMD;
     int         MDTrack;
 
+    unsigned int NumofKSOrbitalsproj;
+    bool         ComputeFeOHP;
+    unsigned int AtomicOrbitalBasis;
+    std::string pseudoAtomicOrbitalsFile;
+
     dftParameters();
 
     /**

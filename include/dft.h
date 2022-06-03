@@ -894,6 +894,9 @@ namespace dftfe
     compute_pdos(const std::vector<std::vector<double>> &eigenValuesInput,
                  const std::string &                     fileName);
 
+    void
+    orbitalOverlapPopulationCompute(const std::vector<std::vector<double> > & eigenValuesInput);
+
 
     /**
      *@brief compute localization length

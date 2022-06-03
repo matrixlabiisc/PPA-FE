@@ -44,6 +44,12 @@ SET(TARGET_SRC
   ./src/solvers/dealiiLinearSolver.cc
   ./src/solvers/dealiiLinearSolverProblem.cc
   ./src/md/molecularDynamicsClass.cc
+  ./src/orbitalOverlap/atomicOrbitalBasisManager.cc
+  ./src/orbitalOverlap/matrixmatrixmul.cc
+  ./src/orbitalOverlap/mathUtils.cc
+  ./src/orbitalOverlap/distributions.cc
+  ./src/orbitalOverlap/overlapPopulationAnalysis.cc
+  ./src/orbitalOverlap/CO_LCAO_MOorbitals.cc
   ./utils/fileReaders.cc
   ./utils/dftParameters.cc
   ./utils/runParameters.cc
