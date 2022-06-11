@@ -1912,7 +1912,7 @@ void AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
     {
         //std::cout<<"Entering CreatePseudoAtomicOrbitalBasis "<<std::endl;
         std::vector<std::vector<double>> values;
-        std::string path = "../PAorbitals/PA_";
+        std::string path = "../../PAorbitals/PA_";
         for(int i = 0; i < n.size(); i++ )
         {
             if(m[i] == 0)

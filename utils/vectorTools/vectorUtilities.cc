@@ -243,7 +243,7 @@ namespace dftfe
         globalNumberDegreesOfFreedom *
         (dealii::types::global_dof_index)blockSize);
 
-
+      
       for (unsigned int ilocaldof = 0; ilocaldof < totalSize; ++ilocaldof)
         {
           std::vector<dealii::types::global_dof_index>

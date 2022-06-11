@@ -897,7 +897,10 @@ namespace dftfe
     void
     orbitalOverlapPopulationCompute(const std::vector<std::vector<double> > & eigenValuesInput);
 
-
+    double
+    newRhoSpillFactor(const dealii::DoFHandler<3> &dofHandlerOfField,
+      const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
+      const std::map<dealii::CellId, std::vector<double>> *NewrhoQuadValues);
     /**
      *@brief compute localization length
      */

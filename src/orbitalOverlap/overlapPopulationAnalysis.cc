@@ -225,6 +225,10 @@ void spillFactorsofProjectionwithCS(const std::vector<double> & C_up,const std::
 }
 
 
+
+
+
+
 std::vector<double> 
 pCOOPvsEnergy(std::vector<double> epsvalues,
 			  int globalBasisNum1, int globalBasisNum2, 

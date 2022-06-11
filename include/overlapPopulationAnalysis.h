@@ -161,7 +161,9 @@ void spillFactorsofProjectionwithCS(const std::vector<double> & C,
 void spillFactorsofProjectionwithCS(const std::vector<double> & C_up,const std::vector<double> & C_down,
 									const std::vector<double> & Sold,
 									const std::vector<double> & occupationNum,
-									int m1, int n1, int m2, int n2);									
+									int m1, int n1, int m2, int n2);
+
+																	
 std::vector<double> 
 pCOOPvsEnergy(std::vector<double> epsvalues,
 			  int globalBasisNum1, int globalBasisNum2, 

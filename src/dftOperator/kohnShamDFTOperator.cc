@@ -1126,6 +1126,7 @@ namespace dftfe
     //
     distributedCPUVec<dataTypes::number> XTemp;
     reinit(numberWaveFunctions, XTemp, true);
+
     for (unsigned int iNode = 0; iNode < numberDofs; ++iNode)
       for (unsigned int iWave = 0; iWave < numberWaveFunctions; ++iWave)
         XTemp.local_element(iNode * numberWaveFunctions + iWave) =
@@ -1138,6 +1139,7 @@ namespace dftfe
     reinit(numberWaveFunctions, Y, true);
 
     Y = dataTypes::number(0);
+
     //
     // evaluate H times XTemp and store in Y
     //
@@ -1188,6 +1190,7 @@ namespace dftfe
     Y.reinit(0);
 
     Utilities::MPI::sum(ProjHam, mpi_communicator, ProjHam);
+
   }
 
   template <unsigned int FEOrder, unsigned int FEOrderElectro>
