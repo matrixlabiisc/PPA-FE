@@ -61,7 +61,8 @@ void writeVectorToFile(const std::vector<T>& vec,
 
 		for (const auto &elem : vec)
 		{
-			outputFile << elem << '\n';
+			outputFile <<std::setprecision(
+                                   std::numeric_limits<double>::max_digits10)<< elem << '\n';
 		}
 
 		outputFile.close();
