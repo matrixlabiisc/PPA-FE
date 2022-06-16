@@ -896,9 +896,9 @@ dftClass<FEOrder, FEOrderElectro>::
           maxHighestOccupiedStateResNorm =
             residualNormWaveFunctionsAllkPoints[kPoint][highestOccupiedState];
         }
- /*     if(dftParameters::NumofKSOrbitalsproj > 1)
-        maxHighestOccupiedStateResNorm =residualNormWaveFunctionsAllkPoints[kPoint][dftParameters::NumofKSOrbitalsproj-1];     
-    */
+      /*if(d_dftParamsPtr->NumofKSOrbitalsproj > 1)
+        maxHighestOccupiedStateResNorm =residualNormWaveFunctionsAllkPoints[kPoint][d_dftParamsPtr->NumofKSOrbitalsproj-1];     
+      */
     }
    
   maxHighestOccupiedStateResNorm =

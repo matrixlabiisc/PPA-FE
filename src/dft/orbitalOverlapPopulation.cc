@@ -659,7 +659,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
 		{
 			writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
-			printVector(upperTriaOfS);
+			//printVector(upperTriaOfS);
 		} 		
 	MPI_Barrier(MPI_COMM_WORLD);
 	t1 = MPI_Wtime();
@@ -696,14 +696,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 			{	
 				writeVectorAs2DMatrix(arrayVecOfProj_spinup, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs_spinup.txt");
-				printVector(arrayVecOfProj_spinup);
+				//printVector(arrayVecOfProj_spinup);
 				pcout<<std::endl;
 				writeVectorAs2DMatrix(arrayVecOfProj_spindown, totalDimOfBasis, numOfKSOrbitals,
 												"projOfKSOrbitalsWithAOs_spindown.txt");
-				printVector(arrayVecOfProj_spindown);
+				//printVector(arrayVecOfProj_spindown);
 				pcout<<std::endl;				
 				pcout<< "Full S inverse matrix: \n";
-				printVector(invS);
+				//printVector(invS);
 			}											
 	
 	
@@ -1009,7 +1009,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 #ifdef USE_COMPLEX
 
 #else
-		std::vector<dataTypes::number> CoeffNew(N*N,0.0);	 
+	std::vector<dataTypes::number> CoeffNew(N*N,0.0);	 
 	MPI_Barrier(MPI_COMM_WORLD);
 	t1 = MPI_Wtime();
 	startTime3 = MPI_Wtime();
@@ -1024,7 +1024,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		{
 			writeVectorAs2DMatrix(ProjHam, totalDimOfBasis, totalDimOfBasis,
 												"ProjectedHamilton.txt");
-			printVector(ProjHam);
+			//printVector(ProjHam);
 			pcout<<std::endl;
 		
 		} 
@@ -1117,9 +1117,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		pcout<<"Time2: "<<endTime2-startTime2<<std::endl;
 		pcout<<"Time3: "<<endTime3-startTime3<<std::endl;
 		pcout<<" -------------------------New Error Metric--------------------------------"<<std::endl;
-#ifdef USE_COMPLEX
 
-#else
 
 	std::vector<double> Minv_scaledOrbitalValues_FEnodes(n_dofs*totalDimOfBasis,0.0);
 	for (unsigned int dof = 0; dof < n_dofs; ++dof)
@@ -1247,10 +1245,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 		}
 		}
 
-#endif
 
-
-				
+	
 
 
 
