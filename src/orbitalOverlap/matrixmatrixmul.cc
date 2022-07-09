@@ -7,7 +7,7 @@
 #include <linearAlgebraOperationsInternal.h>
 #include <vector>
 #include <math.h>
-#include<iostream>
+#include <iostream>
 #include <algorithm>
 #include <numeric>
 #include <valarray>

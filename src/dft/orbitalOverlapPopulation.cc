@@ -505,7 +505,24 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 #else
 
+                  if (d_dftParamsPtr->periodicX ||d_dftParamsPtr->periodicY ||
+                      d_dftParamsPtr->periodicZ)
+                    {
+                             pcout<<"pspCutOff: "<<d_pspCutOff<<std::endl;
+							/* generateImageCharges(d_pspCutOff,
+                             d_imageIds,
+                             d_imageCharges,
+                             d_imagePositions,
+                             d_globalChargeIdToImageIdMap);							      
+								  
+							createMasterChargeIdToImageIdMaps(d_pspCutOff,
+                            d_imageIds,
+                            d_imagePositions,
+                            d_globalChargeIdToImageIdMap); */
 
+							 
+					  
+                    }
 
 	for (unsigned int dof = 0; dof < n_dofs; ++dof)
 	  {
@@ -527,13 +544,15 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
                   if (d_dftParamsPtr->periodicX ||d_dftParamsPtr->periodicY ||
                       d_dftParamsPtr->periodicZ)
                     {
-                      imageIdsList = d_globalChargeIdToImageIdMap[atomChargeID];
+							      
+
+					  imageIdsList = d_globalChargeIdToImageIdMap[atomChargeID];
                     }
                   else
                     {
                       imageIdsList.push_back(atomChargeID);
                     } 
-
+				//pcout<<"Here"<<std::endl;
 				for(int imageID = 0; imageID <imageIdsList.size(); imageID++)
 				{
 					int chargeId = imageIdsList[imageID];
@@ -1019,7 +1038,23 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 					totalDimOfBasis,
 					ProjHam);
 	MPI_Barrier(MPI_COMM_WORLD);
-	pcout<<"Computation of H projected: "<<MPI_Wtime()-t1<<std::endl;				
+	pcout<<"Computation of H projected: "<<MPI_Wtime()-t1<<std::endl;	
+	MPI_Barrier(MPI_COMM_WORLD);
+	t1 = MPI_Wtime();
+      const unsigned int rowsBlockSize = d_elpaScala->getScalapackBlockSize();
+      std::shared_ptr<const dftfe::ProcessGrid> processGrid =
+        d_elpaScala->getProcessGridDftfeScalaWrapper();	
+      dftfe::ScaLAPACKMatrix<dataTypes::number> projHamPar(totalDimOfBasis,
+                                           processGrid,
+                                           rowsBlockSize);
+									   
+	 
+	 d_kohnShamDFTOperatorPtr->XtHX(OrthoscaledOrbitalValues_FEnodes,
+					totalDimOfBasis,
+					processGrid, projHamPar);
+	MPI_Barrier(MPI_COMM_WORLD);
+	pcout<<"Computation of H projected scalapack: "<<MPI_Wtime()-t1<<std::endl;
+
 		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
 		{
 			writeVectorAs2DMatrix(ProjHam, totalDimOfBasis, totalDimOfBasis,
