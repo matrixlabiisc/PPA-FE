@@ -166,8 +166,8 @@ dftClass<FEOrder, FEOrderElectro>::newRhoSpillFactor(const dealii::DoFHandler<3>
             (*NewrhoQuadValues).find(cell->id())->second;			
           for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
             {
-              Denominator += (rhoValues[q_point] * fe_values.JxW(q_point))*(rhoValues[q_point] * fe_values.JxW(q_point));
-			  Numerator += (rhoValues[q_point] - NewrhoValues[q_point])  * fe_values.JxW(q_point)*
+              Denominator += (rhoValues[q_point] * fe_values.JxW(q_point))*(rhoValues[q_point]);
+			  Numerator += (rhoValues[q_point] - NewrhoValues[q_point])  * 
 			  				(rhoValues[q_point] - NewrhoValues[q_point])  * fe_values.JxW(q_point);
             }
         }
@@ -505,24 +505,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 #else
 
-                  if (d_dftParamsPtr->periodicX ||d_dftParamsPtr->periodicY ||
-                      d_dftParamsPtr->periodicZ)
-                    {
-                             pcout<<"pspCutOff: "<<d_pspCutOff<<std::endl;
-							/* generateImageCharges(d_pspCutOff,
-                             d_imageIds,
-                             d_imageCharges,
-                             d_imagePositions,
-                             d_globalChargeIdToImageIdMap);							      
-								  
-							createMasterChargeIdToImageIdMaps(d_pspCutOff,
-                            d_imageIds,
-                            d_imagePositions,
-                            d_globalChargeIdToImageIdMap); */
 
-							 
-					  
-                    }
 
 	for (unsigned int dof = 0; dof < n_dofs; ++dof)
 	  {
