@@ -751,6 +751,12 @@ namespace dftfe
       const dealii::DoFHandler<3> &                        dofHandlerOfField,
       const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues);
 
+    double
+    totalCharge(
+      const dealii::DoFHandler<3> &                        dofHandlerOfField,
+      const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
+      int spinIndex);      
+
 
     double
     totalCharge(const dealii::MatrixFree<3, double> &matrixFreeDataObject,
@@ -920,6 +926,11 @@ namespace dftfe
     newRhoSpillFactor(const dealii::DoFHandler<3> &dofHandlerOfField,
       const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
       const std::map<dealii::CellId, std::vector<double>> *NewrhoQuadValues);
+        double
+    newRhoSpillFactorspin(const dealii::DoFHandler<3> &dofHandlerOfField,
+      const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
+      const std::map<dealii::CellId, std::vector<double>> *NewrhoQuadValues,
+      int spinIndex);  
     /**
      *@brief compute localization length
      */

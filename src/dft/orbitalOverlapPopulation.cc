@@ -178,6 +178,46 @@ dftClass<FEOrder, FEOrderElectro>::newRhoSpillFactor(const dealii::DoFHandler<3>
 
 }
 template <unsigned int FEOrder, unsigned int FEOrderElectro>
+double
+dftClass<FEOrder, FEOrderElectro>::newRhoSpillFactorspin(const dealii::DoFHandler<3> &dofHandlerOfField,
+  const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
+  const std::map<dealii::CellId, std::vector<double>> *NewrhoQuadValues, int spinIndex)
+{
+  double               Numerator = 0.0;
+  double 			   Denominator = 0.0;
+  const Quadrature<3> &quadrature_formula =
+    matrix_free_data.get_quadrature(d_densityQuadratureId);
+  FEValues<3>        fe_values(dofHandlerOfField.get_fe(),
+                        quadrature_formula,
+                        update_JxW_values);
+  const unsigned int dofs_per_cell = dofHandlerOfField.get_fe().dofs_per_cell;
+  const unsigned int n_q_points    = quadrature_formula.size();
+
+  DoFHandler<3>::active_cell_iterator cell = dofHandlerOfField.begin_active(),
+                                      endc = dofHandlerOfField.end();
+  for (; cell != endc; ++cell)
+    {
+      if (cell->is_locally_owned())
+        {
+          fe_values.reinit(cell);
+          const std::vector<double> &rhoValues =
+            (*rhoQuadValues).find(cell->id())->second;
+          const std::vector<double> &NewrhoValues =
+            (*NewrhoQuadValues).find(cell->id())->second;			
+          for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+            {
+              Denominator += (rhoValues[2*q_point+spinIndex] * fe_values.JxW(q_point))*(rhoValues[2*q_point+spinIndex]);
+			  Numerator += (rhoValues[2*q_point+spinIndex] - NewrhoValues[2*q_point+spinIndex])  * 
+			  				(rhoValues[2*q_point+spinIndex] - NewrhoValues[2*q_point+spinIndex])  * fe_values.JxW(q_point);
+            }
+        }
+    }
+  return(sqrt(Utilities::MPI::sum(Numerator, mpi_communicator))/sqrt(Utilities::MPI::sum(Denominator, mpi_communicator)));
+
+
+
+}
+template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
 dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::vector<std::vector<double> > & eigenValuesInput)
 {
@@ -862,6 +902,352 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 
 		}		
 
+
+		pcout<<"--------------------------COHP v2 Starting------------------------------"<<std::endl;
+		const unsigned int N = totalDimOfBasis;	
+	std::vector<double> Minv_scaledOrbitalValues_FEnodes(n_dofs*totalDimOfBasis,0.0);
+	for (unsigned int dof = 0; dof < n_dofs; ++dof)
+	{
+	    // get nodeID 
+	    const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
+		if (!constraintsNone.is_constrained(dofID))
+		{
+
+
+	    	auto count1 = totalDimOfBasis*dof;
+
+	    	for (unsigned int i = 0; i < totalDimOfBasis; ++i)
+	      	{			
+    
+						Minv_scaledOrbitalValues_FEnodes[count1 + i] += d_kohnShamDFTOperatorPtr->d_invSqrtMassVector.local_element(dof) *
+							OrthoscaledOrbitalValues_FEnodes[count1 + i];
+							
+															
+
+			}			
+
+	    }
+		
+	}	
+	auto psiProjected1_up = matrixmatrixmul(Minv_scaledOrbitalValues_FEnodes,n_dofs,totalDimOfBasis,
+												CoeffofOrthonormalisedKSonAO_COHP_spinup,totalDimOfBasis,totalDimOfBasis);
+	auto psiProjected1_down = matrixmatrixmul(Minv_scaledOrbitalValues_FEnodes,n_dofs,totalDimOfBasis,
+												CoeffofOrthonormalisedKSonAO_COHP_spindown,totalDimOfBasis,totalDimOfBasis);
+
+	std::vector<std::vector<double>> psi_projected1,psi_projected2;	
+    for (unsigned int s = 0; s < 2; ++s)
+     {
+                if(s ==0)
+					pcout<<"---SPIN UP---"<<std::endl;
+				else
+					pcout<<"---SPIN DOWN---"<<std::endl;	
+				
+				if (d_dftParamsPtr->xcFamilyType == "LDA")
+                  {
+                    computing_timer.enter_subsection("VEff Computation");
+#ifdef DFTFE_WITH_GPU
+                    if (d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorCUDAPtr->computeVEffSpinPolarized(
+                        rhoInValuesSpinPolarized,
+                        d_phiInValues,
+                        s,
+                        d_pseudoVLoc,
+                        d_rhoCore,
+                        d_lpspQuadratureId);
+#endif
+                    if (!d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorPtr->computeVEffSpinPolarized(
+                        rhoInValuesSpinPolarized,
+                        d_phiInValues,
+                        s,
+                        d_pseudoVLoc,
+                        d_rhoCore,
+                        d_lpspQuadratureId);
+                    computing_timer.leave_subsection("VEff Computation");
+                  }
+                else if (d_dftParamsPtr->xcFamilyType == "GGA")
+                  {
+                    computing_timer.enter_subsection("VEff Computation");
+#ifdef DFTFE_WITH_GPU
+                    if (d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorCUDAPtr->computeVEffSpinPolarized(
+                        rhoInValuesSpinPolarized,
+                        gradRhoInValuesSpinPolarized,
+                        d_phiInValues,
+                        s,
+                        d_pseudoVLoc,
+                        d_rhoCore,
+                        d_gradRhoCore,
+                        d_lpspQuadratureId);
+#endif
+                    if (!d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorPtr->computeVEffSpinPolarized(
+                        rhoInValuesSpinPolarized,
+                        gradRhoInValuesSpinPolarized,
+                        d_phiInValues,
+                        s,
+                        d_pseudoVLoc,
+                        d_rhoCore,
+                        d_gradRhoCore,
+                        d_lpspQuadratureId);
+                    computing_timer.leave_subsection("VEff Computation");
+                  }
+
+#ifdef DFTFE_WITH_GPU
+                    if (d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorCUDAPtr->reinitkPointSpinIndex(0,
+                                                                         s);
+#endif
+                    if (!d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorPtr->reinitkPointSpinIndex(0, s);
+
+                    computing_timer.enter_subsection(
+                      "Hamiltonian Matrix Computation");
+#ifdef DFTFE_WITH_GPU
+                    if (d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorCUDAPtr->computeHamiltonianMatrix(
+                        0, s);
+#endif
+                    if (!d_dftParamsPtr->useGPU)
+                      d_kohnShamDFTOperatorPtr->computeHamiltonianMatrix(0,
+                                                                        s);
+                    computing_timer.leave_subsection(
+                      "Hamiltonian Matrix Computation");
+
+                    if (d_dftParamsPtr->verbosity >= 4)
+                      dftUtils::printCurrentMemoryUsage(
+                        mpi_communicator, "Hamiltonian Matrix computed");
+
+#ifdef USE_COMPLEX
+
+#else
+	std::vector<dataTypes::number> CoeffNew(N*N,0.0);	 
+	MPI_Barrier(MPI_COMM_WORLD);
+	t1 = MPI_Wtime();
+	startTime3 = MPI_Wtime();
+	 std::vector<dataTypes::number> ProjHam;
+	 MPI_Barrier(MPI_COMM_WORLD);
+	 d_kohnShamDFTOperatorPtr->XtHX(OrthoscaledOrbitalValues_FEnodes,
+					totalDimOfBasis,
+					ProjHam);
+	MPI_Barrier(MPI_COMM_WORLD);
+	pcout<<"Computation of H projected: "<<MPI_Wtime()-t1<<std::endl;	
+	MPI_Barrier(MPI_COMM_WORLD);
+	t1 = MPI_Wtime();
+
+
+		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+		{
+				if(s == 0)
+				writeVectorAs2DMatrix(ProjHam, totalDimOfBasis, totalDimOfBasis,
+												"ProjectedHamilton_spinUp.txt");
+				else
+				writeVectorAs2DMatrix(ProjHam, totalDimOfBasis, totalDimOfBasis,
+												"ProjectedHamilton_spinDown.txt");								
+			//printVector(ProjHam);
+			pcout<<std::endl;
+		
+		} 
+			
+	 MPI_Barrier(MPI_COMM_WORLD);
+	 t1 = MPI_Wtime();	
+	  int                info; 
+	  
+	  
+	  if(this_mpi_process == 0)
+	  {
+      	const unsigned int lwork = 1 + 6*N +
+                                 2 * N*N,
+                         liwork = 3 + 5 *N;
+      	std::vector<int>    iwork(liwork, 0);
+      	const char          jobz = 'V', uplo = 'U';
+      	std::vector<double> work(lwork);
+	  	std::vector<double> D(N,0.0);
+      	dftfe::dsyevd_(&jobz,
+              &uplo,
+              &N,
+              &ProjHam[0],
+              &N,
+              &D[0],
+              &work[0],
+              &lwork,
+              &iwork[0],
+              &liwork,
+              &info); 
+      	//
+      	// free up memory associated with work
+      	//
+    	work.clear();
+    	iwork.clear();
+    	std::vector<double>().swap(work);
+    	std::vector<int>().swap(iwork);
+		if(info > 0)
+			std::cout<<"Eigen Value Decomposition Failed!!"<<std::endl;
+		pcout<<"Finished Computation of C_hat2"<<std::endl;
+	
+		CoeffNew = ProjHam;
+	}
+    MPI_Allreduce(MPI_IN_PLACE,
+                          &CoeffNew[0],
+                          N*N,
+                          dataTypes::mpi_type_id(&CoeffNew[0]),
+                          MPI_SUM,
+                          MPI_COMM_WORLD);		
+	MPI_Barrier(MPI_COMM_WORLD);
+	pcout<<"Computation Time of C_hat new from diagonalization of H: "<<MPI_Wtime()-t1<<std::endl;
+	if(this_mpi_process==0)
+	{
+			if(s == 0)
+			writeVectorAs2DMatrix(CoeffNew, totalDimOfBasis, totalDimOfBasis,
+												"FePHP_v2_spinUp.txt");
+			else
+			writeVectorAs2DMatrix(CoeffNew, totalDimOfBasis, totalDimOfBasis,
+												"FePHP_v2_spinDown.txt");												
+
+		
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	t1 = MPI_Wtime();			
+	auto phiTphihatserial = matrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis, 
+									   				 OrthoscaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
+	std::vector<double> phiTphihat(N*N,0.0);											 
+    MPI_Allreduce(&phiTphihatserial[0],
+                          &phiTphihat[0],
+                          (totalDimOfBasis*numOfKSOrbitals),
+                          MPI_DOUBLE,
+                          MPI_SUM,
+                          MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+	pcout<<"Computation of phiTphi_hat: "<<MPI_Wtime()-t1<<std::endl;
+	MPI_Barrier(MPI_COMM_WORLD);
+	t1 = MPI_Wtime();						  
+	std::vector<double> CoeffNewCOOP(totalDimOfBasis*numOfKSOrbitals, 0.0);
+
+	auto tempmult = matrixmatrixTmul(phiTphihat,totalDimOfBasis,totalDimOfBasis,CoeffNew,totalDimOfBasis,totalDimOfBasis);
+	CoeffNewCOOP = matrixmatrixmul(invS,totalDimOfBasis,totalDimOfBasis,tempmult,totalDimOfBasis,totalDimOfBasis);
+	MPI_Barrier(MPI_COMM_WORLD);
+	endTime3 = MPI_Wtime();
+	pcout<<"Computation Time of C_bar for COOP new: "<<MPI_Wtime()-t1<<std::endl;			
+	if (this_mpi_process == 0)
+	{
+		if(s == 0)
+		writeVectorAs2DMatrix(CoeffNewCOOP, totalDimOfBasis, totalDimOfBasis,
+												"FePOP_v2_spinUp.txt");
+		else
+		writeVectorAs2DMatrix(CoeffNewCOOP, totalDimOfBasis, totalDimOfBasis,
+												"FePOP_v2_spinDown.txt");												
+			pcout<<std::endl;
+	
+	} 					
+#endif			
+
+
+
+	
+	
+											
+
+	auto psiProjected2 = matrixmatrixTmul(Minv_scaledOrbitalValues_FEnodes,n_dofs,totalDimOfBasis,
+												CoeffNew,totalDimOfBasis,totalDimOfBasis);													
+						  
+	 	MPI_Barrier(MPI_COMM_WORLD);
+		
+		if(s == 0)
+		psi_projected1.push_back(psiProjected1_up);
+		else
+		psi_projected1.push_back(psiProjected1_down);
+		psi_projected2.push_back(psiProjected2);
+
+          
+      	
+
+			  
+			  
+		}	
+	std::map<dealii::CellId, std::vector<double>> rhoValues1, rhoValues2;
+    const unsigned int numQuadPoints =
+    matrix_free_data.get_n_q_points(d_densityQuadratureId);
+    typename DoFHandler<3>::active_cell_iterator cell = dofHandler.begin_active(),
+  												endc = dofHandler.end();
+   for (; cell != endc; ++cell)
+    if (cell->is_locally_owned())
+      {
+        const dealii::CellId cellId = cell->id();
+
+            (rhoValues1)[cellId]  =
+              std::vector<double>(2*numQuadPoints, 0.0);
+            (rhoValues2)[cellId]  =
+              std::vector<double>(2*numQuadPoints, 0.0);
+	  }	  			  	
+		pcout<<"Compute rho for old"<<std::endl;
+      computeRhoFromPSICPU(
+        psi_projected1,
+        d_eigenVectorsRotFracDensityFlattenedSTL,
+        totalDimOfBasis,
+        d_numEigenValuesRR,
+        n_dofs,
+        eigenValuesInput,
+        fermiEnergy,
+        fermiEnergyUp,
+        fermiEnergyDown,
+        *d_kohnShamDFTOperatorPtr,
+        dofHandler,
+        matrix_free_data.n_physical_cells(),
+        matrix_free_data.get_dofs_per_cell(d_densityDofHandlerIndex),
+        matrix_free_data.get_quadrature(d_densityQuadratureId).size(),
+        d_kPointWeights,
+        rhoOutValues,
+        gradRhoOutValues,
+        &rhoValues1,
+        gradRhoOutValuesSpinPolarized,
+        d_dftParamsPtr->xcFamilyType == "GGA",
+        d_mpiCommParent,
+        interpoolcomm,
+        interBandGroupComm,
+        *d_dftParamsPtr,
+        false,
+        false);	
+		pcout<<"Compute rho for new"<<std::endl;	
+      computeRhoFromPSICPU(
+        psi_projected2,
+        d_eigenVectorsRotFracDensityFlattenedSTL,
+        totalDimOfBasis,
+        d_numEigenValuesRR,
+        n_dofs,
+        eigenValuesInput,
+        fermiEnergy,
+        fermiEnergyUp,
+        fermiEnergyDown,
+        *d_kohnShamDFTOperatorPtr,
+        dofHandler,
+        matrix_free_data.n_physical_cells(),
+        matrix_free_data.get_dofs_per_cell(d_densityDofHandlerIndex),
+        matrix_free_data.get_quadrature(d_densityQuadratureId).size(),
+        d_kPointWeights,
+        rhoOutValues,
+        gradRhoOutValues,
+        &rhoValues2,
+        gradRhoOutValuesSpinPolarized,
+        d_dftParamsPtr->xcFamilyType == "GGA",
+        d_mpiCommParent,
+        interpoolcomm,
+        interBandGroupComm,
+        *d_dftParamsPtr,
+        false,
+        false); 
+
+
+		pcout<<"Spin UP: Total Charge old and new "<<totalCharge(d_dofHandlerPRefined,rhoOutValuesSpinPolarized,0)<<" "<<totalCharge(d_dofHandlerPRefined,&rhoValues1,0)<<" "<<totalCharge(d_dofHandlerPRefined,&rhoValues2,0)<<std::endl;
+		pcout<<"Spin UP: New error with old methods= "<<newRhoSpillFactorspin(d_dofHandlerPRefined, 
+											rhoOutValuesSpinPolarized, &rhoValues1,0 )<<std::endl;
+		pcout<<"Spin UP: New error with new methods= "<<newRhoSpillFactorspin(d_dofHandlerPRefined, 
+											rhoOutValuesSpinPolarized, &rhoValues2,0 )<<std::endl;											
+		pcout<<"Spin DOWN: Total Charge old and new "<<totalCharge(d_dofHandlerPRefined,rhoOutValuesSpinPolarized,1)<<" "<<totalCharge(d_dofHandlerPRefined,&rhoValues1,1)<<" "<<totalCharge(d_dofHandlerPRefined,&rhoValues2,1)<<std::endl;		  				
+		pcout<<"Spin DOWN: New error with old methods= "<<newRhoSpillFactorspin(d_dofHandlerPRefined, 
+											rhoOutValuesSpinPolarized, &rhoValues1,1 )<<std::endl;
+		pcout<<"Spin DOWN: New error with new methods= "<<newRhoSpillFactorspin(d_dofHandlerPRefined, 
+											rhoOutValuesSpinPolarized, &rhoValues2,1 )<<std::endl;	
+
 	}	
 	if(d_dftParamsPtr->spinPolarized == 0)
 		{	
@@ -1024,7 +1410,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 	pcout<<"Computation of H projected: "<<MPI_Wtime()-t1<<std::endl;	
 	MPI_Barrier(MPI_COMM_WORLD);
 	t1 = MPI_Wtime();
-      const unsigned int rowsBlockSize = d_elpaScala->getScalapackBlockSize();
+    /*  const unsigned int rowsBlockSize = d_elpaScala->getScalapackBlockSize();
       std::shared_ptr<const dftfe::ProcessGrid> processGrid =
         d_elpaScala->getProcessGridDftfeScalaWrapper();	
       dftfe::ScaLAPACKMatrix<dataTypes::number> projHamPar(totalDimOfBasis,
@@ -1036,7 +1422,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(const std::ve
 					totalDimOfBasis,
 					processGrid, projHamPar);
 	MPI_Barrier(MPI_COMM_WORLD);
-	pcout<<"Computation of H projected scalapack: "<<MPI_Wtime()-t1<<std::endl;
+	pcout<<"Computation of H projected scalapack: "<<MPI_Wtime()-t1<<std::endl; */
 
 		if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
 		{

@@ -2823,7 +2823,7 @@ namespace dftfe
                       adaptiveChebysevFilterPassesTol > firstScfChebyTol) ?
                        firstScfChebyTol :
                        adaptiveChebysevFilterPassesTol);
-                while (maxRes > filterPassTol && count < 200)
+                while (maxRes > filterPassTol && count < 100)
                   {
                     for (unsigned int kPoint = 0;
                          kPoint < d_kPointWeights.size();

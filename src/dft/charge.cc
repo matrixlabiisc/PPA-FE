@@ -56,6 +56,42 @@ dftClass<FEOrder, FEOrderElectro>::totalCharge(
 }
 
 
+
+template <unsigned int FEOrder, unsigned int FEOrderElectro>
+double
+dftClass<FEOrder, FEOrderElectro>::totalCharge(
+  const dealii::DoFHandler<3> &                        dofHandlerOfField,
+  const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues, int spinIndex)
+{
+  double               normValue = 0.0;
+  const Quadrature<3> &quadrature_formula =
+    matrix_free_data.get_quadrature(d_densityQuadratureId);
+  FEValues<3>        fe_values(dofHandlerOfField.get_fe(),
+                        quadrature_formula,
+                        update_JxW_values);
+  const unsigned int dofs_per_cell = dofHandlerOfField.get_fe().dofs_per_cell;
+  const unsigned int n_q_points    = quadrature_formula.size();
+
+  DoFHandler<3>::active_cell_iterator cell = dofHandlerOfField.begin_active(),
+                                      endc = dofHandlerOfField.end();
+  for (; cell != endc; ++cell)
+    {
+      if (cell->is_locally_owned())
+        {
+          fe_values.reinit(cell);
+          const std::vector<double> &rhoValues =
+            (*rhoQuadValues).find(cell->id())->second;
+          for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+            {
+              normValue += rhoValues[2*q_point+spinIndex] * fe_values.JxW(q_point);
+            }
+        }
+    }
+  return Utilities::MPI::sum(normValue, mpi_communicator);
+}
+
+
+
 //
 // compute total charge using nodal point values
 //
