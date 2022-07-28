@@ -168,24 +168,20 @@ namespace dftfe
           "false",
           Patterns::Bool(),
           "[Standard] Computes localization lengths of all wavefunctions which is defined as the deviation around the mean position of a given wavefunction. Outputs a file name 'localizationLengths.out' containing 2 columns with first column indicating the wavefunction index and second column indicating localization length of the corresponding wavefunction.");
-      
-        prm.declare_entry(
-          "NUMBER OF PROJECTED KS ORBITALS",
-          "1",
-          Patterns::Integer(1),
-          "[Standard] Number of Kohn-Sham Orbitals projected");
-        prm.declare_entry(
-          "COMPUTE FeOHP",
-          "false",
-          Patterns::Bool(),
-          "[Standard] COmputes COOP/COHP if switched on");  
+
+        prm.declare_entry("NUMBER OF PROJECTED KS ORBITALS",
+                          "1",
+                          Patterns::Integer(1),
+                          "[Standard] Number of Kohn-Sham Orbitals projected");
+        prm.declare_entry("COMPUTE FeOHP",
+                          "false",
+                          Patterns::Bool(),
+                          "[Standard] COmputes COOP/COHP if switched on");
         prm.declare_entry(
           "BASIS TO PROJECT",
           "0",
           Patterns::Integer(0),
-          "[Standard] Parameter that selects the atomic orbital basis function 0: Pseudoatomic basis 1: BungeOrbitals basis");          
-      
-      
+          "[Standard] Parameter that selects the atomic orbital basis function 0: Pseudoatomic basis 1: BungeOrbitals basis");
       }
       prm.leave_subsection();
 
@@ -1274,15 +1270,10 @@ namespace dftfe
       readWfcForPdosPspFile =
         prm.get_bool("READ ATOMIC WFC PDOS FROM PSP FILE");
       writeLocalizationLengths = prm.get_bool("WRITE LOCALIZATION LENGTHS");
-      NumofKSOrbitalsproj =  
-          prm.get_integer("NUMBER OF PROJECTED KS ORBITALS");
-      ComputeFeOHP =  
-          prm.get_bool("COMPUTE FeOHP");  
-      AtomicOrbitalBasis =  
-          prm.get_integer("BASIS TO PROJECT"); 
-      writePdosFile = 
-        prm.get_bool("WRITE PROJECTED DENSITY OF STATES") ;
-
+      NumofKSOrbitalsproj = prm.get_integer("NUMBER OF PROJECTED KS ORBITALS");
+      ComputeFeOHP        = prm.get_bool("COMPUTE FeOHP");
+      AtomicOrbitalBasis  = prm.get_integer("BASIS TO PROJECT");
+      writePdosFile       = prm.get_bool("WRITE PROJECTED DENSITY OF STATES");
     }
     prm.leave_subsection();
 

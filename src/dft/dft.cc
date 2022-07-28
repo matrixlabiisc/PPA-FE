@@ -1766,7 +1766,7 @@ namespace dftfe
 
     if (d_dftParamsPtr->writeLocalizationLengths)
       compute_localizationLength("localizationLengths.out");
-    if(d_dftParamsPtr->ComputeFeOHP)
+    if (d_dftParamsPtr->ComputeFeOHP)
       orbitalOverlapPopulationCompute(eigenValues);
 
     if (d_dftParamsPtr->verbosity >= 1)
@@ -1811,7 +1811,7 @@ namespace dftfe
       &kohnShamDFTEigenOperatorCUDA = *d_kohnShamDFTOperatorCUDAPtr;
 #endif
 
-    if (!d_dftParamsPtr->useGPU|| d_dftParamsPtr->ComputeFeOHP)
+    if (!d_dftParamsPtr->useGPU || d_dftParamsPtr->ComputeFeOHP)
       {
         kohnShamDFTEigenOperator.init();
       }
@@ -3335,7 +3335,8 @@ namespace dftfe
 #ifdef DFTFE_WITH_GPU
     if (d_dftParamsPtr->useGPU &&
         (d_dftParamsPtr->writeWfcSolutionFields ||
-         d_dftParamsPtr->writeLdosFile || d_dftParamsPtr->writePdosFile||d_dftParamsPtr->ComputeFeOHP))
+         d_dftParamsPtr->writeLdosFile || d_dftParamsPtr->writePdosFile ||
+         d_dftParamsPtr->ComputeFeOHP))
       for (unsigned int kPoint = 0;
            kPoint <
            (1 + d_dftParamsPtr->spinPolarized) * d_kPointWeights.size();

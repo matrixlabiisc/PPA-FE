@@ -174,7 +174,7 @@ namespace dftfe
     unsigned int NumofKSOrbitalsproj;
     bool         ComputeFeOHP;
     unsigned int AtomicOrbitalBasis;
-    std::string pseudoAtomicOrbitalsFile;
+    std::string  pseudoAtomicOrbitalsFile;
 
     dftParameters();
 

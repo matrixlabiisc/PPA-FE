@@ -1010,12 +1010,12 @@ dftClass<FEOrder, FEOrderElectro>::
             residualNormWaveFunctionsAllkPoints[kPoint][highestOccupiedState];
         }
       /*if(d_dftParamsPtr->NumofKSOrbitalsproj > 1)
-        maxHighestOccupiedStateResNorm =residualNormWaveFunctionsAllkPoints[kPoint][d_dftParamsPtr->NumofKSOrbitalsproj-1];   */  
-      
+        maxHighestOccupiedStateResNorm
+        =residualNormWaveFunctionsAllkPoints[kPoint][d_dftParamsPtr->NumofKSOrbitalsproj-1];
+      */
     }
-   
+
   maxHighestOccupiedStateResNorm =
     Utilities::MPI::max(maxHighestOccupiedStateResNorm, interpoolcomm);
   return maxHighestOccupiedStateResNorm;
-
 }

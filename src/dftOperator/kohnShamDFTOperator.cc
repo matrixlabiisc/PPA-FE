@@ -1191,7 +1191,6 @@ namespace dftfe
     Y.reinit(0);
 
     Utilities::MPI::sum(ProjHam, mpi_communicator, ProjHam);
-
   }
 
   template <unsigned int FEOrder, unsigned int FEOrderElectro>

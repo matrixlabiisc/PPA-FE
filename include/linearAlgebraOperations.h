@@ -122,13 +122,14 @@ namespace dftfe
             const unsigned int *liwork,
             int *               info);
     void
-    dsygvd_(const unsigned int * itype,const char *        jobz,
+    dsygvd_(const unsigned int *itype,
+            const char *        jobz,
             const char *        uplo,
             const unsigned int *n,
             double *            A,
             const unsigned int *lda,
             double *            B,
-            const unsigned int *ldb,            
+            const unsigned int *ldb,
             double *            w,
             double *            work,
             const unsigned int *lwork,

@@ -755,7 +755,7 @@ namespace dftfe
     totalCharge(
       const dealii::DoFHandler<3> &                        dofHandlerOfField,
       const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
-      int spinIndex);      
+      int                                                  spinIndex);
 
 
     double
@@ -920,17 +920,20 @@ namespace dftfe
                  const std::string &                     fileName);
 
     void
-    orbitalOverlapPopulationCompute(const std::vector<std::vector<double> > & eigenValuesInput);
+    orbitalOverlapPopulationCompute(
+      const std::vector<std::vector<double>> &eigenValuesInput);
 
     double
-    newRhoSpillFactor(const dealii::DoFHandler<3> &dofHandlerOfField,
+    newRhoSpillFactor(
+      const dealii::DoFHandler<3> &                        dofHandlerOfField,
       const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
       const std::map<dealii::CellId, std::vector<double>> *NewrhoQuadValues);
-        double
-    newRhoSpillFactorspin(const dealii::DoFHandler<3> &dofHandlerOfField,
+    double
+    newRhoSpillFactorspin(
+      const dealii::DoFHandler<3> &                        dofHandlerOfField,
       const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
       const std::map<dealii::CellId, std::vector<double>> *NewrhoQuadValues,
-      int spinIndex);  
+      int                                                  spinIndex);
     /**
      *@brief compute localization length
      */

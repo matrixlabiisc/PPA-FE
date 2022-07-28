@@ -61,7 +61,8 @@ template <unsigned int FEOrder, unsigned int FEOrderElectro>
 double
 dftClass<FEOrder, FEOrderElectro>::totalCharge(
   const dealii::DoFHandler<3> &                        dofHandlerOfField,
-  const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues, int spinIndex)
+  const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
+  int                                                  spinIndex)
 {
   double               normValue = 0.0;
   const Quadrature<3> &quadrature_formula =
@@ -83,7 +84,8 @@ dftClass<FEOrder, FEOrderElectro>::totalCharge(
             (*rhoQuadValues).find(cell->id())->second;
           for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
             {
-              normValue += rhoValues[2*q_point+spinIndex] * fe_values.JxW(q_point);
+              normValue +=
+                rhoValues[2 * q_point + spinIndex] * fe_values.JxW(q_point);
             }
         }
     }
