@@ -554,6 +554,25 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
     (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
   std::vector<double> scaledKSOrbitalValues_FEnodes_spindown(
     (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
+  if (this_mpi_process == 0)
+    {
+      // and writing the high level basis information
+
+      std::ofstream highLevelBasisInfoFile("highLevelBasisInfo.txt");
+
+      if (highLevelBasisInfoFile.is_open())
+        {
+          highLevelBasisInfoFile << numOfAtoms << '\n'
+                                 << numOfAtomTypes << '\n'
+                                 << totalDimOfBasis << '\n'
+                                 << numOfKSOrbitals << '\n';
+
+          highLevelBasisInfoFile.close();
+        }
+
+      else
+        pcout << "couldn't open highLevelBasisInfo.txt file!\n";
+    }
   MPI_Barrier(MPI_COMM_WORLD);
   double t1 = MPI_Wtime();
 
@@ -661,26 +680,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   pcout << "Time to construct phi and psi matrices: " << MPI_Wtime() - t1
         << std::endl;
 
-  if (this_mpi_process == 0)
-    {
-      // and writing the high level basis information
 
-      std::ofstream highLevelBasisInfoFile("highLevelBasisInfo.txt");
-
-      if (highLevelBasisInfoFile.is_open())
-        {
-          highLevelBasisInfoFile << numOfAtoms << '\n'
-                                 << numOfAtomTypes << '\n'
-                                 << totalDimOfBasis << '\n'
-                                 << numOfKSOrbitals << '\n';
-
-          highLevelBasisInfoFile.close();
-        }
-
-      else
-        pcout << "couldn't open highLevelBasisInfo.txt file!\n";
-    }
-  MPI_Barrier(MPI_COMM_WORLD);
 
 
   // direct assembly of Overlap matrix S using Mass diagonal matrix from Gauss
@@ -693,8 +693,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 
 
   // COOP Analysis Begin
-  MPI_Barrier(MPI_COMM_WORLD);
-  t1 = MPI_Wtime();
+
   auto upperTriaOfSserial =
     selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
   std::vector<double> upperTriaOfS((totalDimOfBasis * (totalDimOfBasis + 1) /
@@ -708,7 +707,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                 MPI_SUM,
                 MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
-  pcout << "***Wall Time for: PSI, PHI and OVERLAP: " << MPI_Wtime() - t1;
+  pcout << "***Wall Time for: PSI, PHI and OVERLAP: " << MPI_Wtime() - t1<<std::endl;
   pcout
     << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
 
@@ -721,7 +720,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   t1        = MPI_Wtime();
   auto invS = inverseOfOverlapMatrix(upperTriaOfS, totalDimOfBasis);
   MPI_Barrier(MPI_COMM_WORLD);
-  pcout << "***Computation Time of S inverse: " << MPI_Wtime() - t1
+  pcout << "***Wall Time for: S inverse: " << MPI_Wtime() - t1
         << std::endl;
 
   if (d_dftParamsPtr->spinPolarized == 1)
@@ -1547,23 +1546,23 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                      ProjHam);
       MPI_Barrier(MPI_COMM_WORLD);
       pcout << "***Wall Time for: Hproj_Hamiltonian using Hamiltonian population approach: " << MPI_Wtime() - t1 << std::endl;
-      MPI_Barrier(MPI_COMM_WORLD);
-      t1 = MPI_Wtime();
-      /*  const unsigned int rowsBlockSize =
+
+        const unsigned int rowsBlockSize =
     d_elpaScala->getScalapackBlockSize(); std::shared_ptr<const
     dftfe::ProcessGrid> processGrid =
           d_elpaScala->getProcessGridDftfeScalaWrapper();
         dftfe::ScaLAPACKMatrix<dataTypes::number> projHamPar(totalDimOfBasis,
                                              processGrid,
                                              rowsBlockSize);
-
+      MPI_Barrier(MPI_COMM_WORLD);
+      t1 = MPI_Wtime();
 
      d_kohnShamDFTOperatorPtr->XtHX(OrthoscaledOrbitalValues_FEnodes,
             totalDimOfBasis,
             processGrid, projHamPar);
     MPI_Barrier(MPI_COMM_WORLD);
-    pcout<<"Computation of H projected scalapack: "<<MPI_Wtime()-t1<<std::endl;
-  */
+    pcout<<"***Wall Time for: H projected scalapack: "<<MPI_Wtime()-t1<<std::endl;
+  
 
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {

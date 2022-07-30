@@ -1247,7 +1247,7 @@ namespace dftfe
     const unsigned int vectorsBlockSize =
       std::min(dftPtr->d_dftParamsPtr->wfcBlockSize,
                bandGroupLowHighPlusOneIndices[1]);
-
+    pcout<<"** BLOCK SIZE: "<<vectorsBlockSize<<std::endl;
     std::vector<dataTypes::number> projHamBlock(numberWaveFunctions *
                                                   vectorsBlockSize,
                                                 dataTypes::number(0.0));
