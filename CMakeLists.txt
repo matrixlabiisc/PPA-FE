@@ -46,16 +46,13 @@ SET(TARGET_SRC
   ./src/solvers/dealiiLinearSolver.cc
   ./src/solvers/dealiiLinearSolverProblem.cc
   ./src/md/molecularDynamicsClass.cc
-<<<<<<< HEAD
   ./src/orbitalOverlap/atomicOrbitalBasisManager.cc
   ./src/orbitalOverlap/matrixmatrixmul.cc
   ./src/orbitalOverlap/mathUtils.cc
   ./src/orbitalOverlap/distributions.cc
   ./src/orbitalOverlap/overlapPopulationAnalysis.cc
   ./src/orbitalOverlap/CO_LCAO_MOorbitals.cc
-=======
   ./src/geoOpt/geometryOptimizationClass.cc
->>>>>>> c331f0f807b3d9b0617e906966752d5c315e866c
   ./utils/fileReaders.cc
   ./utils/dftParameters.cc
   ./utils/runParameters.cc

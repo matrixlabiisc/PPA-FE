@@ -159,7 +159,7 @@ namespace dftfe
             int *               iwork,
             const unsigned int *liwork,
             int *               info);
-
+    void   
     dsygvx_(const int *   itype,
             const char *  jobz,
             const char *  range,
