@@ -714,17 +714,20 @@ LowdenOrtho(const std::vector<double> &phi,
   return phinew;
 }
 std::vector<double>
-computeHprojOrbital(std::vector<double> C, int m, int N, std::vector<std::vector<double>> H)
+computeHprojOrbital(std::vector<double>              C,
+                    int                              m,
+                    int                              N,
+                    std::vector<std::vector<double>> H)
 {
-	std::vector<double> Hproj (N*N,0.0);
-	for (int i = 0; i < m; i++)
-	{
-		for(int j = 0; j < m; j++)
-		{
-			for (int k = 0; k < N; k++)
-				Hproj[i*N+j] = C[i*N+k]*H[0][k]*C[j*N+k];
-		}
-	}
+  std::vector<double> Hproj(N * N, 0.0);
+  for (int i = 0; i < m; i++)
+    {
+      for (int j = 0; j < m; j++)
+        {
+          for (int k = 0; k < N; k++)
+            Hproj[i * N + j] = C[i * N + k] * H[0][k] * C[j * N + k];
+        }
+    }
 
-	return Hproj;
+  return Hproj;
 }

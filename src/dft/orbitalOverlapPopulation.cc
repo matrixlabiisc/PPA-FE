@@ -682,7 +682,6 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 
 
 
-
   // direct assembly of Overlap matrix S using Mass diagonal matrix from Gauss
   // Lobatto
 
@@ -707,7 +706,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                 MPI_SUM,
                 MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
-  pcout << "***Wall Time for: PSI, PHI and OVERLAP: " << MPI_Wtime() - t1<<std::endl;
+  pcout << "***Wall Time for: PSI, PHI and OVERLAP: " << MPI_Wtime() - t1
+        << std::endl;
   pcout
     << "Upper triangular part of Overlap matrix (S) vector in the direct way: \n";
 
@@ -720,8 +720,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   t1        = MPI_Wtime();
   auto invS = inverseOfOverlapMatrix(upperTriaOfS, totalDimOfBasis);
   MPI_Barrier(MPI_COMM_WORLD);
-  pcout << "***Wall Time for: S inverse: " << MPI_Wtime() - t1
-        << std::endl;
+  pcout << "***Wall Time for: S inverse: " << MPI_Wtime() - t1 << std::endl;
 
   if (d_dftParamsPtr->spinPolarized == 1)
     {
@@ -1442,7 +1441,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                             totalDimOfBasis,
                                             numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
-      pcout << "***Wall Time for: C_BAR using orbital population approach:" << MPI_Wtime() - t1 << std::endl;
+      pcout << "***Wall Time for: C_BAR using orbital population approach:"
+            << MPI_Wtime() - t1 << std::endl;
 
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
@@ -1460,15 +1460,16 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 
       // COHP Analysis Begin
       MPI_Barrier(MPI_COMM_WORLD);
-      t1               = MPI_Wtime();
+      t1         = MPI_Wtime();
       auto Shalf = InvertPowerMatrix(0.5, totalDimOfBasis, upperTriaOfS);
-      auto C_hat       = matrixmatrixmul(Shalf,
+      auto C_hat = matrixmatrixmul(Shalf,
                                    totalDimOfBasis,
                                    totalDimOfBasis,
                                    C_bar,
                                    totalDimOfBasis,
                                    numOfKSOrbitals);
-      pcout << "***Wall Time for: C_HAT using orbital population approach:" << MPI_Wtime() - t1 << std::endl;
+      pcout << "***Wall Time for: C_HAT using orbital population approach:"
+            << MPI_Wtime() - t1 << std::endl;
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
           writeVectorAs2DMatrix(C_hat,
@@ -1477,16 +1478,20 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                 "FePHP_v1.txt");
         }
       MPI_Barrier(MPI_COMM_WORLD);
-      t1               = MPI_Wtime();
-	  auto Hproj_orbital = computeHprojOrbital(C_hat,totalDimOfBasis,numOfKSOrbitals,eigenValues);
-	  pcout << "***Wall Time for: H_proj using orbital population approach:" << MPI_Wtime() - t1 << std::endl;
+      t1                 = MPI_Wtime();
+      auto Hproj_orbital = computeHprojOrbital(C_hat,
+                                               totalDimOfBasis,
+                                               numOfKSOrbitals,
+                                               eigenValues);
+      pcout << "***Wall Time for: H_proj using orbital population approach:"
+            << MPI_Wtime() - t1 << std::endl;
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
           writeVectorAs2DMatrix(Hproj_orbital,
                                 totalDimOfBasis,
                                 totalDimOfBasis,
                                 "Hproj_orbital.txt");
-        }	  
+        }
       // Compute projected Hamiltonian of FE discretized Hamiltonian into
       pcout
         << "--------------------------COHP Data Saved------------------------------"
@@ -1530,7 +1535,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 #else
       std::vector<dataTypes::number> CoeffNew(N * N, 0.0);
       MPI_Barrier(MPI_COMM_WORLD);
-      t1 = MPI_Wtime();
+      t1              = MPI_Wtime();
       auto Sminushalf = InvertPowerMatrix(-0.5, totalDimOfBasis, upperTriaOfS);
       std::vector<dataTypes::number> ProjHam;
       MPI_Barrier(MPI_COMM_WORLD);
@@ -1545,24 +1550,27 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                      totalDimOfBasis,
                                      ProjHam);
       MPI_Barrier(MPI_COMM_WORLD);
-      pcout << "***Wall Time for: Hproj_Hamiltonian using Hamiltonian population approach: " << MPI_Wtime() - t1 << std::endl;
+      pcout
+        << "***Wall Time for: Hproj_Hamiltonian using Hamiltonian population approach: "
+        << MPI_Wtime() - t1 << std::endl;
 
-        const unsigned int rowsBlockSize =
-    d_elpaScala->getScalapackBlockSize(); std::shared_ptr<const
-    dftfe::ProcessGrid> processGrid =
-          d_elpaScala->getProcessGridDftfeScalaWrapper();
-        dftfe::ScaLAPACKMatrix<dataTypes::number> projHamPar(totalDimOfBasis,
-                                             processGrid,
-                                             rowsBlockSize);
+      const unsigned int rowsBlockSize = d_elpaScala->getScalapackBlockSize();
+      std::shared_ptr<const dftfe::ProcessGrid> processGrid =
+        d_elpaScala->getProcessGridDftfeScalaWrapper();
+      dftfe::ScaLAPACKMatrix<dataTypes::number> projHamPar(totalDimOfBasis,
+                                                           processGrid,
+                                                           rowsBlockSize);
       MPI_Barrier(MPI_COMM_WORLD);
       t1 = MPI_Wtime();
 
-     d_kohnShamDFTOperatorPtr->XtHX(OrthoscaledOrbitalValues_FEnodes,
-            totalDimOfBasis,
-            processGrid, projHamPar);
-    MPI_Barrier(MPI_COMM_WORLD);
-    pcout<<"***Wall Time for: H projected scalapack: "<<MPI_Wtime()-t1<<std::endl;
-  
+      d_kohnShamDFTOperatorPtr->XtHX(OrthoscaledOrbitalValues_FEnodes,
+                                     totalDimOfBasis,
+                                     processGrid,
+                                     projHamPar);
+      MPI_Barrier(MPI_COMM_WORLD);
+      pcout << "***Wall Time for: H projected scalapack: " << MPI_Wtime() - t1
+            << std::endl;
+
 
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
@@ -1604,7 +1612,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
           std::vector<int>().swap(iwork);
           if (info > 0)
             std::cout << "Eigen Value Decomposition Failed!!" << std::endl;
-          
+
 
           CoeffNew = ProjHam;
         }
@@ -1624,18 +1632,18 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                               totalDimOfBasis,
                               "FePHP_v2.txt");
       MPI_Barrier(MPI_COMM_WORLD);
-      t1          = MPI_Wtime();
-      
+      t1 = MPI_Wtime();
+
       auto C_bar2 = matrixmatrixTmul(Sminushalf,
-                                    totalDimOfBasis,
-                                    totalDimOfBasis,
-                                    CoeffNew,
-                                    totalDimOfBasis,
-                                    numOfKSOrbitals);
+                                     totalDimOfBasis,
+                                     totalDimOfBasis,
+                                     CoeffNew,
+                                     totalDimOfBasis,
+                                     numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
-	  pcout << "***Wall Time for: C_BAR using Hamiltonian population approach: "
+      pcout << "***Wall Time for: C_BAR using Hamiltonian population approach: "
             << MPI_Wtime() - t1 << std::endl;
-      
+
       if (this_mpi_process == 0)
         {
           writeVectorAs2DMatrix(C_bar2,
@@ -1673,9 +1681,10 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
             }
         }
 
-	  //MPI_Bcast(&(C_hat[0]), totalDimOfBasis*numOfKSOrbitals, MPI_DOUBLE, 0, d_mpiCommParent);	
-	  //MPI_Bcast(&(CoeffNew[0]), totalDimOfBasis*numOfKSOrbitals, MPI_DOUBLE, 0, d_mpiCommParent);
-	  auto psiProjected1 = matrixmatrixmul(Minv_scaledOrbitalValues_FEnodes,
+      // MPI_Bcast(&(C_hat[0]), totalDimOfBasis*numOfKSOrbitals, MPI_DOUBLE, 0,
+      // d_mpiCommParent); MPI_Bcast(&(CoeffNew[0]),
+      // totalDimOfBasis*numOfKSOrbitals, MPI_DOUBLE, 0, d_mpiCommParent);
+      auto psiProjected1 = matrixmatrixmul(Minv_scaledOrbitalValues_FEnodes,
                                            n_dofs,
                                            totalDimOfBasis,
                                            C_hat,
