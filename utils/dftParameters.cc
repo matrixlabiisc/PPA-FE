@@ -83,6 +83,13 @@ namespace dftfe
                           "[Standard] Use GPU for compute.");
 
         prm.declare_entry(
+          "USE TF32 OP",
+          "false",
+          Patterns::Bool(),
+          "[Advanced] Enables TensorFloat-32 precision for single precision math operations on GPUs, which take advantage of the tensor core hardware. This capability is currently available for certain GPUs like NVIDIA A100. Accuracy of USE TF32 OP has been tested in the case of LRDM preconditioner with USE SINGLE PREC DENSITY RESPONSE mode set to true.");
+
+
+        prm.declare_entry(
           "AUTO GPU BLOCK SIZES",
           "true",
           Patterns::Bool(),
@@ -121,7 +128,7 @@ namespace dftfe
       }
       prm.leave_subsection();
 
-      prm.enter_subsection("Postprocessing");
+      prm.enter_subsection("Ground-state derived computations");
       {
         prm.declare_entry(
           "PSEUDOATOMIC ORBITALS FILE",
@@ -1217,6 +1224,7 @@ namespace dftfe
     autoAdaptBaseMeshSize                          = true;
     readWfcForPdosPspFile                          = false;
     useGPU                                         = false;
+    useTF32GPU                                     = false;
     gpuFineGrainedTimings                          = false;
     allowFullCPUMemSubspaceRot                     = true;
     useMixedPrecCheby                              = false;
@@ -1224,7 +1232,7 @@ namespace dftfe
     overlapComputeCommunOrthoRR                    = false;
     autoGPUBlockSizes                              = true;
     maxJacobianRatioFactorForMD                    = 1.5;
-    reuseDensityMD                                 = 0;
+    extrapolateDensity                             = 0;
     timeStepBOMD                                   = 0.5;
     numberStepsBOMD                                = 1000;
     gaussianConstantForce                          = 0.75;
@@ -1307,6 +1315,7 @@ namespace dftfe
     prm.enter_subsection("GPU");
     {
       useGPU                     = prm.get_bool("USE GPU");
+      useTF32GPU                 = prm.get_bool("USE TF32 OP");
       gpuFineGrainedTimings      = prm.get_bool("FINE GRAINED GPU TIMINGS");
       allowFullCPUMemSubspaceRot = prm.get_bool("SUBSPACE ROT FULL CPU MEM");
       autoGPUBlockSizes          = prm.get_bool("AUTO GPU BLOCK SIZES");
@@ -1316,7 +1325,7 @@ namespace dftfe
     }
     prm.leave_subsection();
 
-    prm.enter_subsection("Postprocessing");
+    prm.enter_subsection("Ground-state derived computations");
     {
       writeWfcSolutionFields     = prm.get_bool("WRITE WFC");
       writeDensitySolutionFields = prm.get_bool("WRITE DENSITY");
@@ -1574,7 +1583,7 @@ namespace dftfe
     prm.enter_subsection("Molecular Dynamics");
     {
       atomicMassesFile            = prm.get("ATOMIC MASSES FILE");
-      reuseDensityMD              = prm.get_integer("EXTRAPOLATE DENSITY");
+      extrapolateDensity          = prm.get_integer("EXTRAPOLATE DENSITY");
       isBOMD                      = prm.get_bool("BOMD");
       maxJacobianRatioFactorForMD = prm.get_double("MAX JACOBIAN RATIO FACTOR");
       timeStepBOMD                = prm.get_double("TIME STEP");
@@ -1658,7 +1667,8 @@ namespace dftfe
         false,
         ExcMessage(
           "DFT-FE Error: Implementation of this feature is not completed yet."));
-    if (spinPolarized == 1 && (reuseDensityMD >= 1 || reuseDensityGeoOpt == 2))
+    if (spinPolarized == 1 &&
+        (extrapolateDensity >= 1 || reuseDensityGeoOpt == 2))
       AssertThrow(
         false,
         ExcMessage(

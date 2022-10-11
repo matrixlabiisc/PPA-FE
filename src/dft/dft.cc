@@ -77,6 +77,7 @@
 #ifdef DFTFE_WITH_GPU
 #  include <densityCalculatorCUDA.h>
 #  include <linearAlgebraOperationsCUDA.h>
+#  include <linearSolverCGCUDA.h>
 #endif
 
 extern "C"
@@ -189,6 +190,7 @@ namespace dftfe
                                     0.0,
                                     0.0,
                                     dftParams)
+    , d_phiTotalSolverProblemCUDA(mpi_comm_domain)
 #endif
     , d_phiTotalSolverProblem(mpi_comm_domain)
   {
@@ -1167,7 +1169,7 @@ namespace dftfe
               *gradRhoInValuesSpinPolarized,
               d_dftParamsPtr->xcFamilyType == "GGA");
           }
-        if (!(d_dftParamsPtr->solverMode == "GS"))
+        if ((d_dftParamsPtr->solverMode == "GEOOPT"))
           {
             d_rhoOutNodalValues = d_rhoInNodalValues;
             d_rhoOutNodalValues.update_ghost_values();
@@ -1282,7 +1284,8 @@ namespace dftfe
 
         noRemeshRhoDataInit();
 
-        if (d_dftParamsPtr->reuseDensityGeoOpt >= 1 && !d_dftParamsPtr->isBOMD)
+        if (d_dftParamsPtr->reuseDensityGeoOpt >= 1 &&
+            d_dftParamsPtr->solverMode == "GEOOPT")
           {
             if (d_dftParamsPtr->reuseDensityGeoOpt == 2 &&
                 d_dftParamsPtr->spinPolarized != 1)
@@ -1322,8 +1325,9 @@ namespace dftfe
               }
           }
 
-        else if (d_dftParamsPtr->reuseDensityMD == 1 &&
-                 d_dftParamsPtr->spinPolarized != 1 && d_dftParamsPtr->isBOMD)
+        else if (d_dftParamsPtr->extrapolateDensity == 1 &&
+                 d_dftParamsPtr->spinPolarized != 1 &&
+                 d_dftParamsPtr->solverMode == "MD")
           {
             interpolateRhoNodalDataToQuadratureDataGeneral(
               d_matrixFreeDataPRefined,
@@ -1346,8 +1350,9 @@ namespace dftfe
 
             d_rhoInNodalValues.update_ghost_values();
           }
-        else if (d_dftParamsPtr->reuseDensityMD == 2 &&
-                 d_dftParamsPtr->spinPolarized != 1 && d_dftParamsPtr->isBOMD)
+        else if (d_dftParamsPtr->extrapolateDensity == 2 &&
+                 d_dftParamsPtr->spinPolarized != 1 &&
+                 d_dftParamsPtr->solverMode == "MD")
           {
             initAtomicRho();
             interpolateRhoNodalDataToQuadratureDataGeneral(
@@ -1724,6 +1729,12 @@ namespace dftfe
     if (d_dftParamsPtr->ComputeFeOHP)
       orbitalOverlapPopulationCompute(eigenValues);
 
+    /*if (d_dftParamsPtr->computeDipoleMoment)
+      {
+        dipole(d_dofHandlerPRefined, rhoOutValues, false);
+        dipole(d_dofHandlerPRefined, rhoOutValues, true);
+      } */
+
     if (d_dftParamsPtr->verbosity >= 1)
       pcout
         << std::endl
@@ -1947,9 +1958,16 @@ namespace dftfe
                                         *d_dftParamsPtr);
 
     // set up linear solver
-    dealiiLinearSolver dealiiCGSolver(d_mpiCommParent,
-                                      mpi_communicator,
-                                      dealiiLinearSolver::CG);
+    dealiiLinearSolver CGSolver(d_mpiCommParent,
+                                mpi_communicator,
+                                dealiiLinearSolver::CG);
+
+#ifdef DFTFE_WITH_GPU
+    // set up linear solver CUDA
+    linearSolverCGCUDA CGSolverCUDA(d_mpiCommParent,
+                                    mpi_communicator,
+                                    linearSolverCGCUDA::CG);
+#endif
 
     //
     // set up solver functions for Helmholtz to be used only when Kerker mixing
@@ -2074,7 +2092,7 @@ namespace dftfe
       d_dftParamsPtr->mixingMethod == "ANDERSON_WITH_KERKER" ? 1e-2 : 2e-2;
 
 
-    if (d_dftParamsPtr->isBOMD)
+    if (d_dftParamsPtr->solverMode == "MD")
       firstScfChebyTol = d_dftParamsPtr->chebyshevTolerance > 1e-4 ?
                            1e-4 :
                            d_dftParamsPtr->chebyshevTolerance;
@@ -2127,8 +2145,7 @@ namespace dftfe
                   {
                     if (d_dftParamsPtr->mixingMethod == "ANDERSON_WITH_KERKER")
                       norm = nodalDensity_mixing_simple_kerker(
-                        kerkerPreconditionedResidualSolverProblem,
-                        dealiiCGSolver);
+                        kerkerPreconditionedResidualSolverProblem, CGSolver);
                     else if (d_dftParamsPtr->mixingMethod ==
                              "LOW_RANK_DIELECM_PRECOND")
                       norm = lowrankApproxScfDielectricMatrixInv(scfIter);
@@ -2171,8 +2188,7 @@ namespace dftfe
                     else if (d_dftParamsPtr->mixingMethod ==
                              "ANDERSON_WITH_KERKER")
                       norm = nodalDensity_mixing_anderson_kerker(
-                        kerkerPreconditionedResidualSolverProblem,
-                        dealiiCGSolver);
+                        kerkerPreconditionedResidualSolverProblem, CGSolver);
                     else if (d_dftParamsPtr->mixingMethod ==
                              "LOW_RANK_DIELECM_PRECOND")
                       norm = lowrankApproxScfDielectricMatrixInv(scfIter);
@@ -2200,55 +2216,129 @@ namespace dftfe
             << std::endl
             << "Poisson solve for total electrostatic potential (rhoIn+b): ";
 
+        if (d_dftParamsPtr->useGPU and
+            d_dftParamsPtr->floatingNuclearCharges and
+            not d_dftParamsPtr->pinnedNodeForPBC)
+          {
+#ifdef DFTFE_WITH_GPU
+            if (scfIter > 0)
+              d_phiTotalSolverProblemCUDA.reinit(
+                d_matrixFreeDataPRefined,
+                d_phiTotRhoIn,
+                *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+                d_phiTotDofHandlerIndexElectro,
+                d_densityQuadratureIdElectro,
+                d_phiTotAXQuadratureIdElectro,
+                d_atomNodeIdToChargeMap,
+                d_bQuadValuesAllAtoms,
+                d_smearedChargeQuadratureIdElectro,
+                *rhoInValues,
+                d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                false,
+                false,
+                d_dftParamsPtr->smearedNuclearCharges,
+                true,
+                false,
+                0,
+                false,
+                true);
+            else
+              {
+                d_phiTotalSolverProblemCUDA.reinit(
+                  d_matrixFreeDataPRefined,
+                  d_phiTotRhoIn,
+                  *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+                  d_phiTotDofHandlerIndexElectro,
+                  d_densityQuadratureIdElectro,
+                  d_phiTotAXQuadratureIdElectro,
+                  d_atomNodeIdToChargeMap,
+                  d_bQuadValuesAllAtoms,
+                  d_smearedChargeQuadratureIdElectro,
+                  *rhoInValues,
+                  d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                  true,
+                  d_dftParamsPtr->periodicX && d_dftParamsPtr->periodicY &&
+                    d_dftParamsPtr->periodicZ &&
+                    !d_dftParamsPtr->pinnedNodeForPBC,
+                  d_dftParamsPtr->smearedNuclearCharges,
+                  true,
+                  false,
+                  0,
+                  true,
+                  false);
 
-        if (scfIter > 0)
-          d_phiTotalSolverProblem.reinit(
-            d_matrixFreeDataPRefined,
-            d_phiTotRhoIn,
-            *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
-            d_phiTotDofHandlerIndexElectro,
-            d_densityQuadratureIdElectro,
-            d_phiTotAXQuadratureIdElectro,
-            d_atomNodeIdToChargeMap,
-            d_bQuadValuesAllAtoms,
-            d_smearedChargeQuadratureIdElectro,
-            *rhoInValues,
-            false,
-            false,
-            d_dftParamsPtr->smearedNuclearCharges,
-            true,
-            false,
-            0,
-            false,
-            true);
+                // Setup MatrixFree Mesh
+                d_phiTotalSolverProblemCUDA.setupMatrixFree();
+              }
+#endif
+          }
         else
-          d_phiTotalSolverProblem.reinit(
-            d_matrixFreeDataPRefined,
-            d_phiTotRhoIn,
-            *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
-            d_phiTotDofHandlerIndexElectro,
-            d_densityQuadratureIdElectro,
-            d_phiTotAXQuadratureIdElectro,
-            d_atomNodeIdToChargeMap,
-            d_bQuadValuesAllAtoms,
-            d_smearedChargeQuadratureIdElectro,
-            *rhoInValues,
-            true,
-            d_dftParamsPtr->periodicX && d_dftParamsPtr->periodicY &&
-              d_dftParamsPtr->periodicZ && !d_dftParamsPtr->pinnedNodeForPBC,
-            d_dftParamsPtr->smearedNuclearCharges,
-            true,
-            false,
-            0,
-            true,
-            false);
+          {
+            if (scfIter > 0)
+              d_phiTotalSolverProblem.reinit(
+                d_matrixFreeDataPRefined,
+                d_phiTotRhoIn,
+                *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+                d_phiTotDofHandlerIndexElectro,
+                d_densityQuadratureIdElectro,
+                d_phiTotAXQuadratureIdElectro,
+                d_atomNodeIdToChargeMap,
+                d_bQuadValuesAllAtoms,
+                d_smearedChargeQuadratureIdElectro,
+                *rhoInValues,
+                false,
+                false,
+                d_dftParamsPtr->smearedNuclearCharges,
+                true,
+                false,
+                0,
+                false,
+                true);
+            else
+              d_phiTotalSolverProblem.reinit(
+                d_matrixFreeDataPRefined,
+                d_phiTotRhoIn,
+                *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+                d_phiTotDofHandlerIndexElectro,
+                d_densityQuadratureIdElectro,
+                d_phiTotAXQuadratureIdElectro,
+                d_atomNodeIdToChargeMap,
+                d_bQuadValuesAllAtoms,
+                d_smearedChargeQuadratureIdElectro,
+                *rhoInValues,
+                true,
+                d_dftParamsPtr->periodicX && d_dftParamsPtr->periodicY &&
+                  d_dftParamsPtr->periodicZ &&
+                  !d_dftParamsPtr->pinnedNodeForPBC,
+                d_dftParamsPtr->smearedNuclearCharges,
+                true,
+                false,
+                0,
+                true,
+                false);
+          }
 
         computing_timer.enter_subsection("phiTot solve");
 
-        dealiiCGSolver.solve(d_phiTotalSolverProblem,
-                             d_dftParamsPtr->absLinearSolverTolerance,
-                             d_dftParamsPtr->maxLinearSolverIterations,
-                             d_dftParamsPtr->verbosity);
+        if (d_dftParamsPtr->useGPU and
+            d_dftParamsPtr->floatingNuclearCharges and
+            not d_dftParamsPtr->pinnedNodeForPBC)
+          {
+#ifdef DFTFE_WITH_GPU
+            CGSolverCUDA.solve(d_phiTotalSolverProblemCUDA,
+                               d_dftParamsPtr->absLinearSolverTolerance,
+                               d_dftParamsPtr->maxLinearSolverIterations,
+                               d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                               d_dftParamsPtr->verbosity);
+#endif
+          }
+        else
+          {
+            CGSolver.solve(d_phiTotalSolverProblem,
+                           d_dftParamsPtr->absLinearSolverTolerance,
+                           d_dftParamsPtr->maxLinearSolverIterations,
+                           d_dftParamsPtr->verbosity);
+          }
 
         std::map<dealii::CellId, std::vector<double>> dummy;
         interpolateElectroNodalDataToQuadratureDataGeneral(
@@ -2961,32 +3051,67 @@ namespace dftfe
 
             computing_timer.enter_subsection("phiTot solve");
 
-            d_phiTotalSolverProblem.reinit(
-              d_matrixFreeDataPRefined,
-              d_phiTotRhoOut,
-              *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
-              d_phiTotDofHandlerIndexElectro,
-              d_densityQuadratureIdElectro,
-              d_phiTotAXQuadratureIdElectro,
-              d_atomNodeIdToChargeMap,
-              d_bQuadValuesAllAtoms,
-              d_smearedChargeQuadratureIdElectro,
-              *rhoOutValues,
-              false,
-              false,
-              d_dftParamsPtr->smearedNuclearCharges,
-              true,
-              false,
-              0,
-              false,
-              true);
+            if (d_dftParamsPtr->useGPU and
+                d_dftParamsPtr->floatingNuclearCharges and
+                not d_dftParamsPtr->pinnedNodeForPBC)
+              {
+#ifdef DFTFE_WITH_GPU
+                d_phiTotalSolverProblemCUDA.reinit(
+                  d_matrixFreeDataPRefined,
+                  d_phiTotRhoOut,
+                  *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+                  d_phiTotDofHandlerIndexElectro,
+                  d_densityQuadratureIdElectro,
+                  d_phiTotAXQuadratureIdElectro,
+                  d_atomNodeIdToChargeMap,
+                  d_bQuadValuesAllAtoms,
+                  d_smearedChargeQuadratureIdElectro,
+                  *rhoOutValues,
+                  d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                  false,
+                  false,
+                  d_dftParamsPtr->smearedNuclearCharges,
+                  true,
+                  false,
+                  0,
+                  false,
+                  true);
 
+                CGSolverCUDA.solve(
+                  d_phiTotalSolverProblemCUDA,
+                  d_dftParamsPtr->absLinearSolverTolerance,
+                  d_dftParamsPtr->maxLinearSolverIterations,
+                  d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                  d_dftParamsPtr->verbosity);
+#endif
+              }
+            else
+              {
+                d_phiTotalSolverProblem.reinit(
+                  d_matrixFreeDataPRefined,
+                  d_phiTotRhoOut,
+                  *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+                  d_phiTotDofHandlerIndexElectro,
+                  d_densityQuadratureIdElectro,
+                  d_phiTotAXQuadratureIdElectro,
+                  d_atomNodeIdToChargeMap,
+                  d_bQuadValuesAllAtoms,
+                  d_smearedChargeQuadratureIdElectro,
+                  *rhoOutValues,
+                  false,
+                  false,
+                  d_dftParamsPtr->smearedNuclearCharges,
+                  true,
+                  false,
+                  0,
+                  false,
+                  true);
 
-            dealiiCGSolver.solve(d_phiTotalSolverProblem,
-                                 d_dftParamsPtr->absLinearSolverTolerance,
-                                 d_dftParamsPtr->maxLinearSolverIterations,
-                                 d_dftParamsPtr->verbosity);
-
+                CGSolver.solve(d_phiTotalSolverProblem,
+                               d_dftParamsPtr->absLinearSolverTolerance,
+                               d_dftParamsPtr->maxLinearSolverIterations,
+                               d_dftParamsPtr->verbosity);
+              }
 
             //
             // impose integral phi equals 0
@@ -3149,38 +3274,74 @@ namespace dftfe
 
         computing_timer.enter_subsection("phiTot solve");
 
-        d_phiTotalSolverProblem.reinit(
-          d_matrixFreeDataPRefined,
-          d_phiTotRhoOut,
-          *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
-          d_phiTotDofHandlerIndexElectro,
-          d_densityQuadratureIdElectro,
-          d_phiTotAXQuadratureIdElectro,
-          d_atomNodeIdToChargeMap,
-          d_bQuadValuesAllAtoms,
-          d_smearedChargeQuadratureIdElectro,
-          *rhoOutValues,
-          false,
-          false,
-          d_dftParamsPtr->smearedNuclearCharges,
-          true,
-          false,
-          0,
-          false,
-          true);
+        if (d_dftParamsPtr->useGPU and
+            d_dftParamsPtr->floatingNuclearCharges and
+            not d_dftParamsPtr->pinnedNodeForPBC)
+          {
+#ifdef DFTFE_WITH_GPU
+            d_phiTotalSolverProblemCUDA.reinit(
+              d_matrixFreeDataPRefined,
+              d_phiTotRhoOut,
+              *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+              d_phiTotDofHandlerIndexElectro,
+              d_densityQuadratureIdElectro,
+              d_phiTotAXQuadratureIdElectro,
+              d_atomNodeIdToChargeMap,
+              d_bQuadValuesAllAtoms,
+              d_smearedChargeQuadratureIdElectro,
+              *rhoOutValues,
+              d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+              false,
+              false,
+              d_dftParamsPtr->smearedNuclearCharges,
+              true,
+              false,
+              0,
+              false,
+              true);
 
+            CGSolverCUDA.solve(d_phiTotalSolverProblemCUDA,
+                               d_dftParamsPtr->absLinearSolverTolerance,
+                               d_dftParamsPtr->maxLinearSolverIterations,
+                               d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                               d_dftParamsPtr->verbosity);
+#endif
+          }
+        else
+          {
+            d_phiTotalSolverProblem.reinit(
+              d_matrixFreeDataPRefined,
+              d_phiTotRhoOut,
+              *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
+              d_phiTotDofHandlerIndexElectro,
+              d_densityQuadratureIdElectro,
+              d_phiTotAXQuadratureIdElectro,
+              d_atomNodeIdToChargeMap,
+              d_bQuadValuesAllAtoms,
+              d_smearedChargeQuadratureIdElectro,
+              *rhoOutValues,
+              false,
+              false,
+              d_dftParamsPtr->smearedNuclearCharges,
+              true,
+              false,
+              0,
+              false,
+              true);
 
-        dealiiCGSolver.solve(d_phiTotalSolverProblem,
-                             d_dftParamsPtr->absLinearSolverTolerance,
-                             d_dftParamsPtr->maxLinearSolverIterations,
-                             d_dftParamsPtr->verbosity);
+            CGSolver.solve(d_phiTotalSolverProblem,
+                           d_dftParamsPtr->absLinearSolverTolerance,
+                           d_dftParamsPtr->maxLinearSolverIterations,
+                           d_dftParamsPtr->verbosity);
+          }
 
         computing_timer.leave_subsection("phiTot solve");
       }
 
 
     //
-    // compute and print ground state energy or energy after max scf iterations
+    // compute and print ground state energy or energy after max scf
+    // iterations
     //
     dispersionCorr.computeDispresionCorrection(atomLocations,
                                                d_domainBoundingVectors);
@@ -3288,8 +3449,8 @@ namespace dftfe
     if (d_dftParamsPtr->verbosity >= 1)
       pcout << "Total free energy: " << d_freeEnergy << std::endl;
 
-    // This step is required for interpolating rho from current mesh to the new
-    // mesh in case of atomic relaxation
+    // This step is required for interpolating rho from current mesh to the
+    // new mesh in case of atomic relaxation
     // computeNodalRhoFromQuadData();
 
     computing_timer.leave_subsection("scf solve");
@@ -3448,9 +3609,7 @@ namespace dftfe
     if (!(d_dftParamsPtr->kPointDataFile == ""))
       {
         readkPointData();
-        initnscf(kohnShamDFTEigenOperator,
-                 d_phiTotalSolverProblem,
-                 dealiiCGSolver);
+        initnscf(kohnShamDFTEigenOperator, d_phiTotalSolverProblem, CGSolver);
         nscf(kohnShamDFTEigenOperator, d_subspaceIterationSolver);
         writeBands();
       }

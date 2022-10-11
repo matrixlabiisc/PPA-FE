@@ -120,6 +120,7 @@ namespace dftfe
     bool         createConstraintsFromSerialDofhandler;
     bool         bandParalOpt;
     bool         useGPU;
+    bool         useTF32GPU;
     bool         gpuFineGrainedTimings;
     bool         allowFullCPUMemSubspaceRot;
     bool         useMixedPrecCheby;
@@ -129,7 +130,7 @@ namespace dftfe
     bool         readWfcForPdosPspFile;
     double       maxJacobianRatioFactorForMD;
     double       chebyshevFilterPolyDegreeFirstScfScalingFactor;
-    int          reuseDensityMD;
+    int          extrapolateDensity;
     double       timeStepBOMD;
     unsigned int numberStepsBOMD;
     unsigned int TotalImages;

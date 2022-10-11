@@ -34,6 +34,8 @@
 #  include <constraintMatrixInfoCUDA.h>
 #  include <kohnShamDFTOperatorCUDA.h>
 #  include "cudaHelpers.h"
+#  include <poissonSolverProblemCUDA.h>
+
 
 #  include "gpuDirectCCLWrapper.h"
 #endif
@@ -768,6 +770,11 @@ namespace dftfe
                 const distributedCPUVec<double> &    rhoNodalField);
 
 
+    void
+    dipole(const dealii::DoFHandler<3> &dofHandlerOfField,
+           const std::map<dealii::CellId, std::vector<double>> *rhoQuadValues,
+           bool                                                 centerofCharge);
+
     double
     rhofieldl2Norm(const dealii::MatrixFree<3, double> &matrixFreeDataObject,
                    const distributedCPUVec<double> &    rhoNodalField,
@@ -1233,6 +1240,10 @@ namespace dftfe
     elpaScalaManager *d_elpaScala;
 
     poissonSolverProblem<FEOrder, FEOrderElectro> d_phiTotalSolverProblem;
+#ifdef DFTFE_WITH_GPU
+    poissonSolverProblemCUDA<FEOrder, FEOrderElectro>
+      d_phiTotalSolverProblemCUDA;
+#endif
 
     bool d_kohnShamDFTOperatorsInitialized;
 
@@ -1657,7 +1668,7 @@ namespace dftfe
       kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
         &                                            kohnShamDFTEigenOperator,
       poissonSolverProblem<FEOrder, FEOrderElectro> &phiTotalSolverProblem,
-      dealiiLinearSolver &                           dealiiCGSolver);
+      dealiiLinearSolver &                           CGSolver);
 
     /**
      * @brief compute the maximum of the residual norm of the highest occupied state among all k points
