@@ -720,27 +720,12 @@ computeHprojOrbital(std::vector<double>              C,
                     const unsigned int                             N,
                     std::vector<double> &H)
 {
-  for (int i=0; i < N; i++)
-  {
-    for (int j = 0; j <m; j++)
-      std::cout<<C[i*m+j]<<" ";
-    std::cout<<std::endl;  
-  }
+
 
   dftfe::dlascl2_(&N,&m,&H[0],&C[0],&N);
-  for (int i=0; i < N; i++)
-  {
-    for (int j = 0; j <m; j++)
-      std::cout<<C[i*m+j]<<" ";
-    std::cout<<std::endl;  
-  }
+
   auto Hproj  = matrixmatrixTmul(C_hat, m, N, C, N, m);
-  for (int i=0; i < N; i++)
-  {
-    for (int j = 0; j <m; j++)
-      std::cout<<Hproj[i*m+j]<<" ";
-    std::cout<<std::endl;  
-  }
+
 
   return Hproj;
 }
