@@ -1479,12 +1479,15 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
         }
       MPI_Barrier(MPI_COMM_WORLD);
       t1                 = MPI_Wtime();
-      auto Hproj_orbital = computeHprojOrbital(C_hat,
+
+        auto Hproj_orbital = computeHprojOrbital(C_hat,C_hat,
                                                totalDimOfBasis,
                                                numOfKSOrbitals,
-                                               eigenValues);
-      pcout << "***Wall Time for: H_proj using orbital population approach:"
+                                               eigenValues[0]);
+        pcout << "***Wall Time for: H_proj using orbital population approach:"
             << MPI_Wtime() - t1 << std::endl;
+      
+      
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
           writeVectorAs2DMatrix(Hproj_orbital,

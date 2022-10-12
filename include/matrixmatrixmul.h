@@ -19,8 +19,7 @@
 
 #  include <vector>
 #  include <iostream>
-#  include <Eigen/Dense>
-#  include <Eigen/Cholesky>
+
 
 // only upper triangular matrix is provided as a vector
 std::vector<double>
@@ -100,7 +99,8 @@ InvertPowerMatrix(double power, int N, const std::vector<double> &UpperS);
 
 std::vector<double>
 computeHprojOrbital(std::vector<double>              C,
-                    int                              m,
-                    int                              N,
-                    std::vector<std::vector<double>> H);
+                    std::vector<double> &C_hat,
+                    const unsigned int                              m,
+                    const unsigned int                             N,
+                    std::vector<double> &H);
 #endif

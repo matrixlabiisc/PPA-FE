@@ -145,6 +145,12 @@ namespace dftfe
             const unsigned int *liwork,
             int *               info);
     void
+    dlascl2_(const unsigned int *M,
+             const unsigned int *N,        
+            double *            D,
+            double *            X,
+            const unsigned int *lda);            
+    void
     dsygvd_(const unsigned int *itype,
             const char *        jobz,
             const char *        uplo,

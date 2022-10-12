@@ -715,19 +715,32 @@ LowdenOrtho(const std::vector<double> &phi,
 }
 std::vector<double>
 computeHprojOrbital(std::vector<double>              C,
-                    int                              m,
-                    int                              N,
-                    std::vector<std::vector<double>> H)
+                    std::vector<double> &C_hat,
+                    const unsigned int                              m,
+                    const unsigned int                             N,
+                    std::vector<double> &H)
 {
-  std::vector<double> Hproj(N * N, 0.0);
-  for (int i = 0; i < m; i++)
-    {
-      for (int j = 0; j < m; j++)
-        {
-          for (int k = 0; k < N; k++)
-            Hproj[i * N + j] = C[i * N + k] * H[0][k] * C[j * N + k];
-        }
-    }
+  for (int i=0; i < N; i++)
+  {
+    for (int j = 0; j <m; j++)
+      std::cout<<C[i*m+j]<<" ";
+    std::cout<<std::endl;  
+  }
+
+  dftfe::dlascl2_(&N,&m,&H[0],&C[0],&N);
+  for (int i=0; i < N; i++)
+  {
+    for (int j = 0; j <m; j++)
+      std::cout<<C[i*m+j]<<" ";
+    std::cout<<std::endl;  
+  }
+  auto Hproj  = matrixmatrixTmul(C_hat, m, N, C, N, m);
+  for (int i=0; i < N; i++)
+  {
+    for (int j = 0; j <m; j++)
+      std::cout<<Hproj[i*m+j]<<" ";
+    std::cout<<std::endl;  
+  }
 
   return Hproj;
 }

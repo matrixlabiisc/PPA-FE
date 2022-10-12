@@ -490,7 +490,7 @@ namespace dftfe
           numElectrons += Z;
       }
 
-    if (d_dftParamsPtr->numberEigenValues <= numElectrons / 2.0 ||
+    if (d_dftParamsPtr->numberEigenValues < numElectrons / 2.0 ||
         d_dftParamsPtr->numberEigenValues == 0)
       {
         if (d_dftParamsPtr->verbosity >= 1)
