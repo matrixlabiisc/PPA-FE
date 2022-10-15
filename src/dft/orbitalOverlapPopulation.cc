@@ -1657,7 +1657,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
         }
 #endif
 
-
+      MPI_Barrier(MPI_COMM_WORLD);
       pcout
         << " -------------------------New Error Metric--------------------------------"
         << std::endl;
