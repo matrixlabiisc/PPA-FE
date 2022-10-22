@@ -1633,6 +1633,27 @@ AtomicOrbitalBasisManager::PseudoAtomicOrbitalvalue(
          realSphericalHarmonics(l, m, theta, phi);
 }
 double
+AtomicOrbitalBasisManager::PseudoAtomicOrbitalvalue(
+  const OrbitalQuantumNumbers &orbital,
+  const dealii::Point<3> &     evalPoint,
+  const std::vector<double> &  atomPos, double r,double theta, double phi)
+{
+  int n = orbital.n;
+  int l = orbital.l;
+  int m = orbital.m;
+
+  return RadialPseudoAtomicOrbital(n, l, r) *
+         realSphericalHarmonics(l, m, theta, phi);
+}
+
+
+
+
+
+
+
+
+double
 AtomicOrbitalBasisManager::RadialPseudoAtomicOrbital(unsigned int n,
                                                      unsigned int l,
                                                      double       r)
@@ -1857,6 +1878,10 @@ AtomicOrbitalBasisManager::CreatePseudoAtomicOrbitalBasis()
               rmax     = xData[xData.size() - 1];
               rmin     = xData[1];
               yData[0] = yData[1];
+              if(xData[xData.size() - 1] > maxRadialcutoff)
+                {
+                  maxRadialcutoff = xData[xData.size() - 1];
+                }
               // std::cout<<"Value of the Datas at : "<<xData[0]<<" is
               // "<<yData[0]<<std::endl;
               alglib::real_1d_array x;

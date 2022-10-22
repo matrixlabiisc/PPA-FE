@@ -581,7 +581,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 #else
 
 
-
+  double r,theta,phi;
   for (unsigned int dof = 0; dof < n_dofs; ++dof)
     {
       // get nodeID
@@ -602,12 +602,16 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
               if (d_dftParamsPtr->periodicX || d_dftParamsPtr->periodicY ||
                   d_dftParamsPtr->periodicZ)
                 {
-                  imageIdsList = d_globalChargeIdToImageIdMap[atomChargeID];
+                  imageIdsList = d_globalChargeIdToImageIdMapTrunc[atomChargeID];
                 }
               else
                 {
                   imageIdsList.push_back(atomChargeID);
                 }
+ 
+                   OrbitalQuantumNumbers orbital = {globalBasisInfo[i].n,
+                                                   globalBasisInfo[i].l,
+                                                   globalBasisInfo[i].m};
               // pcout<<"Here"<<std::endl;
               for (int imageID = 0; imageID < imageIdsList.size(); imageID++)
                 {
@@ -621,15 +625,16 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                     }
                   else
                     {
-                      atomPos[0] = d_imagePositions[chargeId - numOfAtoms][0];
-                      atomPos[1] = d_imagePositions[chargeId - numOfAtoms][1];
-                      atomPos[2] = d_imagePositions[chargeId - numOfAtoms][2];
+                      atomPos[0] = d_imagePositionsTrunc[chargeId - numOfAtoms][0];
+                      atomPos[1] = d_imagePositionsTrunc[chargeId - numOfAtoms][1];
+                      atomPos[2] = d_imagePositionsTrunc[chargeId - numOfAtoms][2];
                     }
+                    auto relativeEvalPoint = relativeVector3d(node, atomPos);
 
-                  OrbitalQuantumNumbers orbital = {globalBasisInfo[i].n,
-                                                   globalBasisInfo[i].l,
-                                                   globalBasisInfo[i].m};
-
+                    convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
+                 
+                  if(atomTypewiseSTOvector[atomTypeID].maxRadialcutoff < 0 || r <= atomTypewiseSTOvector[atomTypeID].maxRadialcutoff)
+                  {
                   if (d_dftParamsPtr->AtomicOrbitalBasis == 1)
                     {
                       scaledOrbitalValues_FEnodes[count1 + i] +=
@@ -645,8 +650,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                         d_kohnShamDFTOperatorPtr->d_sqrtMassVector
                           .local_element(dof) *
                         atomTypewiseSTOvector[atomTypeID]
-                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos);
+                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi);
                     }
+                  }  
                 }
             }
         }

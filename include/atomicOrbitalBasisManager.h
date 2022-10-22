@@ -122,6 +122,7 @@ public:
   std::vector<int> m;
   double           rmax, rmin;
   bool             PseudoAtomicOrbital = false;
+  double maxRadialcutoff = -1.0;
   void
   CreatePseudoAtomicOrbitalBasis();
   std::map<unsigned int, std::map<unsigned int, alglib::spline1dinterpolant *>>
@@ -216,6 +217,10 @@ public:
   PseudoAtomicOrbitalvalue(const OrbitalQuantumNumbers &orbital,
                            const dealii::Point<3> &     evalPoint,
                            const std::vector<double> &  atomPos);
+    double
+  PseudoAtomicOrbitalvalue(const OrbitalQuantumNumbers &orbital,
+                           const dealii::Point<3> &     evalPoint,
+                           const std::vector<double> &  atomPos, double r, double theta, double phi);                         
   double
   PseudoAtomicOrbitalvalue(const OrbitalQuantumNumbers &orbital,
                            const dealii::Point<3> &     evalPoint,
