@@ -1468,12 +1468,17 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
       MPI_Barrier(MPI_COMM_WORLD);
       t1         = MPI_Wtime();
       auto Shalf = InvertPowerMatrix(0.5, totalDimOfBasis, upperTriaOfS);
+      MPI_Barrier(MPI_COMM_WORLD);
+      t1         = MPI_Wtime();
+      pcout << "***Wall Time for: Shalf computation:"
+            << MPI_Wtime() - t1 << std::endl;
       auto C_hat = matrixmatrixmul(Shalf,
                                    totalDimOfBasis,
                                    totalDimOfBasis,
                                    C_bar,
                                    totalDimOfBasis,
                                    numOfKSOrbitals);
+      MPI_Barrier(MPI_COMM_WORLD);                             
       pcout << "***Wall Time for: C_HAT using orbital population approach:"
             << MPI_Wtime() - t1 << std::endl;
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
@@ -1546,6 +1551,11 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
       MPI_Barrier(MPI_COMM_WORLD);
       t1              = MPI_Wtime();
       auto Sminushalf = InvertPowerMatrix(-0.5, totalDimOfBasis, upperTriaOfS);
+      MPI_Barrier(MPI_COMM_WORLD);
+      pcout
+        << "***Wall Time for: Sminhalf computation: "
+        << MPI_Wtime() - t1 << std::endl;
+      t1              = MPI_Wtime();        
       std::vector<dataTypes::number> ProjHam;
       MPI_Barrier(MPI_COMM_WORLD);
       auto OrthoscaledOrbitalValues_FEnodes =
