@@ -729,3 +729,73 @@ computeHprojOrbital(std::vector<double>              C,
 
   return Hproj;
 }
+
+
+std::vector<double>
+powerOfMatrix(double power, const std::vector<double> &D, const std::vector<double> &U,const unsigned int N, std::vector<double> Umod)
+{
+
+  std::vector<double> Dpow(N,0.0);
+  for(int i = 0; i < N; i++)
+    Dpow[i] = pow(D[i],power);
+  dftfe::dlascl2_(&N,&N,&Dpow[0],&Umod[0],&N);
+  //auto temp = matrixmatrixmul(Dpow,N,N,U,N,N);
+  auto Newmatrix = matrixmatrixTmul(U,N,N,Umod,N,N);
+
+
+  return Newmatrix;
+}
+
+std::vector<double> diagonalization(std::vector<double> S, int N, std::vector<double> &D)
+{
+  
+
+ 
+  
+  
+  const unsigned int  Nrow = N;
+  int                 info;
+  const unsigned int  lwork = 1 + 6 * N + 2 * N * N, liwork = 3 + 5 * N;
+  std::vector<int>    iwork(liwork, 0);
+  const char          jobz = 'V', uplo = 'L';
+  std::vector<double> work(lwork);
+  dftfe::dsyevd_(&jobz,
+                 &uplo,
+                 &Nrow,
+                 &S[0],
+                 &Nrow,
+                 &D[0],
+                 &work[0],
+                 &lwork,
+                 &iwork[0],
+                 &liwork,
+                 &info);
+
+  //
+  // free up memory associated with work
+  //
+  work.clear();
+  iwork.clear();
+  std::vector<double>().swap(work);
+  std::vector<int>().swap(iwork);
+  if (info > 0)
+    std::cout << "Eigen Value Decomposition Falied!!" << std::endl;  
+
+  return S;
+
+}
+
+std::vector<double> 
+TransposeMatrix(std::vector<double> &A, int N)
+{
+  std::vector<double> B(N*N,0.0);
+  
+  for (int i = 0; i < N; i++)
+  {
+    for (int j = 0; j < N; j++)
+      B[i*N+j] = A[j*N+i];
+  }
+  
+  return B;
+
+}

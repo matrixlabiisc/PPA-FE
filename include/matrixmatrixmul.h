@@ -103,4 +103,19 @@ computeHprojOrbital(std::vector<double>              C,
                     const unsigned int                              m,
                     const unsigned int                             N,
                     std::vector<double> &H);
+
+
+
+
+
+
+std::vector<double> 
+diagonalization(std::vector<double> S, int N, std::vector<double> &D);
+
+std::vector<double>
+powerOfMatrix(double power, const std::vector<double> &D, const std::vector<double> &U,const unsigned int N, std::vector<double> Umod);
+
+std::vector<double> 
+TransposeMatrix(std::vector<double> &A, int N);
+
 #endif
