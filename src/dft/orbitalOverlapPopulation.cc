@@ -725,12 +725,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   if(this_mpi_process == 0)
     U = diagonalization(S,totalDimOfBasis,D);
   //MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerSdiagonalization = MPI_Wtime() - timerSdiagonalization;    
     MPI_Bcast(
       &(D[0]), totalDimOfBasis, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
     MPI_Bcast(
       &(U[0]), totalDimOfBasis*totalDimOfBasis, MPI_DOUBLE, 0, MPI_COMM_WORLD);       
-  MPI_Barrier(MPI_COMM_WORLD);
-  timerSdiagonalization = MPI_Wtime() - timerSdiagonalization;
+  //MPI_Barrier(MPI_COMM_WORLD);
+  //timerSdiagonalization = MPI_Wtime() - timerSdiagonalization;
   MPI_Barrier(MPI_COMM_WORLD);
   double timerUStranspose = MPI_Wtime();
   auto Ut = TransposeMatrix(U,totalDimOfBasis);
@@ -807,12 +809,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
       double timerOdiagnolaization = MPI_Wtime();
        if(this_mpi_process == 0)
 	U_O =  diagonalization(O,numOfKSOrbitals,D_O);
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;    
     MPI_Bcast(
       &(D_O[0]), numOfKSOrbitals, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
     MPI_Bcast(
       &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
-      MPI_Barrier(MPI_COMM_WORLD);
-      timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
+     // MPI_Barrier(MPI_COMM_WORLD);
+     // timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double timerUOtranspose = MPI_Wtime();
@@ -876,7 +880,22 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                 "Hproj_orbital.txt");
         }
       // Compute projected Hamiltonian of FE discretized Hamiltonian into
-      pcout
+      
+        Hproj_orbital.clear();
+	C_hat.clear();
+	C_bar.clear();	
+	O.clear();
+	U_O.clear();
+	B.clear();
+	
+	std::vector<double>().swap(Hproj_orbital);
+	std::vector<double>().swap(C_hat);
+	std::vector<double>().swap(C_bar);
+	std::vector<double>().swap(O);
+	std::vector<double>().swap(U_O);
+	std::vector<double>().swap(B);
+
+	pcout
         << "--------------------------COHP Data Saved------------------------------"
         << std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
@@ -964,19 +983,17 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 	std::vector<double> CoeffNew(N*N,0.0);
 	MPI_Barrier(MPI_COMM_WORLD);
       double timerChat2 = MPI_Wtime();
-      CoeffNew = diagonalization(ProjHam,N,projEnergy);
        if(this_mpi_process == 0)
         CoeffNew = diagonalization(ProjHam,N,projEnergy);
-    MPI_Bcast(
+        MPI_Barrier(MPI_COMM_WORLD);
+      timerChat2 = MPI_Wtime() - timerChat2;    
+
+     MPI_Bcast(
       &(projEnergy[0]), N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(
-      &(CoeffNew[0]), N*N, MPI_DOUBLE, 0, MPI_COMM_WORLD);      
-
-
-
-
-	MPI_Barrier(MPI_COMM_WORLD);
-      timerChat2 = MPI_Wtime() - timerChat2;
+      &(CoeffNew[0]), N*N, MPI_DOUBLE, 0, MPI_COMM_WORLD);     
+	//MPI_Barrier(MPI_COMM_WORLD);
+    //  timerChat2 = MPI_Wtime() - timerChat2;
       if (this_mpi_process == 0)
         writeVectorAs2DMatrix(CoeffNew,
                               totalDimOfBasis,
