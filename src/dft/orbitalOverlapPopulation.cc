@@ -683,6 +683,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 #endif
   MPI_Barrier(MPI_COMM_WORLD);
   timerCreatingMatrices = MPI_Wtime() - timerCreatingMatrices;
+  pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
   double timerScompute = MPI_Wtime();  
   auto upperTriaOfSserial =
@@ -698,7 +699,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                 MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
   timerScompute = MPI_Wtime() - timerScompute;
-
+  pcout<<" Computing S matrix: "<<timerScompute<<std::endl;
   if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
     {
       writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
@@ -731,6 +732,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
       &(U[0]), totalDimOfBasis*totalDimOfBasis, MPI_DOUBLE, 0, MPI_COMM_WORLD);       
   MPI_Barrier(MPI_COMM_WORLD);
   timerSdiagonalization = MPI_Wtime() - timerSdiagonalization;
+  pcout<<"Diagonalization of S: "<<timerSdiagonalization<<std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
   double timerUStranspose = MPI_Wtime();
   auto Ut = TransposeMatrix(U,totalDimOfBasis);
@@ -743,7 +745,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   auto invS = powerOfMatrix(-1,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
   timerSinverse = MPI_Wtime()-timerSinverse;
-  
+  pcout<<" Computing S^-1: "<<timerSinverse<<std::endl;
 
 
 
@@ -760,7 +762,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   auto Shalf = powerOfMatrix(0.5,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
   timerShalf = MPI_Wtime() - timerShalf;  
-
+  pcout<<" Computing S^0.5: "<<timerShalf<<std::endl;
 
       MPI_Barrier(MPI_COMM_WORLD);
       double timerPhiTPsi = MPI_Wtime();
@@ -781,7 +783,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                     MPI_COMM_WORLD);
       MPI_Barrier(MPI_COMM_WORLD);
       timerPhiTPsi = MPI_Wtime() - timerPhiTPsi;
-
+      pcout<<"Computing PHI^TPSI: "<<timerPhiTPsi<<std::endl;
       pcout << "Matrix of projections with atomic orbitals: \n";
       MPI_Barrier(MPI_COMM_WORLD);
       double timerCcompute = MPI_Wtime();
@@ -793,13 +795,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                                  numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
       timerCcompute = MPI_Wtime() - timerCcompute;  
-
+      pcout<<"Computing C: "<<timerCcompute<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
       double timerOcompute = MPI_Wtime();
       auto B = matrixTmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,S,totalDimOfBasis,totalDimOfBasis);
       auto O = matrixmatrixmul(B,numOfKSOrbitals,totalDimOfBasis,coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals);                                               
       MPI_Barrier(MPI_COMM_WORLD);
       timerOcompute = MPI_Wtime() -timerOcompute;
+      pcout<<" Computing O: "<<timerOcompute<<std::endl;
       std::vector<double> D_O(numOfKSOrbitals,0.0);
       std::vector<double> U_O(numOfKSOrbitals*numOfKSOrbitals,0.0);
       
@@ -813,7 +816,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
       &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
       MPI_Barrier(MPI_COMM_WORLD);
       timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
-
+      pcout<<" Diagonalization of O: "<<timerOdiagnolaization<<std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
   double timerUOtranspose = MPI_Wtime();
   auto U_Ot = TransposeMatrix(U_O,numOfKSOrbitals);
@@ -827,14 +830,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
       auto Ominushalf = powerOfMatrix(-0.5,D_O,U_Ot,numOfKSOrbitals,U_Ot);
       MPI_Barrier(MPI_COMM_WORLD);
       timerOminushalf = MPI_Wtime() - timerOminushalf;
-
+      pcout<<" Computing O^-0.5: "<<timerOminushalf<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
       double timerCbarcompute = MPI_Wtime();
       std::vector<double> C_bar = matrixmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,
                                     Ominushalf,numOfKSOrbitals,numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
       timerCbarcompute = MPI_Wtime() - timerCbarcompute;
-
+      pcout<<" Computing Cbar: "<<timerCbarcompute<<std::endl;
 
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
@@ -849,6 +852,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
       std::vector<double> C_hat = matrixmatrixmul(Shalf,totalDimOfBasis,totalDimOfBasis,C_bar,totalDimOfBasis,numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
       timerChatcompute = MPI_Wtime() - timerChatcompute; 
+      pcout<<" Computing Chat: "<<timerChatcompute<<std::endl;
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
           writeVectorAs2DMatrix(C_hat,
@@ -865,7 +869,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                                eigenValues[0]);
         MPI_Barrier(MPI_COMM_WORLD);
         timerHprojOrbital = MPI_Wtime()-timerHprojOrbital;                                       
-
+        pcout<<" Computing Projected Hamiltonian: "<<timerHprojOrbital<<std::endl;
       
       
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
@@ -906,7 +910,29 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
           else
             pcout << "couldn't open energyLevelsOccNums.txt file!\n";
         }
-
+  pcout<<"----------------------------------------------------------"<<std::endl;
+  pcout<<"------------------- OLD METHOD ----------------------------"<<std::endl;
+  pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
+  pcout<<" Computing S matrix: "<<timerScompute<<std::endl;
+  pcout<<"Computing PHI^TPSI: "<<timerPhiTPsi<<std::endl;
+  pcout<<"Diagonalization of S: "<<timerSdiagonalization<<std::endl;
+  pcout<<" Computing S^-1: "<<timerSinverse<<std::endl;
+  pcout<<"Computing C: "<<timerCcompute<<std::endl;
+  pcout<<" Computing O: "<<timerOcompute<<std::endl;
+  pcout<<" Diagonalization of O: "<<timerOdiagnolaization<<std::endl;
+  pcout<<" Computing O^-0.5: "<<timerOminushalf<<std::endl;
+  pcout<<" Computing Cbar: "<<timerCbarcompute<<std::endl;
+  pcout<<" Computing S^0.5: "<<timerShalf<<std::endl;
+  pcout<<" Computing Chat: "<<timerChatcompute<<std::endl;
+  pcout<<" Computing Projected Hamiltonian: "<<timerHprojOrbital<<std::endl;
+  pcout<<" Compute U transpose: "<<timerUStranspose<<std::endl ;
+  pcout<<" Compute U_O transpose: "<<timerUOtranspose<<std::endl ;
+  pcout<<" TOTAL TIME in sec: "<<timerScompute+timerPhiTPsi+timerSdiagonalization+timerSinverse+
+  timerCcompute+timerOcompute+timerOdiagnolaization+timerOminushalf+timerCbarcompute+timerShalf+timerChatcompute+
+  timerHprojOrbital<<std::endl;
+  pcout<<"----------------------------------------------------------"<<std::endl;
+  pcout<<std::endl;
+   pcout<<"----------------------------------------------------------"<<std::endl;
 
       pcout
         << "--------------------------COHP v2 Starting------------------------------"
@@ -926,14 +952,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                      ProjHam1);
       MPI_Barrier(MPI_COMM_WORLD);
       timerHprojnormal = MPI_Wtime()-timerHprojnormal;
-
+       pcout<<" Computing H projected: "<<timerHprojnormal<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
       double timerSinvHproj = MPI_Wtime();
       auto ProjHam2 = matrixmatrixmul(Sminushalf,N,N,ProjHam1,N,N);
       auto ProjHam = matrixmatrixmul(ProjHam2,N,N,Sminushalf,N,N);
       MPI_Barrier(MPI_COMM_WORLD);
       timerSinvHproj = MPI_Wtime()-timerSinvHproj;
-      
+      pcout<<" Compute Sinv Hproj: "<<timerSinvHproj<<std::endl;
       const unsigned int rowsBlockSize = d_elpaScala->getScalapackBlockSize();
       std::shared_ptr<const dftfe::ProcessGrid> processGrid =
         d_elpaScala->getProcessGridDftfeScalaWrapper();
@@ -948,7 +974,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                      projHamPar);
       MPI_Barrier(MPI_COMM_WORLD);
       timerHprojScalapack =MPI_Wtime()-timerHprojScalapack;
-      
+      pcout<<" Compute H projected SCALAPACK: "<<timerHprojScalapack<<std::endl;
 
       if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
@@ -976,7 +1002,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 
 
 	MPI_Barrier(MPI_COMM_WORLD);
-      timerChat2 = MPI_Wtime() - timerChat2;
+  timerChat2 = MPI_Wtime() - timerChat2;
+  pcout<<" Computing Chat (Diagonlaization of Hp): "<<timerChat2<<std::endl;    
       if (this_mpi_process == 0)
         writeVectorAs2DMatrix(CoeffNew,
                               totalDimOfBasis,
@@ -994,7 +1021,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                                      numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
       timerCbar2 = MPI_Wtime()- timerCbar2;     
-
+      pcout<<" Computing Cbar: "<<timerCbar2<<std::endl;
       if (this_mpi_process == 0)
         {
           writeVectorAs2DMatrix(C_bar2,
@@ -1044,9 +1071,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   pcout<<" TOTAL TIME in sec: "<<timerScompute+timerSdiagonalization+timerHprojScalapack+timerSinvHproj+
   timerCbar2+timerSminushalf+timerChat2<<std::endl;
 
-	pcout<<"Eigenvalues of O and Hp"<<std::endl;
-	for (int i = 0; i < numOfKSOrbitals; i++)
-	pcout<<D_O[i]<<"  "<<projEnergy[i]<<std::endl;	
+	
 
 
   
