@@ -181,7 +181,7 @@ namespace dftfe
     int         MDTrack;
 
     unsigned int NumofKSOrbitalsproj;
-    bool         ComputeFeOHP;
+    bool         ComputePFOP, ComputePFHP;
     unsigned int AtomicOrbitalBasis;
     std::string  pseudoAtomicOrbitalsFile;
 

@@ -10,6 +10,135 @@
 #include "matrixmatrixmul.h"
 
 
+void
+writeOrbitalDataIntoFile(const std::vector<std::vector<int>> &data,
+                         const std::string &                  fileName)
+{
+  if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+    {
+      std::ofstream outFile(fileName);
+      if (outFile.is_open())
+        {
+          for (unsigned int irow = 0; irow < data.size(); ++irow)
+            {
+              for (unsigned int icol = 0; icol < data[irow].size(); ++icol)
+                {
+                  outFile << data[irow][icol];
+                  if (icol < data[irow].size() - 1)
+                    outFile << " ";
+                }
+              outFile << "\n";
+            }
+
+          outFile.close();
+        }
+    }
+}
+
+
+
+void
+readBasisFile(const unsigned int             numColumns,
+              std::vector<std::vector<int>> &data,
+              const std::string &            fileName)
+{
+  std::vector<int> rowData(numColumns, 0.0);
+  std::ifstream    readFile(fileName.c_str());
+  if (readFile.fail())
+    {
+      std::cerr << "Error opening file: " << fileName.c_str() << std::endl;
+      exit(-1);
+    }
+
+  //
+  // String to store line and word
+  //
+  std::string readLine;
+  std::string word;
+
+  //
+  // column index
+  //
+  int columnCount;
+
+  if (readFile.is_open())
+    {
+      while (std::getline(readFile, readLine))
+        {
+          std::istringstream iss(readLine);
+
+          columnCount = 0;
+
+          while (iss >> word && columnCount < numColumns)
+            rowData[columnCount++] = atoi(word.c_str());
+
+          data.push_back(rowData);
+        }
+    }
+  readFile.close();
+}
+
+
+
+// using this class we create an Array of Objects
+// // each element corresponding to an atom type
+// // corresponding atomPositions should be as an external array or suitable in
+// a datastructure
+
+void
+constructQuantumNumbersHierarchy(unsigned int      n,
+                                 unsigned int      l,
+                                 std::vector<int> &rank)
+{
+  // assume the vector of size 0 has already been reserved with space for N
+  // shells which is N(N+1)(2N+1)/6 orbitals for N shells N is maximum of the
+  // principal quantum number over each atomType this function is called just
+  // once for the whole program
+
+  /*  	OrbitalQuantumNumbers orbitalTraverse;
+
+for(unsigned int n = nstart; n <= nend; ++n) {
+  for(unsigned int l = 0; l < n; ++l) {
+    for(unsigned int tmp_m = 0; tmp_m <= 2*l; ++tmp_m) {
+
+      orbitalTraverse.n = n;
+      orbitalTraverse.l = l;
+      orbitalTraverse.m = tmp_m - l;
+      quantumNumHierarchy.push_back(orbitalTraverse);
+    }
+  }
+
+}
+*/
+  rank.clear();
+}
+
+void
+appendElemsOfRangeToFile(unsigned int start,
+                         unsigned int end,
+                         std::string  filename)
+{
+  std::ofstream outputFile;
+  outputFile.open(filename, std::ofstream::out | std::ofstream::app);
+
+  if (outputFile.is_open())
+    {
+      for (int i = start; i <= end; ++i)
+        {
+          outputFile << i << '\n';
+        }
+    }
+
+  else
+    {
+      std::cerr << "Couldn't open " << filename << " file!!" << std::endl;
+      exit(0);
+    }
+
+  outputFile.close();
+  // it is usually not required to close the file
+}
+
 // this function assumes all filled Kohn-Sham orbitals/bands come first
 // to find the first zero in the occupation number vector
 unsigned int

@@ -965,8 +965,12 @@ namespace dftfe
                  const std::string &                     fileName);
 
     void
-    orbitalOverlapPopulationCompute(
+    orbitalPopulationCompute(
       const std::vector<std::vector<double>> &eigenValuesInput);
+
+    void
+    hamiltonianPopulationCompute(
+      const std::vector<std::vector<double>> &eigenValuesInput);      
 
     double
     newRhoSpillFactor(

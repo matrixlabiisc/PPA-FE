@@ -185,10 +185,16 @@ namespace dftfe
                           "1",
                           Patterns::Integer(1),
                           "[Standard] Number of Kohn-Sham Orbitals projected");
-        prm.declare_entry("COMPUTE FeOHP",
+        prm.declare_entry("COMPUTE PFOP",
                           "false",
                           Patterns::Bool(),
-                          "[Standard] COmputes COOP/COHP if switched on");
+                          "[Standard] Computes pFOOP/pFOHP if switched on");
+
+        prm.declare_entry("COMPUTE PFHP",
+                          "false",
+                          Patterns::Bool(),
+                          "[Standard] Computes pFHOP/pFHHP if switched on");
+
         prm.declare_entry(
           "BASIS TO PROJECT",
           "0",
@@ -1335,7 +1341,8 @@ namespace dftfe
         prm.get_bool("READ ATOMIC WFC PDOS FROM PSP FILE");
       writeLocalizationLengths = prm.get_bool("WRITE LOCALIZATION LENGTHS");
       NumofKSOrbitalsproj = prm.get_integer("NUMBER OF PROJECTED KS ORBITALS");
-      ComputeFeOHP        = prm.get_bool("COMPUTE FeOHP");
+      ComputePFOP        = prm.get_bool("COMPUTE PFOP");
+      ComputePFHP        = prm.get_bool("COMPUTE PFHP");
       AtomicOrbitalBasis  = prm.get_integer("BASIS TO PROJECT");
       writePdosFile       = prm.get_bool("WRITE PROJECTED DENSITY OF STATES");
     }

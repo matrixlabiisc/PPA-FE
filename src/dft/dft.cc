@@ -111,7 +111,8 @@ namespace dftfe
 #include "moveMeshToAtoms.cc"
 #include "nodalDensityMixingSchemes.cc"
 #include "nscf.cc"
-#include "orbitalOverlapPopulation.cc"
+#include "orbitalPopulation.cc"
+#include "hamiltonianPopulation.cc"
 #include "pRefinedDoFHandler.cc"
 #include "psiInitialGuess.cc"
 #include "publicMethods.cc"
@@ -1772,8 +1773,10 @@ namespace dftfe
 
     if (d_dftParamsPtr->writeLocalizationLengths)
       compute_localizationLength("localizationLengths.out");
-    if (d_dftParamsPtr->ComputeFeOHP)
-      orbitalOverlapPopulationCompute(eigenValues);
+    if (d_dftParamsPtr->ComputePFOP)
+      orbitalPopulationCompute(eigenValues);
+    if (d_dftParamsPtr->ComputePFHP)
+      hamiltonianPopulationCompute(eigenValues);      
 
     /*if (d_dftParamsPtr->computeDipoleMoment)
       {
@@ -1832,7 +1835,7 @@ namespace dftfe
       &kohnShamDFTEigenOperatorDevice = *d_kohnShamDFTOperatorDevicePtr;
 #endif
 
-    if (!d_dftParamsPtr->useDevice|| d_dftParamsPtr->ComputeFeOHP)
+    if (!d_dftParamsPtr->useDevice|| d_dftParamsPtr->ComputePFOP ||d_dftParamsPtr->ComputePFHP)
       {
         kohnShamDFTEigenOperator.init();
       }
@@ -3613,7 +3616,7 @@ namespace dftfe
     if (d_dftParamsPtr->useDevice &&
         (d_dftParamsPtr->writeWfcSolutionFields ||
          d_dftParamsPtr->writeLdosFile || d_dftParamsPtr->writePdosFile ||
-         d_dftParamsPtr->ComputeFeOHP))
+         d_dftParamsPtr->ComputePFOP || d_dftParamsPtr->ComputePFHP))
       for (unsigned int kPoint = 0;
            kPoint <
            (1 + d_dftParamsPtr->spinPolarized) * d_kPointWeights.size();
