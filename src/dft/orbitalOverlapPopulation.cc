@@ -582,6 +582,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   MPI_Barrier(MPI_COMM_WORLD);
   double timerCreatingMatrices = MPI_Wtime();
   double r,theta,phi;
+  int SumCounter=0;
   for (unsigned int dof = 0; dof < n_dofs; ++dof)
     {
       // get nodeID
@@ -601,8 +602,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
               std::vector<int> imageIdsList;
               if (d_dftParamsPtr->periodicX || d_dftParamsPtr->periodicY ||
                   d_dftParamsPtr->periodicZ)
+                
                 {
-                  imageIdsList = d_globalChargeIdToImageIdMapTrunc[atomChargeID];
+                  imageIdsList = d_globalChargeIdToImageIdMap[atomChargeID];
                 }
               else
                 {
@@ -612,7 +614,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                    OrbitalQuantumNumbers orbital = {globalBasisInfo[i].n,
                                                    globalBasisInfo[i].l,
                                                    globalBasisInfo[i].m};
-              // pcout<<"Here"<<std::endl;
+              //pcout<<"imageIdsList.size(): "<<imageIdsList.size()<<std::endl;
+              int counterlist = 0;
               for (int imageID = 0; imageID < imageIdsList.size(); imageID++)
                 {
                   int                 chargeId = imageIdsList[imageID];
@@ -625,9 +628,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                     }
                   else
                     {
-                      atomPos[0] = d_imagePositionsTrunc[chargeId - numOfAtoms][0];
-                      atomPos[1] = d_imagePositionsTrunc[chargeId - numOfAtoms][1];
-                      atomPos[2] = d_imagePositionsTrunc[chargeId - numOfAtoms][2];
+                      atomPos[0] = d_imagePositions[chargeId - numOfAtoms][0];
+                      atomPos[1] = d_imagePositions[chargeId - numOfAtoms][1];
+                      atomPos[2] = d_imagePositions[chargeId - numOfAtoms][2];
                     }
                     auto relativeEvalPoint = relativeVector3d(node, atomPos);
 
@@ -635,6 +638,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                  
                   if(atomTypewiseSTOvector[atomTypeID].maxRadialcutoff < 0 || r <= atomTypewiseSTOvector[atomTypeID].maxRadialcutoff)
                   {
+                    counterlist++;
                   if (d_dftParamsPtr->AtomicOrbitalBasis == 1)
                     {
                       scaledOrbitalValues_FEnodes[count1 + i] +=
@@ -653,7 +657,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
                           .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi);
                     }
                   }  
+                  
                 }
+                SumCounter+=counterlist;
             }
         }
       auto count2 = numOfKSOrbitals * dof;
@@ -684,6 +690,13 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
   MPI_Barrier(MPI_COMM_WORLD);
   timerCreatingMatrices = MPI_Wtime() - timerCreatingMatrices;
   pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
+    MPI_Allreduce(&SumCounter,
+                &SumCounter,
+                1,
+                MPI_INT,
+                MPI_SUM,
+                MPI_COMM_WORLD);  
+  pcout<<"Sum of Counter: "<<SumCounter;
   MPI_Barrier(MPI_COMM_WORLD);
   double timerScompute = MPI_Wtime();  
   auto upperTriaOfSserial =
@@ -928,6 +941,21 @@ dftClass<FEOrder, FEOrderElectro>::orbitalOverlapPopulationCompute(
 
           else
             pcout << "couldn't open energyLevelsOccNums.txt file!\n";
+        }
+      if (this_mpi_process == 0)
+        {
+          pcout
+            << "\n-------------------------------------------------------\n";
+          pcout << "Projected SpillFactors are:" << std::endl;
+          spillFactorsofProjectionwithCS(coeffArrayVecOfProj,
+                                         upperTriaOfS,
+                                         occupationNum,
+                                         totalDimOfBasis,
+                                         numOfKSOrbitals,
+                                         totalDimOfBasis,
+                                         totalDimOfBasis);
+          pcout
+            << "\n-------------------------------------------------------\n";
         }
   pcout<<"----------------------------------------------------------"<<std::endl;
   pcout<<"------------------- OLD METHOD ----------------------------"<<std::endl;

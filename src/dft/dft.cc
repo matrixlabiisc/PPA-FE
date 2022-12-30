@@ -216,6 +216,7 @@ namespace dftfe
       d_dftParamsPtr->reproducible_output ?
         30.0 :
         (std::max(d_dftParamsPtr->pspCutoffImageCharges, d_pspCutOffTrunc));
+        
   }
 
   template <unsigned int FEOrder, unsigned int FEOrderElectro>

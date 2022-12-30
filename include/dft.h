@@ -1107,7 +1107,7 @@ namespace dftfe
     double d_pspCutOff = 15.0;
 
     /// distance from the domain till which periodic images will be considered
-    const double d_pspCutOffTrunc = 15.0;
+     double d_pspCutOffTrunc = 1.0;
 
     /// cut-off distance from atom till which non-local projectors are
     /// non-trivial
