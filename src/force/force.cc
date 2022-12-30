@@ -19,8 +19,9 @@
 
 
 #include <force.h>
-#ifdef DFTFE_WITH_GPU
-#  include <forceCUDA.h>
+#include <forceWfcContractions.h>
+#ifdef DFTFE_WITH_DEVICE
+#  include <forceWfcContractionsDevice.h>
 #endif
 #include <boost/math/special_functions/spherical_harmonic.hpp>
 
@@ -32,7 +33,7 @@
 #include <fileReaders.h>
 #include <linearAlgebraOperations.h>
 #include <vectorUtilities.h>
-
+#include <DataTypeOverloads.h>
 
 // This class computes and stores the configurational forces corresponding to
 // geometry optimization. It uses the formulation in the paper by Motamarri
@@ -46,20 +47,20 @@ namespace dftfe
 #include "configurationalForceCompute/FPSPLocalGammaAtomsElementalContribution.cc"
 #include "configurationalForceCompute/FShadowLocalGammaAtomsElementalContribution.cc"
 #include "configurationalForceCompute/FSmearedChargesGammaAtomsElementalContribution.cc"
-#include "configurationalForceCompute/FnlGammaAtomsElementalContribution.cc"
+#include "configurationalForceCompute/FnlGammaElementalContribution.cc"
 #include "configurationalForceCompute/accumulateForceContributionGammaAtomsFloating.cc"
 #include "configurationalForceCompute/computeFloatingAtomsForces.cc"
 #include "configurationalForceCompute/configurationalForceEEshelbyFPSPFnlLinFE.cc"
 #include "configurationalForceCompute/configurationalForceEselfLinFE.cc"
 #include "configurationalForceCompute/gaussianGeneratorConfForceOpt.cc"
 #include "configurationalStressCompute/ENonlinearCoreCorrectionContribution.cc"
+#include "configurationalStressCompute/EnlStressContribution.cc"
 #include "configurationalStressCompute/EPSPStressContribution.cc"
 #include "configurationalStressCompute/ESmearedStressContribution.cc"
 #include "configurationalStressCompute/computeStressEEshelbyEPSPEnlEk.cc"
 #include "configurationalStressCompute/computeStressEself.cc"
 #include "configurationalStressCompute/stress.cc"
 #include "createBinObjectsForce.cc"
-#include "initPseudoForce.cc"
 #include "locateAtomCoreNodesForce.cc"
 
   namespace internalForce
@@ -291,12 +292,13 @@ namespace dftfe
   void
   forceClass<FEOrder, FEOrderElectro>::computeAtomsForces(
     const MatrixFree<3, double> &matrixFreeData,
-#ifdef DFTFE_WITH_GPU
-    kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-      &kohnShamDFTEigenOperator,
+#ifdef DFTFE_WITH_DEVICE
+    kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+      &kohnShamDFTEigenOperatorDevice,
 #endif
-    const dispersionCorrection &     dispersionCorr,
-    const unsigned int               eigenDofHandlerIndex,
+    kohnShamDFTOperatorClass<FEOrder, FEOrderElectro> &kohnShamDFTEigenOperator,
+    const dispersionCorrection &                       dispersionCorr,
+    const unsigned int                                 eigenDofHandlerIndex,
     const unsigned int               smearedChargeQuadratureId,
     const unsigned int               lpspQuadratureIdElectro,
     const MatrixFree<3, double> &    matrixFreeDataElectro,
@@ -343,9 +345,10 @@ namespace dftfe
                           d_cellFacesVselfBallSurfacesDofHandlerForceElectro);
 
     computeConfigurationalForceTotalLinFE(matrixFreeData,
-#ifdef DFTFE_WITH_GPU
-                                          kohnShamDFTEigenOperator,
+#ifdef DFTFE_WITH_DEVICE
+                                          kohnShamDFTEigenOperatorDevice,
 #endif
+                                          kohnShamDFTEigenOperator,
                                           eigenDofHandlerIndex,
                                           smearedChargeQuadratureId,
                                           lpspQuadratureIdElectro,
@@ -481,11 +484,12 @@ namespace dftfe
   void
   forceClass<FEOrder, FEOrderElectro>::computeConfigurationalForceTotalLinFE(
     const MatrixFree<3, double> &matrixFreeData,
-#ifdef DFTFE_WITH_GPU
-    kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-      &kohnShamDFTEigenOperator,
+#ifdef DFTFE_WITH_DEVICE
+    kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+      &kohnShamDFTEigenOperatorDevice,
 #endif
-    const unsigned int               eigenDofHandlerIndex,
+    kohnShamDFTOperatorClass<FEOrder, FEOrderElectro> &kohnShamDFTEigenOperator,
+    const unsigned int                                 eigenDofHandlerIndex,
     const unsigned int               smearedChargeQuadratureId,
     const unsigned int               lpspQuadratureIdElectro,
     const MatrixFree<3, double> &    matrixFreeDataElectro,
@@ -524,9 +528,10 @@ namespace dftfe
     // nuclear self energy
     computeConfigurationalForceEEshelbyTensorFPSPFnlLinFE(
       matrixFreeData,
-#ifdef DFTFE_WITH_GPU
-      kohnShamDFTEigenOperator,
+#ifdef DFTFE_WITH_DEVICE
+      kohnShamDFTEigenOperatorDevice,
 #endif
+      kohnShamDFTEigenOperator,
       eigenDofHandlerIndex,
       smearedChargeQuadratureId,
       lpspQuadratureIdElectro,

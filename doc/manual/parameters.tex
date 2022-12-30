@@ -94,16 +94,16 @@
 
 \index[prmindex]{SOLVER MODE}
 \index[prmindexfull]{SOLVER MODE}
-{\it Value:} GS
+{\it Value:} NONE
 
 
 {\it Default:} GS
 
 
-{\it Description:} [Standard] DFT-FE SOLVER MODE: If GS: performs GroundState calculations, ionic and cell relaxation. If MD: performs Molecular Dynamics Simulation. If NEB: performs a NEB calculation. If GEOOPT: performs an ion and/or cell optimization calculation.
+{\it Description:} [Standard] DFT-FE SOLVER MODE: If GS: performs GroundState calculations, ionic and cell relaxation. If MD: performs Molecular Dynamics Simulation. If NEB: performs a NEB calculation. If GEOOPT: performs an ion and/or cell optimization calculation. If NONE: the density is initialised with superposition of atomic densities and is written to file along with mesh data.
 
 
-{\it Possible values:} Any one of GS, MD, NEB, GEOOPT
+{\it Possible values:} Any one of GS, MD, NEB, GEOOPT, NONE
 \item {\it Parameter name:} {\tt VERBOSITY}
 \phantomsection\label{parameters:VERBOSITY}
 
@@ -1192,7 +1192,7 @@
 {\it Default:} false
 
 
-{\it Description:} [Adavanced] Use GPUDIRECT MPI\_Allreduce. This route will only work if DFT-FE is compiled with NVIDIA NCCL library. Also note that one MPI rank per GPU can be used when using this option. Default: false.
+{\it Description:} [Adavanced] Use GPUDIRECT MPI\_Allreduce. This route will only work if DFT-FE is either compiled with NVIDIA NCCL library or withGPUAwareMPI=ON. Both these routes require GPU Aware MPI library to be available as well relevant hardware. If both NVIDIA NCCL library and withGPUAwareMPI modes are toggled on, the NCCL mode takes precedence. Also note that one MPI rank per GPU can be used when using this option. Default: false.
 
 
 {\it Possible values:} A boolean value (true or false)
@@ -2772,24 +2772,24 @@
 {\it Default:} 0.3
 
 
-{\it Description:} [Standard] Tolerance criteria for rank updates. 0.4 is a more efficient choice when using ACCUMULATED\_ADAPTIVE method.
+{\it Description:} [Standard] Relative error metric on the low rank approximation error that adaptively sets the rank in each SCF iteration step.
 
 
 {\it Possible values:} A floating point number $v$ such that $0 \leq v \leq 1$
-\item {\it Parameter name:} {\tt ADAPTIVE RANK REL TOL REACCUM FACTOR}
-\phantomsection\label{parameters:SCF parameters/LOW RANK DIELECM PRECOND/ADAPTIVE RANK REL TOL REACCUM FACTOR}
-\label{parameters:SCF_20parameters/LOW_20RANK_20DIELECM_20PRECOND/ADAPTIVE_20RANK_20REL_20TOL_20REACCUM_20FACTOR}
+\item {\it Parameter name:} {\tt BETA TOL}
+\phantomsection\label{parameters:SCF parameters/LOW RANK DIELECM PRECOND/BETA TOL}
+\label{parameters:SCF_20parameters/LOW_20RANK_20DIELECM_20PRECOND/BETA_20TOL}
 
 
-\index[prmindex]{ADAPTIVE RANK REL TOL REACCUM FACTOR}
-\index[prmindexfull]{SCF parameters!LOW RANK DIELECM PRECOND!ADAPTIVE RANK REL TOL REACCUM FACTOR}
-{\it Value:} 2.0
+\index[prmindex]{BETA TOL}
+\index[prmindexfull]{SCF parameters!LOW RANK DIELECM PRECOND!BETA TOL}
+{\it Value:} 0.1
 
 
-{\it Default:} 2.0
+{\it Default:} 0.1
 
 
-{\it Description:} [Advanced] For METHOD SUB TYPE=ACCUMULATED\_ADAPTIVE.
+{\it Description:} [Advanced] Sets tolerance on deviation of linear indicator value from the ideal value of 1.0. For METHOD SUB TYPE=ACCUMULATED\_ADAPTIVE.
 
 
 {\it Possible values:} A floating point number $v$ such that $0 \leq v \leq 100$

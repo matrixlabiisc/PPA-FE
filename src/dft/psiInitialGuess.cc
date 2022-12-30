@@ -97,8 +97,7 @@ dftClass<FEOrder, FEOrderElectro>::loadPSIFiles(unsigned int  Z,
         }
       alglib::real_1d_array y;
       y.setcontent(numRows, &yData[0]);
-      alglib::ae_int_t             natural_bound_type = 0;
-      alglib::spline1dinterpolant *spline = new alglib::spline1dinterpolant;
+      alglib::ae_int_t natural_bound_type = 0;
       alglib::spline1dbuildcubic(x,
                                  y,
                                  numRows,
@@ -106,9 +105,8 @@ dftClass<FEOrder, FEOrderElectro>::loadPSIFiles(unsigned int  Z,
                                  0.0,
                                  natural_bound_type,
                                  0.0,
-                                 *spline);
+                                 radValues[Z][n][l]);
 
-      radValues[Z][n][l] = spline;
 
       maxTruncationRadius = xData[truncRowId];
       if (maxTruncationRadius > d_wfcInitTruncation)
@@ -412,8 +410,11 @@ dftClass<FEOrder, FEOrderElectro>::readPSIRadialValues()
           //
           // loop over wave functions
           //
-          for (int kPoint = 0; kPoint < (1 + d_dftParamsPtr->spinPolarized) *
-                                          d_kPointWeights.size();
+          for (int kPoint = 0;
+               kPoint < (d_dftParamsPtr->reproducible_output ?
+                           ((1 + d_dftParamsPtr->spinPolarized) *
+                            d_kPointWeights.size()) :
+                           (1 + d_dftParamsPtr->spinPolarized));
                ++kPoint)
             {
               // unsigned int waveFunction=0;
@@ -487,7 +488,7 @@ dftClass<FEOrder, FEOrderElectro>::readPSIRadialValues()
                         d_wfcInitTruncation) // outerValues[it->Z][it->n][it->l])
                         {
                           // radial part
-                          R = alglib::spline1dcalc(*(it->psi), r);
+                          R = alglib::spline1dcalc((it->psi), r);
                           // spherical part
                           if (it->m > 0)
                             {
@@ -551,12 +552,24 @@ dftClass<FEOrder, FEOrderElectro>::readPSIRadialValues()
         }
     }
 
-  // for(int kPoint = 0; kPoint <
-  // (1+d_dftParamsPtr->spinPolarized)*d_kPointWeights.size(); ++kPoint)
-  //{
-  //   d_eigenVectorsFlattened[kPoint].compress(VectorOperation::insert);
-  //      d_eigenVectorsFlattened[kPoint].update_ghost_values();
-  //  }
+  if (!d_dftParamsPtr->reproducible_output)
+    {
+      for (unsigned int kPoint = 1;
+           kPoint <
+           (1 + d_dftParamsPtr->spinPolarized) * d_kPointWeights.size();
+           ++kPoint)
+        {
+          std::vector<dataTypes::number> &temp1 =
+            d_eigenVectorsFlattenedSTL[kPoint];
+
+          std::vector<dataTypes::number> &temp2 = d_eigenVectorsFlattenedSTL[0];
+
+          for (unsigned int idof = 0; idof < numberDofs; idof++)
+            for (unsigned int iwave = 0; iwave < d_numEigenValues; iwave++)
+              temp1[idof * d_numEigenValues + iwave] =
+                temp2[idof * d_numEigenValues + iwave];
+        }
+    }
 
   if (d_dftParamsPtr->startingWFCType == "RANDOM")
     {

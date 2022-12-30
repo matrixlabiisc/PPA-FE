@@ -26,7 +26,6 @@
 #include <dftParameters.h>
 #include <dftUtils.h>
 #include <energyCalculator.h>
-#include <dftd.h>
 #include <fileReaders.h>
 #include <force.h>
 #include <kohnShamDFTOperator.h>
@@ -47,6 +46,8 @@
 #include <overlapPopulationAnalysis.h>
 #include <mathUtils.h>
 #include <matrixmatrixmul.h>
+#include <MemoryTransfer.h>
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -74,10 +75,9 @@
 #include <vector>
 #include <set>
 #include <map>
-#ifdef DFTFE_WITH_GPU
-#  include <densityCalculatorCUDA.h>
-#  include <linearAlgebraOperationsCUDA.h>
-#  include <linearSolverCGCUDA.h>
+#ifdef DFTFE_WITH_DEVICE
+#  include <densityCalculatorDevice.h>
+#  include <linearAlgebraOperationsDevice.h>
 #endif
 
 extern "C"
@@ -159,7 +159,15 @@ namespace dftfe
              dftParams)
     , d_affineTransformMesh(mpi_comm_parent, mpi_comm_domain, dftParams)
     , d_gaussianMovePar(mpi_comm_parent, mpi_comm_domain, dftParams)
-    , d_vselfBinsManager(mpi_comm_parent, mpi_comm_domain, dftParams)
+    , d_vselfBinsManager(mpi_comm_parent,
+                         mpi_comm_domain,
+                         _interpoolcomm,
+                         dftParams)
+    , d_dispersionCorr(mpi_comm_parent,
+                       mpi_comm_domain,
+                       _interpoolcomm,
+                       _interBandGroupComm,
+                       dftParams)
     , pcout(std::cout,
             (Utilities::MPI::this_mpi_process(mpi_comm_parent) == 0) &&
               dftParams.verbosity >= 0)
@@ -183,14 +191,14 @@ namespace dftfe
                                 0.0,
                                 0.0,
                                 dftParams)
-#ifdef DFTFE_WITH_GPU
-    , d_subspaceIterationSolverCUDA(mpi_comm_parent,
-                                    mpi_comm_domain,
-                                    0.0,
-                                    0.0,
-                                    0.0,
-                                    dftParams)
-    , d_phiTotalSolverProblemCUDA(mpi_comm_domain)
+#ifdef DFTFE_WITH_DEVICE
+    , d_subspaceIterationSolverDevice(mpi_comm_parent,
+                                      mpi_comm_domain,
+                                      0.0,
+                                      0.0,
+                                      0.0,
+                                      dftParams)
+    , d_phiTotalSolverProblemDevice(mpi_comm_domain)
 #endif
     , d_phiTotalSolverProblem(mpi_comm_domain)
   {
@@ -207,10 +215,10 @@ namespace dftfe
 
     d_isRestartGroundStateCalcFromChk = false;
 
-#if defined(DFTFE_WITH_GPU)
-    d_gpucclMpiCommDomainPtr = new GPUCCLWrapper;
-    if (d_dftParamsPtr->useGPUDirectAllReduce)
-      d_gpucclMpiCommDomainPtr->init(mpi_comm_domain);
+#if defined(DFTFE_WITH_DEVICE)
+    d_devicecclMpiCommDomainPtr = new utils::DeviceCCLWrapper;
+    if (d_dftParamsPtr->useDeviceDirectAllReduce)
+      d_devicecclMpiCommDomainPtr->init(mpi_comm_domain);
 #endif
     d_pspCutOff =
       d_dftParamsPtr->reproducible_output ?
@@ -226,12 +234,14 @@ namespace dftfe
     delete symmetryPtr;
     matrix_free_data.clear();
     delete forcePtr;
-#if defined(DFTFE_WITH_GPU)
-    delete d_gpucclMpiCommDomainPtr;
+#if defined(DFTFE_WITH_DEVICE)
+    delete d_devicecclMpiCommDomainPtr;
 #endif
 
     d_elpaScala->elpaDeallocateHandles(*d_dftParamsPtr);
     delete d_elpaScala;
+
+    delete excFunctionalPtr;
   }
 
   namespace internaldft
@@ -513,8 +523,8 @@ namespace dftfe
 
         // start with 17-20% buffer to leave room for additional modifications
         // due to block size restrictions
-#ifdef DFTFE_WITH_GPU
-        if (d_dftParamsPtr->useGPU && d_dftParamsPtr->autoGPUBlockSizes)
+#ifdef DFTFE_WITH_DEVICE
+        if (d_dftParamsPtr->useDevice && d_dftParamsPtr->autoDeviceBlockSizes)
           d_numEigenValues =
             (numElectrons / 2.0) + std::max((d_dftParamsPtr->mixingMethod ==
                                                  "LOW_RANK_DIELECM_PRECOND" ?
@@ -542,8 +552,8 @@ namespace dftfe
       }
 
 
-#ifdef DFTFE_WITH_GPU
-    if (d_dftParamsPtr->useGPU && d_dftParamsPtr->autoGPUBlockSizes)
+#ifdef DFTFE_WITH_DEVICE
+    if (d_dftParamsPtr->useDevice && d_dftParamsPtr->autoDeviceBlockSizes)
       {
         const unsigned int numberBandGroups =
           dealii::Utilities::MPI::n_mpi_processes(interBandGroupComm);
@@ -557,7 +567,7 @@ namespace dftfe
           (d_numEigenValues % numberBandGroups == 0 ||
            d_numEigenValues / numberBandGroups == 0),
           ExcMessage(
-            "DFT-FE Error: TOTAL NUMBER OF KOHN-SHAM WAVEFUNCTIONS must be exactly divisible by NPBAND for GPU run."));
+            "DFT-FE Error: TOTAL NUMBER OF KOHN-SHAM WAVEFUNCTIONS must be exactly divisible by NPBAND for Device run."));
 
         const unsigned int bandGroupTaskId =
           dealii::Utilities::MPI::this_mpi_process(interBandGroupComm);
@@ -568,12 +578,38 @@ namespace dftfe
         const unsigned int eigenvaluesInBandGroup =
           bandGroupLowHighPlusOneIndices[1];
 
-        if (eigenvaluesInBandGroup <= 200)
+        if (eigenvaluesInBandGroup <= 100)
           {
             d_dftParamsPtr->chebyWfcBlockSize = eigenvaluesInBandGroup;
             d_dftParamsPtr->wfcBlockSize      = eigenvaluesInBandGroup;
           }
         else if (eigenvaluesInBandGroup <= 600)
+          {
+            std::vector<int> temp1(4, 0);
+            std::vector<int> temp2(4, 0);
+            temp1[0] = std::ceil(eigenvaluesInBandGroup / 90.0) * 90.0 *
+                       numberBandGroups;
+            temp1[1] = std::ceil(eigenvaluesInBandGroup / 100.0) * 100.0 *
+                       numberBandGroups;
+            temp1[2] = std::ceil(eigenvaluesInBandGroup / 110.0) * 110.0 *
+                       numberBandGroups;
+            temp1[3] = std::ceil(eigenvaluesInBandGroup / 120.0) * 120.0 *
+                       numberBandGroups;
+
+            temp2[0] = 90;
+            temp2[1] = 100;
+            temp2[2] = 110;
+            temp2[3] = 120;
+
+            int minElementIndex =
+              std::min_element(temp1.begin(), temp1.end()) - temp1.begin();
+            int minElement = *std::min_element(temp1.begin(), temp1.end());
+
+            d_numEigenValues                  = minElement;
+            d_dftParamsPtr->chebyWfcBlockSize = temp2[minElementIndex];
+            d_dftParamsPtr->wfcBlockSize      = temp2[minElementIndex];
+          }
+        else if (eigenvaluesInBandGroup <= 1000)
           {
             std::vector<int> temp1(4, 0);
             std::vector<int> temp2(4, 0);
@@ -596,33 +632,33 @@ namespace dftfe
             int minElement = *std::min_element(temp1.begin(), temp1.end());
 
             d_numEigenValues                  = minElement;
-            d_dftParamsPtr->chebyWfcBlockSize = temp2[minElementIndex];
+            d_dftParamsPtr->chebyWfcBlockSize = temp2[minElementIndex] / 2;
             d_dftParamsPtr->wfcBlockSize      = temp2[minElementIndex];
           }
         else if (eigenvaluesInBandGroup <= 2000)
           {
             std::vector<int> temp1(4, 0);
             std::vector<int> temp2(4, 0);
-            temp1[0] = std::ceil(eigenvaluesInBandGroup / 160.0) * 160.0 *
+            temp1[0] = std::ceil(eigenvaluesInBandGroup / 200.0) * 200.0 *
                        numberBandGroups;
-            temp1[1] = std::ceil(eigenvaluesInBandGroup / 180.0) * 180.0 *
+            temp1[1] = std::ceil(eigenvaluesInBandGroup / 220.0) * 220.0 *
                        numberBandGroups;
-            temp1[2] = std::ceil(eigenvaluesInBandGroup / 200.0) * 200.0 *
+            temp1[2] = std::ceil(eigenvaluesInBandGroup / 240.0) * 240.0 *
                        numberBandGroups;
-            temp1[3] = std::ceil(eigenvaluesInBandGroup / 220.0) * 220.0 *
+            temp1[3] = std::ceil(eigenvaluesInBandGroup / 260.0) * 260.0 *
                        numberBandGroups;
 
-            temp2[0] = 160;
-            temp2[1] = 180;
-            temp2[2] = 200;
-            temp2[3] = 220;
+            temp2[0] = 200;
+            temp2[1] = 220;
+            temp2[2] = 240;
+            temp2[3] = 260;
 
             int minElementIndex =
               std::min_element(temp1.begin(), temp1.end()) - temp1.begin();
             int minElement = *std::min_element(temp1.begin(), temp1.end());
 
             d_numEigenValues                  = minElement;
-            d_dftParamsPtr->chebyWfcBlockSize = temp2[minElementIndex];
+            d_dftParamsPtr->chebyWfcBlockSize = temp2[minElementIndex] / 2;
             d_dftParamsPtr->wfcBlockSize      = temp2[minElementIndex];
           }
         else
@@ -648,10 +684,8 @@ namespace dftfe
             int minElement = *std::min_element(temp1.begin(), temp1.end());
 
             d_numEigenValues                  = minElement;
-            d_dftParamsPtr->chebyWfcBlockSize = numberBandGroups > 1 ?
-                                                  temp2[minElementIndex] :
-                                                  temp2[minElementIndex] / 2;
-            d_dftParamsPtr->wfcBlockSize = temp2[minElementIndex];
+            d_dftParamsPtr->chebyWfcBlockSize = temp2[minElementIndex] / 2;
+            d_dftParamsPtr->wfcBlockSize      = temp2[minElementIndex];
           }
 
         if (d_dftParamsPtr->algoType == "FAST")
@@ -663,15 +697,15 @@ namespace dftfe
         if (d_dftParamsPtr->verbosity >= 1)
           {
             pcout
-              << " Setting the number of Kohn-Sham wave functions for GPU run to be: "
+              << " Setting the number of Kohn-Sham wave functions for Device run to be: "
               << d_numEigenValues << std::endl;
-            pcout << " Setting CHEBY WFC BLOCK SIZE for GPU run to be "
+            pcout << " Setting CHEBY WFC BLOCK SIZE for Device run to be "
                   << d_dftParamsPtr->chebyWfcBlockSize << std::endl;
-            pcout << " Setting WFC BLOCK SIZE for GPU run to be "
+            pcout << " Setting WFC BLOCK SIZE for Device run to be "
                   << d_dftParamsPtr->wfcBlockSize << std::endl;
             if (d_dftParamsPtr->algoType == "FAST")
               pcout
-                << " Setting SPECTRUM SPLIT CORE EIGENSTATES for GPU run to be "
+                << " Setting SPECTRUM SPLIT CORE EIGENSTATES for Device run to be "
                 << d_dftParamsPtr->numCoreWfcRR << std::endl;
           }
       }
@@ -922,14 +956,12 @@ namespace dftfe
         generateImageCharges(d_pspCutOff,
                              d_imageIds,
                              d_imageCharges,
-                             d_imagePositions,
-                             d_globalChargeIdToImageIdMap);
+                             d_imagePositions);
 
         generateImageCharges(d_pspCutOffTrunc,
                              d_imageIdsTrunc,
                              d_imageChargesTrunc,
-                             d_imagePositionsTrunc,
-                             d_globalChargeIdToImageIdMapTrunc);
+                             d_imagePositionsTrunc);
 
         if ((d_dftParamsPtr->verbosity >= 4 ||
              d_dftParamsPtr->reproducible_output))
@@ -981,14 +1013,12 @@ namespace dftfe
         generateImageCharges(d_pspCutOff,
                              d_imageIds,
                              d_imageCharges,
-                             d_imagePositions,
-                             d_globalChargeIdToImageIdMap);
+                             d_imagePositions);
 
         generateImageCharges(d_pspCutOffTrunc,
                              d_imageIdsTrunc,
                              d_imageChargesTrunc,
-                             d_imagePositionsTrunc,
-                             d_globalChargeIdToImageIdMapTrunc);
+                             d_imagePositionsTrunc);
       }
   }
 
@@ -1142,7 +1172,8 @@ namespace dftfe
           *(rhoInValues),
           *(gradRhoInValues),
           *(gradRhoInValues),
-          d_dftParamsPtr->xcFamilyType == "GGA");
+          excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA);
 
         if (d_dftParamsPtr->spinPolarized == 1)
           {
@@ -1168,7 +1199,8 @@ namespace dftfe
               *rhoInValuesSpinPolarized,
               *gradRhoInValuesSpinPolarized,
               *gradRhoInValuesSpinPolarized,
-              d_dftParamsPtr->xcFamilyType == "GGA");
+              excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA);
           }
         if ((d_dftParamsPtr->solverMode == "GEOOPT"))
           {
@@ -1177,7 +1209,8 @@ namespace dftfe
             rhoOutVals.push_back(*(rhoInValues));
             rhoOutValues = &(rhoOutVals.back());
 
-            if (d_dftParamsPtr->xcFamilyType == "GGA")
+            if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA)
               {
                 gradRhoOutVals.push_back(*(gradRhoInValues));
                 gradRhoOutValues = &(gradRhoOutVals.back());
@@ -1189,7 +1222,8 @@ namespace dftfe
                 rhoOutValuesSpinPolarized = &(rhoOutValsSpinPolarized.back());
               }
 
-            if (d_dftParamsPtr->xcFamilyType == "GGA" &&
+            if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                  densityFamilyType::GGA &&
                 d_dftParamsPtr->spinPolarized == 1)
               {
                 gradRhoOutValsSpinPolarized.push_back(
@@ -1306,12 +1340,14 @@ namespace dftfe
                   *(rhoInValues),
                   *(gradRhoInValues),
                   *(gradRhoInValues),
-                  d_dftParamsPtr->xcFamilyType == "GGA");
+                  excFunctionalPtr->getDensityBasedFamilyType() ==
+                    densityFamilyType::GGA);
 
-                addAtomicRhoQuadValuesGradients(*(rhoInValues),
-                                                *(gradRhoInValues),
-                                                d_dftParamsPtr->xcFamilyType ==
-                                                  "GGA");
+                addAtomicRhoQuadValuesGradients(
+                  *(rhoInValues),
+                  *(gradRhoInValues),
+                  excFunctionalPtr->getDensityBasedFamilyType() ==
+                    densityFamilyType::GGA);
 
                 normalizeRhoInQuadValues();
 
@@ -1338,7 +1374,8 @@ namespace dftfe
               *(rhoInValues),
               *(gradRhoInValues),
               *(gradRhoInValues),
-              d_dftParamsPtr->xcFamilyType == "GGA");
+              excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA);
 
             normalizeRhoInQuadValues();
 
@@ -1364,12 +1401,14 @@ namespace dftfe
               *(rhoInValues),
               *(gradRhoInValues),
               *(gradRhoInValues),
-              d_dftParamsPtr->xcFamilyType == "GGA");
+              excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA);
 
-            addAtomicRhoQuadValuesGradients(*(rhoInValues),
-                                            *(gradRhoInValues),
-                                            d_dftParamsPtr->xcFamilyType ==
-                                              "GGA");
+            addAtomicRhoQuadValuesGradients(
+              *(rhoInValues),
+              *(gradRhoInValues),
+              excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA);
 
             normalizeRhoInQuadValues();
 
@@ -1716,6 +1755,12 @@ namespace dftfe
 
     solve(true, true, d_isRestartGroundStateCalcFromChk);
 
+    if (d_dftParamsPtr->writeWfcSolutionFields)
+      outputWfc();
+
+    if (d_dftParamsPtr->writeDensitySolutionFields)
+      outputDensity();
+
     if (d_dftParamsPtr->writeDosFile)
       compute_tdos(eigenValues, "dosData.out");
 
@@ -1774,46 +1819,46 @@ namespace dftfe
                                                             d_mpiCommParent,
                                                             mpi_communicator);
 
-#ifdef DFTFE_WITH_GPU
-    d_kohnShamDFTOperatorCUDAPtr =
-      new kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>(
+#ifdef DFTFE_WITH_DEVICE
+    d_kohnShamDFTOperatorDevicePtr =
+      new kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>(
         this, d_mpiCommParent, mpi_communicator);
 #endif
 
     kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
       &kohnShamDFTEigenOperator = *d_kohnShamDFTOperatorPtr;
-#ifdef DFTFE_WITH_GPU
-    kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-      &kohnShamDFTEigenOperatorCUDA = *d_kohnShamDFTOperatorCUDAPtr;
+#ifdef DFTFE_WITH_DEVICE
+    kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+      &kohnShamDFTEigenOperatorDevice = *d_kohnShamDFTOperatorDevicePtr;
 #endif
 
-    if (!d_dftParamsPtr->useGPU || d_dftParamsPtr->ComputeFeOHP)
+    if (!d_dftParamsPtr->useDevice|| d_dftParamsPtr->ComputeFeOHP)
       {
         kohnShamDFTEigenOperator.init();
       }
 
-#ifdef DFTFE_WITH_GPU
-    if (d_dftParamsPtr->useGPU)
+#ifdef DFTFE_WITH_DEVICE
+    if (d_dftParamsPtr->useDevice)
       {
-        kohnShamDFTEigenOperatorCUDA.init();
+        kohnShamDFTEigenOperatorDevice.init();
 
         if (initializeCublas)
           {
-            kohnShamDFTEigenOperatorCUDA.createCublasHandle();
+            kohnShamDFTEigenOperatorDevice.createDeviceBlasHandle();
           }
 
         AssertThrow(
           (d_numEigenValues % d_dftParamsPtr->chebyWfcBlockSize == 0 ||
            d_numEigenValues / d_dftParamsPtr->chebyWfcBlockSize == 0),
           ExcMessage(
-            "DFT-FE Error: total number wavefunctions must be exactly divisible by cheby wfc block size for GPU run."));
+            "DFT-FE Error: total number wavefunctions must be exactly divisible by cheby wfc block size for Device run."));
 
 
         AssertThrow(
           (d_numEigenValues % d_dftParamsPtr->wfcBlockSize == 0 ||
            d_numEigenValues / d_dftParamsPtr->wfcBlockSize == 0),
           ExcMessage(
-            "DFT-FE Error: total number wavefunctions must be exactly divisible by wfc block size for GPU run."));
+            "DFT-FE Error: total number wavefunctions must be exactly divisible by wfc block size for Device run."));
 
         AssertThrow(
           (d_dftParamsPtr->wfcBlockSize % d_dftParamsPtr->chebyWfcBlockSize ==
@@ -1821,14 +1866,14 @@ namespace dftfe
            d_dftParamsPtr->wfcBlockSize / d_dftParamsPtr->chebyWfcBlockSize >=
              0),
           ExcMessage(
-            "DFT-FE Error: wfc block size must be exactly divisible by cheby wfc block size and also larger for GPU run."));
+            "DFT-FE Error: wfc block size must be exactly divisible by cheby wfc block size and also larger for Device run."));
 
         if (d_numEigenValuesRR != d_numEigenValues)
           AssertThrow(
             (d_numEigenValuesRR % d_dftParamsPtr->wfcBlockSize == 0 ||
              d_numEigenValuesRR / d_dftParamsPtr->wfcBlockSize == 0),
             ExcMessage(
-              "DFT-FE Error: total number RR wavefunctions must be exactly divisible by wfc block size for GPU run."));
+              "DFT-FE Error: total number RR wavefunctions must be exactly divisible by wfc block size for Device run."));
 
         // band group parallelization data structures
         const unsigned int numberBandGroups =
@@ -1838,7 +1883,7 @@ namespace dftfe
           (d_numEigenValues % numberBandGroups == 0 ||
            d_numEigenValues / numberBandGroups == 0),
           ExcMessage(
-            "DFT-FE Error: TOTAL NUMBER OF KOHN-SHAM WAVEFUNCTIONS must be exactly divisible by NPBAND for GPU run."));
+            "DFT-FE Error: TOTAL NUMBER OF KOHN-SHAM WAVEFUNCTIONS must be exactly divisible by NPBAND for Device run."));
 
         const unsigned int bandGroupTaskId =
           dealii::Utilities::MPI::this_mpi_process(interBandGroupComm);
@@ -1851,25 +1896,25 @@ namespace dftfe
              d_dftParamsPtr->chebyWfcBlockSize ==
            0),
           ExcMessage(
-            "DFT-FE Error: band parallelization group size must be exactly divisible by CHEBY WFC BLOCK SIZE for GPU run."));
+            "DFT-FE Error: band parallelization group size must be exactly divisible by CHEBY WFC BLOCK SIZE for Device run."));
 
         AssertThrow(
           (bandGroupLowHighPlusOneIndices[1] % d_dftParamsPtr->wfcBlockSize ==
            0),
           ExcMessage(
-            "DFT-FE Error: band parallelization group size must be exactly divisible by WFC BLOCK SIZE for GPU run."));
+            "DFT-FE Error: band parallelization group size must be exactly divisible by WFC BLOCK SIZE for Device run."));
 
-        kohnShamDFTEigenOperatorCUDA.reinit(
+        kohnShamDFTEigenOperatorDevice.reinit(
           std::min(d_dftParamsPtr->chebyWfcBlockSize, d_numEigenValues), true);
       }
 #endif
 
-    if (!d_dftParamsPtr->useGPU)
+    if (!d_dftParamsPtr->useDevice)
       kohnShamDFTEigenOperator.preComputeShapeFunctionGradientIntegrals(
         d_lpspQuadratureId);
-#ifdef DFTFE_WITH_GPU
-    if (d_dftParamsPtr->useGPU)
-      kohnShamDFTEigenOperatorCUDA.preComputeShapeFunctionGradientIntegrals(
+#ifdef DFTFE_WITH_DEVICE
+    if (d_dftParamsPtr->useDevice)
+      kohnShamDFTEigenOperatorDevice.preComputeShapeFunctionGradientIntegrals(
         d_lpspQuadratureId);
 #endif
 
@@ -1890,15 +1935,15 @@ namespace dftfe
   void
   dftClass<FEOrder, FEOrderElectro>::reInitializeKohnShamDFTOperator()
   {
-    if (!d_dftParamsPtr->useGPU)
+    if (!d_dftParamsPtr->useDevice)
       d_kohnShamDFTOperatorPtr->resetExtPotHamFlag();
 
-#ifdef DFTFE_WITH_GPU
-    if (d_dftParamsPtr->useGPU)
+#ifdef DFTFE_WITH_DEVICE
+    if (d_dftParamsPtr->useDevice)
       {
-        d_kohnShamDFTOperatorCUDAPtr->resetExtPotHamFlag();
+        d_kohnShamDFTOperatorDevicePtr->resetExtPotHamFlag();
 
-        d_kohnShamDFTOperatorCUDAPtr->reinit(
+        d_kohnShamDFTOperatorDevicePtr->reinit(
           std::min(d_dftParamsPtr->chebyWfcBlockSize, d_numEigenValues), true);
       }
 #endif
@@ -1913,14 +1958,14 @@ namespace dftfe
   {
     if (d_kohnShamDFTOperatorsInitialized)
       {
-#ifdef DFTFE_WITH_GPU
-        if (d_dftParamsPtr->useGPU)
-          d_kohnShamDFTOperatorCUDAPtr->destroyCublasHandle();
+#ifdef DFTFE_WITH_DEVICE
+        if (d_dftParamsPtr->useDevice)
+          d_kohnShamDFTOperatorDevicePtr->destroyDeviceBlasHandle();
 #endif
 
         delete d_kohnShamDFTOperatorPtr;
-#ifdef DFTFE_WITH_GPU
-        delete d_kohnShamDFTOperatorCUDAPtr;
+#ifdef DFTFE_WITH_DEVICE
+        delete d_kohnShamDFTOperatorDevicePtr;
 #endif
       }
   }
@@ -1932,14 +1977,14 @@ namespace dftfe
   std::tuple<bool, double>
   dftClass<FEOrder, FEOrderElectro>::solve(
     const bool computeForces,
-    const bool computeStress,
+    const bool computestress,
     const bool isRestartGroundStateCalcFromChk)
   {
     kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
       &kohnShamDFTEigenOperator = *d_kohnShamDFTOperatorPtr;
-#ifdef DFTFE_WITH_GPU
-    kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-      &kohnShamDFTEigenOperatorCUDA = *d_kohnShamDFTOperatorCUDAPtr;
+#ifdef DFTFE_WITH_DEVICE
+    kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+      &kohnShamDFTEigenOperatorDevice = *d_kohnShamDFTOperatorDevicePtr;
 #endif
 
     const Quadrature<3> &quadrature =
@@ -1952,22 +1997,17 @@ namespace dftfe
                                 interBandGroupComm,
                                 *d_dftParamsPtr);
 
-    dispersionCorrection dispersionCorr(d_mpiCommParent,
-                                        mpi_communicator,
-                                        interpoolcomm,
-                                        interBandGroupComm,
-                                        *d_dftParamsPtr);
 
     // set up linear solver
     dealiiLinearSolver CGSolver(d_mpiCommParent,
                                 mpi_communicator,
                                 dealiiLinearSolver::CG);
 
-#ifdef DFTFE_WITH_GPU
-    // set up linear solver CUDA
-    linearSolverCGCUDA CGSolverCUDA(d_mpiCommParent,
-                                    mpi_communicator,
-                                    linearSolverCGCUDA::CG);
+    // set up linear solver Device
+#ifdef DFTFE_WITH_DEVICE
+    linearSolverCGDevice CGSolverDevice(d_mpiCommParent,
+                                        mpi_communicator,
+                                        linearSolverCGDevice::CG);
 #endif
 
     //
@@ -1977,14 +2017,42 @@ namespace dftfe
     kerkerSolverProblem<C_rhoNodalPolyOrder<FEOrder, FEOrderElectro>()>
       kerkerPreconditionedResidualSolverProblem(d_mpiCommParent,
                                                 mpi_communicator);
+
+    // set up solver functions for Helmholtz Device
+#ifdef DFTFE_WITH_DEVICE
+    kerkerSolverProblemDevice<C_rhoNodalPolyOrder<FEOrder, FEOrderElectro>()>
+      kerkerPreconditionedResidualSolverProblemDevice(d_mpiCommParent,
+                                                      mpi_communicator);
+#endif
+
     if (d_dftParamsPtr->mixingMethod == "ANDERSON_WITH_KERKER")
-      kerkerPreconditionedResidualSolverProblem.init(
-        d_matrixFreeDataPRefined,
-        d_constraintsForHelmholtzRhoNodal,
-        d_preCondResidualVector,
-        d_dftParamsPtr->kerkerParameter,
-        d_helmholtzDofHandlerIndexElectro,
-        d_densityQuadratureIdElectro);
+      {
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+        if (d_dftParamsPtr->useDevice and
+            d_dftParamsPtr->floatingNuclearCharges)
+#else
+        if (false)
+#endif
+          {
+#ifdef DFTFE_WITH_DEVICE
+            kerkerPreconditionedResidualSolverProblemDevice.init(
+              d_matrixFreeDataPRefined,
+              d_constraintsForHelmholtzRhoNodal,
+              d_preCondResidualVector,
+              d_dftParamsPtr->kerkerParameter,
+              d_helmholtzDofHandlerIndexElectro,
+              d_densityQuadratureIdElectro);
+#endif
+          }
+        else
+          kerkerPreconditionedResidualSolverProblem.init(
+            d_matrixFreeDataPRefined,
+            d_constraintsForHelmholtzRhoNodal,
+            d_preCondResidualVector,
+            d_dftParamsPtr->kerkerParameter,
+            d_helmholtzDofHandlerIndexElectro,
+            d_densityQuadratureIdElectro);
+      }
 
     // FIXME: Check if this call can be removed
     d_phiTotalSolverProblem.clear();
@@ -1994,14 +2062,14 @@ namespace dftfe
     //
     computing_timer.enter_subsection("Nuclear self-potential solve");
     computingTimerStandard.enter_subsection("Nuclear self-potential solve");
-#ifdef DFTFE_WITH_GPU
-    if (d_dftParamsPtr->useGPU)
-      d_vselfBinsManager.solveVselfInBinsGPU(
+#ifdef DFTFE_WITH_DEVICE
+    if (d_dftParamsPtr->useDevice)
+      d_vselfBinsManager.solveVselfInBinsDevice(
         d_matrixFreeDataPRefined,
         d_baseDofHandlerIndexElectro,
         d_phiTotAXQuadratureIdElectro,
         d_binsStartDofHandlerIndexElectro,
-        kohnShamDFTEigenOperatorCUDA,
+        kohnShamDFTEigenOperatorDevice,
         d_constraintsPRefined,
         d_imagePositionsTrunc,
         d_imageIdsTrunc,
@@ -2145,8 +2213,15 @@ namespace dftfe
                 else
                   {
                     if (d_dftParamsPtr->mixingMethod == "ANDERSON_WITH_KERKER")
-                      norm = nodalDensity_mixing_simple_kerker(
-                        kerkerPreconditionedResidualSolverProblem, CGSolver);
+                      {
+                        norm = nodalDensity_mixing_simple_kerker(
+#ifdef DFTFE_WITH_DEVICE
+                          kerkerPreconditionedResidualSolverProblemDevice,
+                          CGSolverDevice,
+#endif
+                          kerkerPreconditionedResidualSolverProblem,
+                          CGSolver);
+                      }
                     else if (d_dftParamsPtr->mixingMethod ==
                              "LOW_RANK_DIELECM_PRECOND")
                       norm = lowrankApproxScfDielectricMatrixInv(scfIter);
@@ -2188,8 +2263,15 @@ namespace dftfe
                       norm = mixing_broyden();
                     else if (d_dftParamsPtr->mixingMethod ==
                              "ANDERSON_WITH_KERKER")
-                      norm = nodalDensity_mixing_anderson_kerker(
-                        kerkerPreconditionedResidualSolverProblem, CGSolver);
+                      {
+                        norm = nodalDensity_mixing_anderson_kerker(
+#ifdef DFTFE_WITH_DEVICE
+                          kerkerPreconditionedResidualSolverProblemDevice,
+                          CGSolverDevice,
+#endif
+                          kerkerPreconditionedResidualSolverProblem,
+                          CGSolver);
+                      }
                     else if (d_dftParamsPtr->mixingMethod ==
                              "LOW_RANK_DIELECM_PRECOND")
                       norm = lowrankApproxScfDielectricMatrixInv(scfIter);
@@ -2217,13 +2299,17 @@ namespace dftfe
             << std::endl
             << "Poisson solve for total electrostatic potential (rhoIn+b): ";
 
-        if (d_dftParamsPtr->useGPU and
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+        if (d_dftParamsPtr->useDevice and
             d_dftParamsPtr->floatingNuclearCharges and
             not d_dftParamsPtr->pinnedNodeForPBC)
+#else
+        if (false)
+#endif
           {
-#ifdef DFTFE_WITH_GPU
+#ifdef DFTFE_WITH_DEVICE
             if (scfIter > 0)
-              d_phiTotalSolverProblemCUDA.reinit(
+              d_phiTotalSolverProblemDevice.reinit(
                 d_matrixFreeDataPRefined,
                 d_phiTotRhoIn,
                 *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
@@ -2234,7 +2320,7 @@ namespace dftfe
                 d_bQuadValuesAllAtoms,
                 d_smearedChargeQuadratureIdElectro,
                 *rhoInValues,
-                d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                kohnShamDFTEigenOperatorDevice.getDeviceBlasHandle(),
                 false,
                 false,
                 d_dftParamsPtr->smearedNuclearCharges,
@@ -2245,7 +2331,7 @@ namespace dftfe
                 true);
             else
               {
-                d_phiTotalSolverProblemCUDA.reinit(
+                d_phiTotalSolverProblemDevice.reinit(
                   d_matrixFreeDataPRefined,
                   d_phiTotRhoIn,
                   *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
@@ -2256,7 +2342,7 @@ namespace dftfe
                   d_bQuadValuesAllAtoms,
                   d_smearedChargeQuadratureIdElectro,
                   *rhoInValues,
-                  d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                  kohnShamDFTEigenOperatorDevice.getDeviceBlasHandle(),
                   true,
                   d_dftParamsPtr->periodicX && d_dftParamsPtr->periodicY &&
                     d_dftParamsPtr->periodicZ &&
@@ -2267,9 +2353,6 @@ namespace dftfe
                   0,
                   true,
                   false);
-
-                // Setup MatrixFree Mesh
-                d_phiTotalSolverProblemCUDA.setupMatrixFree();
               }
 #endif
           }
@@ -2321,16 +2404,21 @@ namespace dftfe
 
         computing_timer.enter_subsection("phiTot solve");
 
-        if (d_dftParamsPtr->useGPU and
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+        if (d_dftParamsPtr->useDevice and
             d_dftParamsPtr->floatingNuclearCharges and
             not d_dftParamsPtr->pinnedNodeForPBC)
+#else
+        if (false)
+#endif
           {
-#ifdef DFTFE_WITH_GPU
-            CGSolverCUDA.solve(d_phiTotalSolverProblemCUDA,
-                               d_dftParamsPtr->absLinearSolverTolerance,
-                               d_dftParamsPtr->maxLinearSolverIterations,
-                               d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
-                               d_dftParamsPtr->verbosity);
+#ifdef DFTFE_WITH_DEVICE
+            CGSolverDevice.solve(
+              d_phiTotalSolverProblemDevice,
+              d_dftParamsPtr->absLinearSolverTolerance,
+              d_dftParamsPtr->maxLinearSolverIterations,
+              kohnShamDFTEigenOperatorDevice.getDeviceBlasHandle(),
+              d_dftParamsPtr->verbosity);
 #endif
           }
         else
@@ -2340,6 +2428,8 @@ namespace dftfe
                            d_dftParamsPtr->maxLinearSolverIterations,
                            d_dftParamsPtr->verbosity);
           }
+
+        d_phiTotRhoIn.update_ghost_values();
 
         std::map<dealii::CellId, std::vector<double>> dummy;
         interpolateElectroNodalDataToQuadratureDataGeneral(
@@ -2394,12 +2484,13 @@ namespace dftfe
 
             for (unsigned int s = 0; s < 2; ++s)
               {
-                if (d_dftParamsPtr->xcFamilyType == "LDA")
+                if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                    densityFamilyType::LDA)
                   {
                     computing_timer.enter_subsection("VEff Computation");
-#ifdef DFTFE_WITH_GPU
-                    if (d_dftParamsPtr->useGPU)
-                      kohnShamDFTEigenOperatorCUDA.computeVEffSpinPolarized(
+#ifdef DFTFE_WITH_DEVICE
+                    if (d_dftParamsPtr->useDevice)
+                      kohnShamDFTEigenOperatorDevice.computeVEffSpinPolarized(
                         rhoInValuesSpinPolarized,
                         d_phiInValues,
                         s,
@@ -2407,7 +2498,7 @@ namespace dftfe
                         d_rhoCore,
                         d_lpspQuadratureId);
 #endif
-                    if (!d_dftParamsPtr->useGPU)
+                    if (!d_dftParamsPtr->useDevice)
                       kohnShamDFTEigenOperator.computeVEffSpinPolarized(
                         rhoInValuesSpinPolarized,
                         d_phiInValues,
@@ -2417,12 +2508,13 @@ namespace dftfe
                         d_lpspQuadratureId);
                     computing_timer.leave_subsection("VEff Computation");
                   }
-                else if (d_dftParamsPtr->xcFamilyType == "GGA")
+                else if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                         densityFamilyType::GGA)
                   {
                     computing_timer.enter_subsection("VEff Computation");
-#ifdef DFTFE_WITH_GPU
-                    if (d_dftParamsPtr->useGPU)
-                      kohnShamDFTEigenOperatorCUDA.computeVEffSpinPolarized(
+#ifdef DFTFE_WITH_DEVICE
+                    if (d_dftParamsPtr->useDevice)
+                      kohnShamDFTEigenOperatorDevice.computeVEffSpinPolarized(
                         rhoInValuesSpinPolarized,
                         gradRhoInValuesSpinPolarized,
                         d_phiInValues,
@@ -2432,7 +2524,7 @@ namespace dftfe
                         d_gradRhoCore,
                         d_lpspQuadratureId);
 #endif
-                    if (!d_dftParamsPtr->useGPU)
+                    if (!d_dftParamsPtr->useDevice)
                       kohnShamDFTEigenOperator.computeVEffSpinPolarized(
                         rhoInValuesSpinPolarized,
                         gradRhoInValuesSpinPolarized,
@@ -2444,33 +2536,43 @@ namespace dftfe
                         d_lpspQuadratureId);
                     computing_timer.leave_subsection("VEff Computation");
                   }
+
+#ifdef DFTFE_WITH_DEVICE
+                if (d_dftParamsPtr->useDevice)
+                  {
+                    computing_timer.enter_subsection(
+                      "Hamiltonian Matrix Computation");
+                    kohnShamDFTEigenOperatorDevice
+                      .computeHamiltonianMatricesAllkpt(s);
+                    computing_timer.leave_subsection(
+                      "Hamiltonian Matrix Computation");
+                  }
+#endif
+
+
                 for (unsigned int kPoint = 0; kPoint < d_kPointWeights.size();
                      ++kPoint)
                   {
-#ifdef DFTFE_WITH_GPU
-                    if (d_dftParamsPtr->useGPU)
-                      kohnShamDFTEigenOperatorCUDA.reinitkPointSpinIndex(kPoint,
-                                                                         s);
-#endif
-                    if (!d_dftParamsPtr->useGPU)
-                      kohnShamDFTEigenOperator.reinitkPointSpinIndex(kPoint, s);
-
-                    computing_timer.enter_subsection(
-                      "Hamiltonian Matrix Computation");
-#ifdef DFTFE_WITH_GPU
-                    if (d_dftParamsPtr->useGPU)
-                      kohnShamDFTEigenOperatorCUDA.computeHamiltonianMatrix(
+#ifdef DFTFE_WITH_DEVICE
+                    if (d_dftParamsPtr->useDevice)
+                      kohnShamDFTEigenOperatorDevice.reinitkPointSpinIndex(
                         kPoint, s);
 #endif
-                    if (!d_dftParamsPtr->useGPU)
-                      kohnShamDFTEigenOperator.computeHamiltonianMatrix(kPoint,
-                                                                        s);
-                    computing_timer.leave_subsection(
-                      "Hamiltonian Matrix Computation");
+                    if (!d_dftParamsPtr->useDevice)
+                      kohnShamDFTEigenOperator.reinitkPointSpinIndex(kPoint, s);
 
-                    if (d_dftParamsPtr->verbosity >= 4)
-                      dftUtils::printCurrentMemoryUsage(
-                        mpi_communicator, "Hamiltonian Matrix computed");
+
+
+                    if (!d_dftParamsPtr->useDevice)
+                      {
+                        computing_timer.enter_subsection(
+                          "Hamiltonian Matrix Computation");
+                        kohnShamDFTEigenOperator.computeHamiltonianMatrix(
+                          kPoint, s);
+                        computing_timer.leave_subsection(
+                          "Hamiltonian Matrix Computation");
+                      }
+
 
                     for (unsigned int j = 0; j < 1; ++j)
                       {
@@ -2480,14 +2582,14 @@ namespace dftfe
                                   << " for spin " << s + 1 << std::endl;
                           }
 
-#ifdef DFTFE_WITH_GPU
-                        if (d_dftParamsPtr->useGPU)
+#ifdef DFTFE_WITH_DEVICE
+                        if (d_dftParamsPtr->useDevice)
                           kohnShamEigenSpaceCompute(
                             s,
                             kPoint,
-                            kohnShamDFTEigenOperatorCUDA,
+                            kohnShamDFTEigenOperatorDevice,
                             *d_elpaScala,
-                            d_subspaceIterationSolverCUDA,
+                            d_subspaceIterationSolverDevice,
                             residualNormWaveFunctionsAllkPointsSpins[s][kPoint],
                             (scfIter == 0 ||
                              d_dftParamsPtr
@@ -2503,7 +2605,7 @@ namespace dftfe
                             scfConverged ? false : true,
                             scfIter == 0);
 #endif
-                        if (!d_dftParamsPtr->useGPU)
+                        if (!d_dftParamsPtr->useDevice)
                           kohnShamEigenSpaceCompute(
                             s,
                             kPoint,
@@ -2602,23 +2704,23 @@ namespace dftfe
                                     << std::endl;
                             ;
 
-#ifdef DFTFE_WITH_GPU
-                            if (d_dftParamsPtr->useGPU)
-                              kohnShamDFTEigenOperatorCUDA
+#ifdef DFTFE_WITH_DEVICE
+                            if (d_dftParamsPtr->useDevice)
+                              kohnShamDFTEigenOperatorDevice
                                 .reinitkPointSpinIndex(kPoint, s);
 #endif
-                            if (!d_dftParamsPtr->useGPU)
+                            if (!d_dftParamsPtr->useDevice)
                               kohnShamDFTEigenOperator.reinitkPointSpinIndex(
                                 kPoint, s);
 
-#ifdef DFTFE_WITH_GPU
-                            if (d_dftParamsPtr->useGPU)
+#ifdef DFTFE_WITH_DEVICE
+                            if (d_dftParamsPtr->useDevice)
                               kohnShamEigenSpaceCompute(
                                 s,
                                 kPoint,
-                                kohnShamDFTEigenOperatorCUDA,
+                                kohnShamDFTEigenOperatorDevice,
                                 *d_elpaScala,
-                                d_subspaceIterationSolverCUDA,
+                                d_subspaceIterationSolverDevice,
                                 residualNormWaveFunctionsAllkPointsSpins
                                   [s][kPoint],
                                 true,
@@ -2630,7 +2732,7 @@ namespace dftfe
                                 true,
                                 scfIter == 0);
 #endif
-                            if (!d_dftParamsPtr->useGPU)
+                            if (!d_dftParamsPtr->useDevice)
                               kohnShamEigenSpaceCompute(
                                 s,
                                 kPoint,
@@ -2710,18 +2812,20 @@ namespace dftfe
                   d_numEigenValues :
                   d_numEigenValuesRR);
 
-            if (d_dftParamsPtr->xcFamilyType == "LDA")
+            if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::LDA)
               {
                 computing_timer.enter_subsection("VEff Computation");
-#ifdef DFTFE_WITH_GPU
-                if (d_dftParamsPtr->useGPU)
-                  kohnShamDFTEigenOperatorCUDA.computeVEff(rhoInValues,
-                                                           d_phiInValues,
-                                                           d_pseudoVLoc,
-                                                           d_rhoCore,
-                                                           d_lpspQuadratureId);
+#ifdef DFTFE_WITH_DEVICE
+                if (d_dftParamsPtr->useDevice)
+                  kohnShamDFTEigenOperatorDevice.computeVEff(
+                    rhoInValues,
+                    d_phiInValues,
+                    d_pseudoVLoc,
+                    d_rhoCore,
+                    d_lpspQuadratureId);
 #endif
-                if (!d_dftParamsPtr->useGPU)
+                if (!d_dftParamsPtr->useDevice)
                   kohnShamDFTEigenOperator.computeVEff(rhoInValues,
                                                        d_phiInValues,
                                                        d_pseudoVLoc,
@@ -2729,20 +2833,22 @@ namespace dftfe
                                                        d_lpspQuadratureId);
                 computing_timer.leave_subsection("VEff Computation");
               }
-            else if (d_dftParamsPtr->xcFamilyType == "GGA")
+            else if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                     densityFamilyType::GGA)
               {
                 computing_timer.enter_subsection("VEff Computation");
-#ifdef DFTFE_WITH_GPU
-                if (d_dftParamsPtr->useGPU)
-                  kohnShamDFTEigenOperatorCUDA.computeVEff(rhoInValues,
-                                                           gradRhoInValues,
-                                                           d_phiInValues,
-                                                           d_pseudoVLoc,
-                                                           d_rhoCore,
-                                                           d_gradRhoCore,
-                                                           d_lpspQuadratureId);
+#ifdef DFTFE_WITH_DEVICE
+                if (d_dftParamsPtr->useDevice)
+                  kohnShamDFTEigenOperatorDevice.computeVEff(
+                    rhoInValues,
+                    gradRhoInValues,
+                    d_phiInValues,
+                    d_pseudoVLoc,
+                    d_rhoCore,
+                    d_gradRhoCore,
+                    d_lpspQuadratureId);
 #endif
-                if (!d_dftParamsPtr->useGPU)
+                if (!d_dftParamsPtr->useDevice)
                   kohnShamDFTEigenOperator.computeVEff(rhoInValues,
                                                        gradRhoInValues,
                                                        d_phiInValues,
@@ -2753,31 +2859,40 @@ namespace dftfe
                 computing_timer.leave_subsection("VEff Computation");
               }
 
+#ifdef DFTFE_WITH_DEVICE
+            if (d_dftParamsPtr->useDevice)
+              {
+                computing_timer.enter_subsection(
+                  "Hamiltonian Matrix Computation");
+                kohnShamDFTEigenOperatorDevice.computeHamiltonianMatricesAllkpt(
+                  0);
+                computing_timer.leave_subsection(
+                  "Hamiltonian Matrix Computation");
+              }
+#endif
+
             for (unsigned int kPoint = 0; kPoint < d_kPointWeights.size();
                  ++kPoint)
               {
-#ifdef DFTFE_WITH_GPU
-                if (d_dftParamsPtr->useGPU)
-                  kohnShamDFTEigenOperatorCUDA.reinitkPointSpinIndex(kPoint, 0);
+#ifdef DFTFE_WITH_DEVICE
+                if (d_dftParamsPtr->useDevice)
+                  kohnShamDFTEigenOperatorDevice.reinitkPointSpinIndex(kPoint,
+                                                                       0);
 #endif
-                if (!d_dftParamsPtr->useGPU)
+                if (!d_dftParamsPtr->useDevice)
                   kohnShamDFTEigenOperator.reinitkPointSpinIndex(kPoint, 0);
 
-                computing_timer.enter_subsection(
-                  "Hamiltonian Matrix Computation");
-#ifdef DFTFE_WITH_GPU
-                if (d_dftParamsPtr->useGPU)
-                  kohnShamDFTEigenOperatorCUDA.computeHamiltonianMatrix(kPoint,
-                                                                        0);
-#endif
-                if (!d_dftParamsPtr->useGPU)
-                  kohnShamDFTEigenOperator.computeHamiltonianMatrix(kPoint, 0);
-                computing_timer.leave_subsection(
-                  "Hamiltonian Matrix Computation");
 
-                if (d_dftParamsPtr->verbosity >= 4)
-                  dftUtils::printCurrentMemoryUsage(
-                    mpi_communicator, "Hamiltonian Matrix computed");
+                if (!d_dftParamsPtr->useDevice)
+                  {
+                    computing_timer.enter_subsection(
+                      "Hamiltonian Matrix Computation");
+                    kohnShamDFTEigenOperator.computeHamiltonianMatrix(kPoint,
+                                                                      0);
+                    computing_timer.leave_subsection(
+                      "Hamiltonian Matrix Computation");
+                  }
+
 
                 for (unsigned int j = 0; j < 1; ++j)
                   {
@@ -2788,14 +2903,14 @@ namespace dftfe
                       }
 
 
-#ifdef DFTFE_WITH_GPU
-                    if (d_dftParamsPtr->useGPU)
+#ifdef DFTFE_WITH_DEVICE
+                    if (d_dftParamsPtr->useDevice)
                       kohnShamEigenSpaceCompute(
                         0,
                         kPoint,
-                        kohnShamDFTEigenOperatorCUDA,
+                        kohnShamDFTEigenOperatorDevice,
                         *d_elpaScala,
-                        d_subspaceIterationSolverCUDA,
+                        d_subspaceIterationSolverDevice,
                         residualNormWaveFunctionsAllkPoints[kPoint],
                         (scfIter == 0 ||
                          d_dftParamsPtr
@@ -2811,7 +2926,7 @@ namespace dftfe
                         scfConverged ? false : true,
                         scfIter == 0);
 #endif
-                    if (!d_dftParamsPtr->useGPU)
+                    if (!d_dftParamsPtr->useDevice)
                       kohnShamEigenSpaceCompute(
                         0,
                         kPoint,
@@ -2886,23 +3001,23 @@ namespace dftfe
                           pcout << "Beginning Chebyshev filter pass "
                                 << 1 + count << std::endl;
 
-#ifdef DFTFE_WITH_GPU
-                        if (d_dftParamsPtr->useGPU)
-                          kohnShamDFTEigenOperatorCUDA.reinitkPointSpinIndex(
+#ifdef DFTFE_WITH_DEVICE
+                        if (d_dftParamsPtr->useDevice)
+                          kohnShamDFTEigenOperatorDevice.reinitkPointSpinIndex(
                             kPoint, 0);
 #endif
-                        if (!d_dftParamsPtr->useGPU)
+                        if (!d_dftParamsPtr->useDevice)
                           kohnShamDFTEigenOperator.reinitkPointSpinIndex(kPoint,
                                                                          0);
 
-#ifdef DFTFE_WITH_GPU
-                        if (d_dftParamsPtr->useGPU)
+#ifdef DFTFE_WITH_DEVICE
+                        if (d_dftParamsPtr->useDevice)
                           kohnShamEigenSpaceCompute(
                             0,
                             kPoint,
-                            kohnShamDFTEigenOperatorCUDA,
+                            kohnShamDFTEigenOperatorDevice,
                             *d_elpaScala,
-                            d_subspaceIterationSolverCUDA,
+                            d_subspaceIterationSolverDevice,
                             residualNormWaveFunctionsAllkPoints[kPoint],
                             true,
                             0,
@@ -2914,7 +3029,7 @@ namespace dftfe
                             scfIter == 0);
 
 #endif
-                        if (!d_dftParamsPtr->useGPU)
+                        if (!d_dftParamsPtr->useDevice)
                           kohnShamEigenSpaceCompute(
                             0,
                             kPoint,
@@ -2998,9 +3113,9 @@ namespace dftfe
           }
         else
           {
-#ifdef DFTFE_WITH_GPU
+#ifdef DFTFE_WITH_DEVICE
             compute_rhoOut(
-              kohnShamDFTEigenOperatorCUDA,
+              kohnShamDFTEigenOperatorDevice,
               kohnShamDFTEigenOperator,
               (scfIter < d_dftParamsPtr->spectrumSplitStartingScfIter ||
                scfConverged) ?
@@ -3052,12 +3167,16 @@ namespace dftfe
 
             computing_timer.enter_subsection("phiTot solve");
 
-            if (d_dftParamsPtr->useGPU and
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+            if (d_dftParamsPtr->useDevice and
                 d_dftParamsPtr->floatingNuclearCharges and
                 not d_dftParamsPtr->pinnedNodeForPBC)
+#else
+            if (false)
+#endif
               {
-#ifdef DFTFE_WITH_GPU
-                d_phiTotalSolverProblemCUDA.reinit(
+#ifdef DFTFE_WITH_DEVICE
+                d_phiTotalSolverProblemDevice.reinit(
                   d_matrixFreeDataPRefined,
                   d_phiTotRhoOut,
                   *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
@@ -3068,7 +3187,7 @@ namespace dftfe
                   d_bQuadValuesAllAtoms,
                   d_smearedChargeQuadratureIdElectro,
                   *rhoOutValues,
-                  d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                  kohnShamDFTEigenOperatorDevice.getDeviceBlasHandle(),
                   false,
                   false,
                   d_dftParamsPtr->smearedNuclearCharges,
@@ -3078,11 +3197,11 @@ namespace dftfe
                   false,
                   true);
 
-                CGSolverCUDA.solve(
-                  d_phiTotalSolverProblemCUDA,
+                CGSolverDevice.solve(
+                  d_phiTotalSolverProblemDevice,
                   d_dftParamsPtr->absLinearSolverTolerance,
                   d_dftParamsPtr->maxLinearSolverIterations,
-                  d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+                  kohnShamDFTEigenOperatorDevice.getDeviceBlasHandle(),
                   d_dftParamsPtr->verbosity);
 #endif
               }
@@ -3131,8 +3250,8 @@ namespace dftfe
 
             const Quadrature<3> &quadrature =
               matrix_free_data.get_quadrature(d_densityQuadratureId);
-            dispersionCorr.computeDispresionCorrection(atomLocations,
-                                                       d_domainBoundingVectors);
+            d_dispersionCorr.computeDispresionCorrection(
+              atomLocations, d_domainBoundingVectors);
             const double totalEnergy =
               d_dftParamsPtr->spinPolarized == 0 ?
                 energyCalc.computeEnergy(
@@ -3147,9 +3266,8 @@ namespace dftfe
                   eigenValues,
                   d_kPointWeights,
                   fermiEnergy,
-                  funcX,
-                  funcC,
-                  dispersionCorr,
+                  excFunctionalPtr,
+                  d_dispersionCorr,
                   d_phiInValues,
                   d_phiTotRhoOut,
                   *rhoInValues,
@@ -3186,9 +3304,8 @@ namespace dftfe
                   fermiEnergy,
                   fermiEnergyUp,
                   fermiEnergyDown,
-                  funcX,
-                  funcC,
-                  dispersionCorr,
+                  excFunctionalPtr,
+                  d_dispersionCorr,
                   d_phiInValues,
                   d_phiTotRhoOut,
                   *rhoInValues,
@@ -3265,6 +3382,37 @@ namespace dftfe
       pcout << "SCF iterations converged to the specified tolerance after: "
             << scfIter << " iterations." << std::endl;
 
+    const unsigned int numberBandGroups =
+      dealii::Utilities::MPI::n_mpi_processes(interBandGroupComm);
+
+    const unsigned int localVectorSize =
+      d_eigenVectorsFlattenedSTL[0].size() / d_numEigenValues;
+
+    if (numberBandGroups > 1 && !d_dftParamsPtr->useDevice)
+      {
+        MPI_Barrier(interBandGroupComm);
+        const unsigned int blockSize =
+          d_dftParamsPtr->mpiAllReduceMessageBlockSizeMB * 1e+6 /
+          sizeof(dataTypes::number);
+        for (unsigned int kPoint = 0;
+             kPoint <
+             (1 + d_dftParamsPtr->spinPolarized) * d_kPointWeights.size();
+             ++kPoint)
+          for (unsigned int i = 0; i < d_numEigenValues * localVectorSize;
+               i += blockSize)
+            {
+              const unsigned int currentBlockSize =
+                std::min(blockSize, d_numEigenValues * localVectorSize - i);
+              MPI_Allreduce(MPI_IN_PLACE,
+                            &d_eigenVectorsFlattenedSTL[kPoint][0] + i,
+                            currentBlockSize,
+                            dataTypes::mpi_type_id(
+                              &d_eigenVectorsFlattenedSTL[kPoint][0]),
+                            MPI_SUM,
+                            interBandGroupComm);
+            }
+      }
+
     if ((!d_dftParamsPtr->computeEnergyEverySCF ||
          d_numEigenValuesRR != d_numEigenValues))
       {
@@ -3275,12 +3423,16 @@ namespace dftfe
 
         computing_timer.enter_subsection("phiTot solve");
 
-        if (d_dftParamsPtr->useGPU and
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+        if (d_dftParamsPtr->useDevice and
             d_dftParamsPtr->floatingNuclearCharges and
             not d_dftParamsPtr->pinnedNodeForPBC)
+#else
+        if (false)
+#endif
           {
-#ifdef DFTFE_WITH_GPU
-            d_phiTotalSolverProblemCUDA.reinit(
+#ifdef DFTFE_WITH_DEVICE
+            d_phiTotalSolverProblemDevice.reinit(
               d_matrixFreeDataPRefined,
               d_phiTotRhoOut,
               *d_constraintsVectorElectro[d_phiTotDofHandlerIndexElectro],
@@ -3291,7 +3443,7 @@ namespace dftfe
               d_bQuadValuesAllAtoms,
               d_smearedChargeQuadratureIdElectro,
               *rhoOutValues,
-              d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
+              kohnShamDFTEigenOperatorDevice.getDeviceBlasHandle(),
               false,
               false,
               d_dftParamsPtr->smearedNuclearCharges,
@@ -3301,11 +3453,12 @@ namespace dftfe
               false,
               true);
 
-            CGSolverCUDA.solve(d_phiTotalSolverProblemCUDA,
-                               d_dftParamsPtr->absLinearSolverTolerance,
-                               d_dftParamsPtr->maxLinearSolverIterations,
-                               d_kohnShamDFTOperatorCUDAPtr->getCublasHandle(),
-                               d_dftParamsPtr->verbosity);
+            CGSolverDevice.solve(
+              d_phiTotalSolverProblemDevice,
+              d_dftParamsPtr->absLinearSolverTolerance,
+              d_dftParamsPtr->maxLinearSolverIterations,
+              kohnShamDFTEigenOperatorDevice.getDeviceBlasHandle(),
+              d_dftParamsPtr->verbosity);
 #endif
           }
         else
@@ -3344,8 +3497,8 @@ namespace dftfe
     // compute and print ground state energy or energy after max scf
     // iterations
     //
-    dispersionCorr.computeDispresionCorrection(atomLocations,
-                                               d_domainBoundingVectors);
+    d_dispersionCorr.computeDispresionCorrection(atomLocations,
+                                                 d_domainBoundingVectors);
     const double totalEnergy =
       d_dftParamsPtr->spinPolarized == 0 ?
         energyCalc.computeEnergy(d_dofHandlerPRefined,
@@ -3359,9 +3512,8 @@ namespace dftfe
                                  eigenValues,
                                  d_kPointWeights,
                                  fermiEnergy,
-                                 funcX,
-                                 funcC,
-                                 dispersionCorr,
+                                 excFunctionalPtr,
+                                 d_dispersionCorr,
                                  d_phiInValues,
                                  d_phiTotRhoOut,
                                  *rhoInValues,
@@ -3397,9 +3549,8 @@ namespace dftfe
           fermiEnergy,
           fermiEnergyUp,
           fermiEnergyDown,
-          funcX,
-          funcC,
-          dispersionCorr,
+          excFunctionalPtr,
+          d_dispersionCorr,
           d_phiInValues,
           d_phiTotRhoOut,
           *rhoInValues,
@@ -3458,8 +3609,8 @@ namespace dftfe
     computingTimerStandard.leave_subsection("Total scf solve");
 
 
-#ifdef DFTFE_WITH_GPU
-    if (d_dftParamsPtr->useGPU &&
+#ifdef DFTFE_WITH_DEVICE
+    if (d_dftParamsPtr->useDevice &&
         (d_dftParamsPtr->writeWfcSolutionFields ||
          d_dftParamsPtr->writeLdosFile || d_dftParamsPtr->writePdosFile ||
          d_dftParamsPtr->ComputeFeOHP))
@@ -3468,20 +3619,13 @@ namespace dftfe
            (1 + d_dftParamsPtr->spinPolarized) * d_kPointWeights.size();
            ++kPoint)
         {
-          cudaUtils::copyCUDAVecToHostVec(
-            d_eigenVectorsFlattenedCUDA.begin() +
-              kPoint * d_eigenVectorsFlattenedSTL[0].size(),
-            reinterpret_cast<dataTypes::numberGPU *>(
-              &d_eigenVectorsFlattenedSTL[kPoint][0]),
-            d_eigenVectorsFlattenedSTL[kPoint].size());
+          d_eigenVectorsFlattenedDevice.copyTo<dftfe::utils::MemorySpace::HOST>(
+            &d_eigenVectorsFlattenedSTL[kPoint][0],
+            d_eigenVectorsFlattenedSTL[kPoint].size(),
+            (kPoint * d_eigenVectorsFlattenedSTL[0].size()),
+            0);
         }
 #endif
-
-    const unsigned int numberBandGroups =
-      dealii::Utilities::MPI::n_mpi_processes(interBandGroupComm);
-
-    const unsigned int localVectorSize =
-      d_eigenVectorsFlattenedSTL[0].size() / d_numEigenValues;
 
 
     if (d_dftParamsPtr->isIonForce)
@@ -3498,10 +3642,11 @@ namespace dftfe
             computing_timer.enter_subsection("Ion force computation");
             computingTimerStandard.enter_subsection("Ion force computation");
             forcePtr->computeAtomsForces(matrix_free_data,
-#ifdef DFTFE_WITH_GPU
-                                         kohnShamDFTEigenOperatorCUDA,
+#ifdef DFTFE_WITH_DEVICE
+                                         kohnShamDFTEigenOperatorDevice,
 #endif
-                                         dispersionCorr,
+                                         kohnShamDFTEigenOperator,
+                                         d_dispersionCorr,
                                          d_eigenDofHandlerIndex,
                                          d_smearedChargeQuadratureIdElectro,
                                          d_lpspQuadratureIdElectro,
@@ -3543,50 +3688,11 @@ namespace dftfe
             << d_dftParamsPtr->selfConsistentSolverTolerance
             << ", recommended to use TOLERANCE below 1e-4." << std::endl;
 
-        if (computeStress)
+        if (computestress)
           {
             computing_timer.enter_subsection("Cell stress computation");
             computingTimerStandard.enter_subsection("Cell stress computation");
-
-            if (d_dftParamsPtr->isPseudopotential ||
-                d_dftParamsPtr->smearedNuclearCharges)
-              {
-                computeVselfFieldGateauxDerFD(
-#ifdef DFTFE_WITH_GPU
-                  kohnShamDFTEigenOperatorCUDA
-#endif
-                );
-              }
-
-            forcePtr->computeStress(matrix_free_data,
-#ifdef DFTFE_WITH_GPU
-                                    kohnShamDFTEigenOperatorCUDA,
-#endif
-                                    dispersionCorr,
-                                    d_eigenDofHandlerIndex,
-                                    d_smearedChargeQuadratureIdElectro,
-                                    d_lpspQuadratureIdElectro,
-                                    d_matrixFreeDataPRefined,
-                                    d_phiTotDofHandlerIndexElectro,
-                                    d_phiTotRhoOut,
-                                    *rhoOutValues,
-                                    *gradRhoOutValues,
-                                    d_gradRhoOutValuesLpspQuad,
-                                    *rhoOutValues,
-                                    d_rhoOutValuesLpspQuad,
-                                    *gradRhoOutValues,
-                                    d_gradRhoOutValuesLpspQuad,
-                                    d_pseudoVLoc,
-                                    d_pseudoVLocAtoms,
-                                    d_rhoCore,
-                                    d_gradRhoCore,
-                                    d_hessianRhoCore,
-                                    d_gradRhoCoreAtoms,
-                                    d_hessianRhoCoreAtoms,
-                                    d_constraintsPRefined,
-                                    d_vselfBinsManager);
-            if (d_dftParamsPtr->verbosity >= 0)
-              forcePtr->printStress();
+            computeStress();
             computingTimerStandard.leave_subsection("Cell stress computation");
             computing_timer.leave_subsection("Cell stress computation");
           }
@@ -3594,17 +3700,10 @@ namespace dftfe
 
     if (d_dftParamsPtr->electrostaticsHRefinement)
       computeElectrostaticEnergyHRefined(
-#ifdef DFTFE_WITH_GPU
-        kohnShamDFTEigenOperatorCUDA
+#ifdef DFTFE_WITH_DEVICE
+        kohnShamDFTEigenOperatorDevice
 #endif
       );
-
-    if (d_dftParamsPtr->writeWfcSolutionFields)
-      outputWfc();
-
-    if (d_dftParamsPtr->writeDensitySolutionFields)
-      outputDensity();
-
 
 #ifdef USE_COMPLEX
     if (!(d_dftParamsPtr->kPointDataFile == ""))
@@ -3618,12 +3717,66 @@ namespace dftfe
     return std::make_tuple(scfConverged, norm);
   }
 
+
+  template <unsigned int FEOrder, unsigned int FEOrderElectro>
+  void
+  dftClass<FEOrder, FEOrderElectro>::computeStress()
+  {
+    kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
+      &kohnShamDFTEigenOperator = *d_kohnShamDFTOperatorPtr;
+#ifdef DFTFE_WITH_DEVICE
+    kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+      &kohnShamDFTEigenOperatorDevice = *d_kohnShamDFTOperatorDevicePtr;
+#endif
+
+    if (d_dftParamsPtr->isPseudopotential ||
+        d_dftParamsPtr->smearedNuclearCharges)
+      {
+        computeVselfFieldGateauxDerFD(
+#ifdef DFTFE_WITH_DEVICE
+          kohnShamDFTEigenOperatorDevice
+#endif
+        );
+      }
+
+    forcePtr->computeStress(matrix_free_data,
+#ifdef DFTFE_WITH_DEVICE
+                            kohnShamDFTEigenOperatorDevice,
+#endif
+                            kohnShamDFTEigenOperator,
+                            d_dispersionCorr,
+                            d_eigenDofHandlerIndex,
+                            d_smearedChargeQuadratureIdElectro,
+                            d_lpspQuadratureIdElectro,
+                            d_matrixFreeDataPRefined,
+                            d_phiTotDofHandlerIndexElectro,
+                            d_phiTotRhoOut,
+                            *rhoOutValues,
+                            *gradRhoOutValues,
+                            d_gradRhoOutValuesLpspQuad,
+                            *rhoOutValues,
+                            d_rhoOutValuesLpspQuad,
+                            *gradRhoOutValues,
+                            d_gradRhoOutValuesLpspQuad,
+                            d_pseudoVLoc,
+                            d_pseudoVLocAtoms,
+                            d_rhoCore,
+                            d_gradRhoCore,
+                            d_hessianRhoCore,
+                            d_gradRhoCoreAtoms,
+                            d_hessianRhoCoreAtoms,
+                            d_constraintsPRefined,
+                            d_vselfBinsManager);
+    if (d_dftParamsPtr->verbosity >= 0)
+      forcePtr->printStress();
+  }
+
   template <unsigned int FEOrder, unsigned int FEOrderElectro>
   void
   dftClass<FEOrder, FEOrderElectro>::computeVselfFieldGateauxDerFD(
-#ifdef DFTFE_WITH_GPU
-    kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-      &kohnShamDFTEigenOperatorCUDA
+#ifdef DFTFE_WITH_DEVICE
+    kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+      &kohnShamDFTEigenOperatorDevice
 #endif
   )
   {
@@ -3675,9 +3828,9 @@ namespace dftfe
                        false,
                        d_dftParamsPtr->verbosity >= 4 ? true : false);
 
-#ifdef DFTFE_WITH_GPU
-          if (d_dftParamsPtr->useGPU)
-            kohnShamDFTEigenOperatorCUDA
+#ifdef DFTFE_WITH_DEVICE
+          if (d_dftParamsPtr->useDevice)
+            kohnShamDFTEigenOperatorDevice
               .preComputeShapeFunctionGradientIntegrals(d_lpspQuadratureId,
                                                         true);
 #endif
@@ -3690,8 +3843,8 @@ namespace dftfe
             d_baseDofHandlerIndexElectro,
             d_phiTotAXQuadratureIdElectro,
             d_binsStartDofHandlerIndexElectro,
-#ifdef DFTFE_WITH_GPU
-            kohnShamDFTEigenOperatorCUDA,
+#ifdef DFTFE_WITH_DEVICE
+            kohnShamDFTEigenOperatorDevice,
 #endif
             d_constraintsPRefined,
             d_imagePositionsTrunc,
@@ -3727,9 +3880,9 @@ namespace dftfe
                        false,
                        d_dftParamsPtr->verbosity >= 4 ? true : false);
 
-#ifdef DFTFE_WITH_GPU
-          if (d_dftParamsPtr->useGPU)
-            kohnShamDFTEigenOperatorCUDA
+#ifdef DFTFE_WITH_DEVICE
+          if (d_dftParamsPtr->useDevice)
+            kohnShamDFTEigenOperatorDevice
               .preComputeShapeFunctionGradientIntegrals(d_lpspQuadratureId,
                                                         true);
 #endif
@@ -3742,8 +3895,8 @@ namespace dftfe
             d_baseDofHandlerIndexElectro,
             d_phiTotAXQuadratureIdElectro,
             d_binsStartDofHandlerIndexElectro,
-#ifdef DFTFE_WITH_GPU
-            kohnShamDFTEigenOperatorCUDA,
+#ifdef DFTFE_WITH_DEVICE
+            kohnShamDFTEigenOperatorDevice,
 #endif
             d_constraintsPRefined,
             d_imagePositionsTrunc,
@@ -3779,9 +3932,9 @@ namespace dftfe
                  false,
                  d_dftParamsPtr->verbosity >= 4 ? true : false);
 
-#ifdef DFTFE_WITH_GPU
-    if (d_dftParamsPtr->useGPU)
-      kohnShamDFTEigenOperatorCUDA.preComputeShapeFunctionGradientIntegrals(
+#ifdef DFTFE_WITH_DEVICE
+    if (d_dftParamsPtr->useDevice)
+      kohnShamDFTEigenOperatorDevice.preComputeShapeFunctionGradientIntegrals(
         d_lpspQuadratureId, true);
 #endif
   }
@@ -4223,6 +4376,67 @@ namespace dftfe
   {
     d_rhoOutNodalValuesSplit = OutDensity;
   }
+
+  template <unsigned int FEOrder, unsigned int FEOrderElectro>
+  void
+  dftClass<FEOrder, FEOrderElectro>::writeMesh()
+  {
+    //
+    // compute nodal electron-density from quad data
+    //
+    distributedCPUVec<double> rhoNodalField;
+    d_matrixFreeDataPRefined.initialize_dof_vector(
+      rhoNodalField, d_densityDofHandlerIndexElectro);
+    rhoNodalField = 0;
+    std::function<
+      double(const typename dealii::DoFHandler<3>::active_cell_iterator &cell,
+             const unsigned int                                          q)>
+      funcRho =
+        [&](const typename dealii::DoFHandler<3>::active_cell_iterator &cell,
+            const unsigned int                                          q) {
+          return (*rhoInValues).find(cell->id())->second[q];
+        };
+    dealii::VectorTools::project<3, distributedCPUVec<double>>(
+      dealii::MappingQ1<3, 3>(),
+      d_dofHandlerRhoNodal,
+      d_constraintsRhoNodal,
+      d_matrixFreeDataPRefined.get_quadrature(d_densityQuadratureIdElectro),
+      funcRho,
+      rhoNodalField);
+    rhoNodalField.update_ghost_values();
+
+
+
+    //
+    // only generate output for electron-density
+    //
+    DataOut<3> dataOutRho;
+    dataOutRho.attach_dof_handler(d_dofHandlerRhoNodal);
+    dataOutRho.add_data_vector(rhoNodalField, std::string("density"));
+
+    dataOutRho.build_patches(FEOrder);
+
+    std::string tempFolder = "meshOutputFolder";
+    mkdir(tempFolder.c_str(), ACCESSPERMS);
+
+    dftUtils::writeDataVTUParallelLowestPoolId(d_dofHandlerRhoNodal,
+                                               dataOutRho,
+                                               d_mpiCommParent,
+                                               mpi_communicator,
+                                               interpoolcomm,
+                                               interBandGroupComm,
+                                               tempFolder,
+                                               "intialDensityOutput");
+
+
+
+    if (d_dftParamsPtr->verbosity >= 1)
+      pcout
+        << std::endl
+        << "------------------DFT-FE mesh file creation completed---------------------------"
+        << std::endl;
+  }
+
 
 #include "dft.inst.cc"
 } // namespace dftfe

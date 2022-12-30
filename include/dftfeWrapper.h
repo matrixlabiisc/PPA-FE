@@ -39,7 +39,7 @@ namespace dftfe
      * after calling MPI_Init
      */
     static void
-    globalHandlesInitialize();
+    globalHandlesInitialize(const MPI_Comm &mpi_comm_world);
 
     /**
      * @brief must be called only once at end of program from all processors
@@ -48,15 +48,21 @@ namespace dftfe
     static void
     globalHandlesFinalize();
 
+
+    /**
+     * @brief empty constructor
+     */
+    dftfeWrapper();
+
     /**
      * @brief constructor based on input parameter_file
      */
     dftfeWrapper(const std::string parameter_file,
                  const MPI_Comm &  mpi_comm_parent,
-                 const bool        printParams                      = false,
-                 const bool        setGPUToMPITaskBindingInternally = false,
-                 const std::string solverMode                       = "GS",
-                 const std::string restartFilesPath                 = ".");
+                 const bool        printParams                         = false,
+                 const bool        setDeviceToMPITaskBindingInternally = false,
+                 const std::string solverMode                          = "GS",
+                 const std::string restartFilesPath                    = ".");
 
     /**
      * @brief constructor based on input parameter_file and restart
@@ -66,11 +72,11 @@ namespace dftfe
                  const std::string restartCoordsFile,
                  const std::string restartDomainVectorsFile,
                  const MPI_Comm &  mpi_comm_parent,
-                 const bool        printParams                      = false,
-                 const bool        setGPUToMPITaskBindingInternally = false,
-                 const std::string solverMode                       = "GS",
-                 const std::string restartFilesPath                 = ".",
-                 const bool        isScfRestart                     = true);
+                 const bool        printParams                         = false,
+                 const bool        setDeviceToMPITaskBindingInternally = false,
+                 const std::string solverMode                          = "GS",
+                 const std::string restartFilesPath                    = ".",
+                 const bool        isScfRestart                        = true);
 
 
     /**
@@ -85,7 +91,7 @@ namespace dftfe
      *
      * @param[in] mpi_comm_parent mpi communicator to be used by the
      * dftfeWrapper.
-     * @param[in] useGPU toggle use of GPU accelerated DFT-FE
+     * @param[in] useDevice toggle use of Device accelerated DFT-FE
      * @param[in] atomicPositionsCart vector of atomic positions for
      * each atom (in Bohr units), Origin is at cell corner
      * @param[in] atomicNumbers vector of atomic numbers
@@ -123,13 +129,13 @@ namespace dftfe
      * @param[in] scfMixingParameter mixing paramter for SCF fixed point
      * iteration. Currently the Anderson mixing strategy is used.
      * @param[in] verbosity printing verbosity. Default value is -1: no printing
-     * @param[in] setGPUToMPITaskBindingInternally This option is only valid for
-     * GPU runs. If set to true GPU to MPI task binding is set inside the DFT-FE
-     * code. Default behaviour is false which assumes the binding has been
-     * externally set.
+     * @param[in] setDeviceToMPITaskBindingInternally This option is only valid
+     * for Device runs. If set to true Device to MPI task binding is set inside
+     * the DFT-FE code. Default behaviour is false which assumes the binding has
+     * been externally set.
      */
     dftfeWrapper(const MPI_Comm &                       mpi_comm_parent,
-                 const bool                             useGPU,
+                 const bool                             useDevice,
                  const std::vector<std::vector<double>> atomicPositionsCart,
                  const std::vector<unsigned int>        atomicNumbers,
                  const std::vector<std::vector<double>> cell,
@@ -146,7 +152,7 @@ namespace dftfe
                  const double            meshSize               = 0.8,
                  const double            scfMixingParameter     = 0.2,
                  const int               verbosity              = -1,
-                 const bool setGPUToMPITaskBindingInternally    = false);
+                 const bool setDeviceToMPITaskBindingInternally = false);
 
 
     ~dftfeWrapper();
@@ -157,10 +163,10 @@ namespace dftfe
     void
     reinit(const std::string parameter_file,
            const MPI_Comm &  mpi_comm_parent,
-           const bool        printParams                      = false,
-           const bool        setGPUToMPITaskBindingInternally = false,
-           const std::string solverMode                       = "GS",
-           const std::string restartFilesPath                 = ".");
+           const bool        printParams                         = false,
+           const bool        setDeviceToMPITaskBindingInternally = false,
+           const std::string solverMode                          = "GS",
+           const std::string restartFilesPath                    = ".");
 
     /**
      * @brief clear and reinitialize based on input parameter_file and restart
@@ -171,15 +177,15 @@ namespace dftfe
            const std::string restartCoordsFile,
            const std::string restartDomainVectorsFile,
            const MPI_Comm &  mpi_comm_parent,
-           const bool        printParams                      = false,
-           const bool        setGPUToMPITaskBindingInternally = false,
-           const std::string solverMode                       = "GS",
-           const std::string restartFilesPath                 = ".",
-           const bool        isScfRestart                     = true);
+           const bool        printParams                         = false,
+           const bool        setDeviceToMPITaskBindingInternally = false,
+           const std::string solverMode                          = "GS",
+           const std::string restartFilesPath                    = ".",
+           const bool        isScfRestart                        = true);
 
     void
     reinit(const MPI_Comm &                       mpi_comm_parent,
-           const bool                             useGPU,
+           const bool                             useDevice,
            const std::vector<std::vector<double>> atomicPositionsCart,
            const std::vector<unsigned int>        atomicNumbers,
            const std::vector<std::vector<double>> cell,
@@ -191,12 +197,12 @@ namespace dftfe
                                                                    false},
            const bool              spinPolarizedDFT   = false,
            const double            startMagnetization = 0.0,
-           const double            fermiDiracSmearingTemp           = 500.0,
-           const unsigned int      npkpt                            = 0,
-           const double            meshSize                         = 0.8,
-           const double            scfMixingParameter               = 0.2,
-           const int               verbosity                        = -1,
-           const bool              setGPUToMPITaskBindingInternally = false);
+           const double            fermiDiracSmearingTemp              = 500.0,
+           const unsigned int      npkpt                               = 0,
+           const double            meshSize                            = 0.8,
+           const double            scfMixingParameter                  = 0.2,
+           const int               verbosity                           = -1,
+           const bool              setDeviceToMPITaskBindingInternally = false);
 
     void
     clear();
@@ -208,6 +214,13 @@ namespace dftfe
     run();
 
     /**
+     * @brief Calls dftBasepointer public function writeMesh(). Here the inital density and mesh are stored in a file. Useful for visluiing meshes without running solve.
+     */
+    void
+    writeMesh();
+
+
+    /**
      * @brief solve ground-state and return DFT free energy which is sum of internal
      * energy and negative of electronic entropic energy (in Hartree units)
      *
@@ -217,6 +230,16 @@ namespace dftfe
     std::tuple<double, bool, double>
     computeDFTFreeEnergy(const bool computeIonForces  = true,
                          const bool computeCellStress = false);
+
+    void
+    computeStress();
+
+    /**
+     * @brief Get DFT free energy (in Hartree units). This function can
+     * only be called after calling computeDFTFreeEnergy
+     */
+    double
+    getDFTFreeEnergy() const;
 
     /**
      * @brief Get electronic entropic energy (in Hartree units). This function can
@@ -334,13 +357,13 @@ namespace dftfe
     createScratchFolder();
 
     void
-    initialize(const bool setGPUToMPITaskBindingInternally);
+    initialize(const bool setDeviceToMPITaskBindingInternally);
 
     MPI_Comm       d_mpi_comm_parent;
     dftBase *      d_dftfeBasePtr;
     dftParameters *d_dftfeParamsPtr;
     std::string    d_scratchFolderName;
-    bool           d_isGPUToMPITaskBindingSetInternally;
+    bool           d_isDeviceToMPITaskBindingSetInternally;
   };
 } // namespace dftfe
 #endif

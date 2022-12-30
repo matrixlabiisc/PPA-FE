@@ -57,8 +57,8 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
 
   std::map<DoFHandler<3>::active_cell_iterator, std::vector<double>>
                       cellIteratorQuadPointsMap;
-  std::vector<double> shapeValQuads(numberNodesPerElement *
-                                    numberQuadraturePoints);
+  std::vector<double> shapeValQuads(numberQuadraturePoints *
+                                    numberNodesPerElement);
   std::map<DoFHandler<3>::active_cell_iterator, std::vector<double>>
     cellIteratorJxWQuadsMap;
 
@@ -88,11 +88,13 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
                  ++q_point)
               for (unsigned int inode = 0; inode < numberNodesPerElement;
                    ++inode)
+
                 shapeValQuads[q_point * numberNodesPerElement + inode] =
                   fe_values.shape_value(inode, q_point);
           }
         iElem++;
       }
+  int numCells = iElem;
 
   //
   // get number of kPoints
@@ -106,7 +108,7 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
   d_nonLocalProjectorElementMatricesConjugate.clear();
   d_nonLocalProjectorElementMatricesTranspose.clear();
   d_nonLocalPSP_ZetalmDeltaVl.clear();
-  d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms_KPoint.clear();
+  d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms.clear();
   d_cellIdToNonlocalAtomIdsLocalCompactSupportMap.clear();
 
   d_nonLocalProjectorElementMatricesConjugate.resize(numberNonLocalAtoms);
@@ -119,27 +121,149 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
                                                    numberQuadraturePoints,
                                                  0.0);
 
-#ifdef USE_COMPLEX
-  std::vector<double> ZetalmDeltaVl_KPoint(maxkPoints * numberQuadraturePoints *
-                                             2,
-                                           0.0);
-  std::vector<double> zetalmDeltaVlProductDistImageAtoms_KPoint(
-    maxkPoints * numberQuadraturePoints * 3 * 2, 0.0);
-#else
-  std::vector<double> ZetalmDeltaVl(numberQuadraturePoints, 0.0);
-  std::vector<double> zetalmDeltaVlProductDistImageAtoms_KPoint(
-    maxkPoints * numberQuadraturePoints * 3, 0.0);
-  AssertThrow(maxkPoints == 1, ExcMessage("DFT-FE Error"));
-#endif
+  std::vector<dataTypes::number> ZetalmDeltaVl(maxkPoints *
+                                                 numberQuadraturePoints,
+                                               dataTypes::number(0.0));
+
+  std::vector<dataTypes::number> zetalmDeltaVlProductDistImageAtoms(
+    maxkPoints * numberQuadraturePoints * 3, dataTypes::number(0.0));
 
   int                cumulativeWaveSplineId = 0;
   int                waveFunctionId;
   unsigned int       count = 0;
   const unsigned int numNonLocalAtomsCurrentProcess =
     d_nonLocalAtomIdsInCurrentProcess.size();
-  d_nonLocalPSP_ZetalmDeltaVl.resize(numNonLocalAtomsCurrentProcess);
-  d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms_KPoint.resize(
-    numNonLocalAtomsCurrentProcess);
+
+  d_nonTrivialPseudoWfcsPerCellZetaDeltaVQuads.clear();
+  d_nonTrivialPseudoWfcsPerCellZetaDeltaVQuads.resize(numCells, 0);
+
+  d_nonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads.clear();
+  d_nonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads.resize(numCells, 0);
+
+  d_atomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads.clear();
+  std::map<unsigned int, std::vector<unsigned int>>
+    globalNonLocalAtomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads;
+
+  std::vector<unsigned int> accumTemp(numCells, 0);
+  for (int iAtom = 0; iAtom < numNonLocalAtomsCurrentProcess; ++iAtom)
+    {
+      const int nonLocalGlobalAtomId = d_nonLocalAtomIdsInCurrentProcess[iAtom];
+
+      const unsigned int numberPseudoWaveFunctions =
+        d_numberPseudoAtomicWaveFunctions[nonLocalGlobalAtomId];
+
+      int numberElementsInAtomCompactSupport =
+        d_elementOneFieldIteratorsInAtomCompactSupport[nonLocalGlobalAtomId]
+          .size();
+
+      AssertThrow(
+        numberElementsInAtomCompactSupport > 0,
+        ExcMessage(
+          "DFT-FE Error: number of elements in psp atom compact support must be greater than 0 for non-trivial marked atoms in the local partition"));
+
+      d_atomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads[iAtom] =
+        std::vector<unsigned int>(numCells, 0);
+      globalNonLocalAtomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads
+        [nonLocalGlobalAtomId] = std::vector<unsigned int>(numCells, 0);
+
+      for (int iElemComp = 0; iElemComp < numberElementsInAtomCompactSupport;
+           ++iElemComp)
+        {
+          const unsigned int elementId =
+            d_elementIdsInAtomCompactSupport[nonLocalGlobalAtomId][iElemComp];
+
+          d_cellIdToNonlocalAtomIdsLocalCompactSupportMap[elementId].push_back(
+            iAtom);
+
+          d_nonTrivialPseudoWfcsPerCellZetaDeltaVQuads[elementId] +=
+            numberPseudoWaveFunctions;
+          d_atomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads
+            [iAtom][elementId] = accumTemp[elementId];
+          globalNonLocalAtomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads
+            [nonLocalGlobalAtomId][elementId] = accumTemp[elementId];
+          accumTemp[elementId] += numberPseudoWaveFunctions;
+        }
+    }
+
+  d_sumNonTrivialPseudoWfcsOverAllCellsZetaDeltaVQuads =
+    std::accumulate(d_nonTrivialPseudoWfcsPerCellZetaDeltaVQuads.begin(),
+                    d_nonTrivialPseudoWfcsPerCellZetaDeltaVQuads.end(),
+                    0);
+
+  unsigned int accumNonTrivialPseudoWfcsCells = 0;
+  for (iElem = 0; iElem < numCells; ++iElem)
+    {
+      d_nonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads[iElem] =
+        accumNonTrivialPseudoWfcsCells;
+      accumNonTrivialPseudoWfcsCells +=
+        d_nonTrivialPseudoWfcsPerCellZetaDeltaVQuads[iElem];
+    }
+
+
+  d_nonLocalPSP_ZetalmDeltaVl.resize(
+    maxkPoints * d_sumNonTrivialPseudoWfcsOverAllCellsZetaDeltaVQuads *
+      numberQuadraturePoints,
+    dataTypes::number(0));
+  d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms.resize(
+    maxkPoints * d_sumNonTrivialPseudoWfcsOverAllCellsZetaDeltaVQuads *
+      numberQuadraturePoints * 3,
+    dataTypes::number(0));
+
+
+  d_projectorKetTimesVectorLocalIds.clear();
+  d_projectorKetTimesVectorLocalIds.resize(
+    d_nonLocalAtomIdsInCurrentProcess.size());
+
+
+  for (unsigned int iAtom = 0; iAtom < numNonLocalAtomsCurrentProcess; ++iAtom)
+    {
+      const unsigned int atomId = d_nonLocalAtomIdsInCurrentProcess[iAtom];
+
+      for (unsigned int ipsp = 0;
+           ipsp < d_numberPseudoAtomicWaveFunctions[atomId];
+           ++ipsp)
+        d_projectorKetTimesVectorLocalIds[iAtom].push_back(
+          d_projectorKetTimesVectorPar[0].get_partitioner()->global_to_local(
+            d_projectorIdsNumberingMapCurrentProcess[std::make_pair(atomId,
+                                                                    ipsp)]));
+    }
+
+  d_projecterKetTimesFlattenedVectorLocalIds.clear();
+  d_nonTrivialAllCellsPseudoWfcIdToElemIdMap.clear();
+  for (unsigned int ielem = 0; ielem < numCells; ++ielem)
+    {
+      for (unsigned int iatom = 0; iatom < numNonLocalAtomsCurrentProcess;
+           ++iatom)
+        {
+          bool isNonTrivial = false;
+          for (unsigned int i = 0;
+               i <
+               d_cellIdToNonlocalAtomIdsLocalCompactSupportMap[ielem].size();
+               i++)
+            if (d_cellIdToNonlocalAtomIdsLocalCompactSupportMap[ielem][i] ==
+                iatom)
+              {
+                isNonTrivial = true;
+                break;
+              }
+          if (isNonTrivial)
+            {
+              const int globalAtomId = d_nonLocalAtomIdsInCurrentProcess[iatom];
+              const unsigned int numberSingleAtomPseudoWaveFunctions =
+                d_numberPseudoAtomicWaveFunctions[globalAtomId];
+              for (unsigned int ipsp = 0;
+                   ipsp < numberSingleAtomPseudoWaveFunctions;
+                   ++ipsp)
+                {
+                  d_nonTrivialAllCellsPseudoWfcIdToElemIdMap.push_back(ielem);
+                  d_projecterKetTimesFlattenedVectorLocalIds.push_back(
+                    d_projectorKetTimesVectorLocalIds[iatom][ipsp]);
+                }
+            }
+        }
+    }
+
+
   //
   //
   for (int iAtom = 0; iAtom < numberNonLocalAtoms; ++iAtom)
@@ -187,20 +311,36 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
             numberElementsInAtomCompactSupport);
           d_nonLocalProjectorElementMatricesTranspose[iAtom].resize(
             numberElementsInAtomCompactSupport);
-
-          d_nonLocalPSP_ZetalmDeltaVl[count].resize(numberPseudoWaveFunctions);
-          d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms_KPoint[count].resize(
-            numberPseudoWaveFunctions);
         }
+
+
+#ifdef USE_COMPLEX
+      std::vector<double> nonLocalProjectorBasisRealTimesJxW(
+        numberElementsInAtomCompactSupport * maxkPoints *
+          numberPseudoWaveFunctions * numberQuadraturePoints,
+        0.0);
+      std::vector<double> nonLocalProjectorBasisImagTimesJxW(
+        numberElementsInAtomCompactSupport * maxkPoints *
+          numberPseudoWaveFunctions * numberQuadraturePoints,
+        0.0);
+#else
+      std::vector<double> ZetalmDeltaVlTimesJxW(
+        numberElementsInAtomCompactSupport * numberPseudoWaveFunctions *
+          numberQuadraturePoints,
+        0.0);
+#endif
+
 
       for (int iElemComp = 0; iElemComp < numberElementsInAtomCompactSupport;
            ++iElemComp)
         {
+          const unsigned int elementId =
+            d_elementIdsInAtomCompactSupport[iAtom][iElemComp];
+
           cell =
             d_elementOneFieldIteratorsInAtomCompactSupport[iAtom][iElemComp];
 
-          d_cellIdToNonlocalAtomIdsLocalCompactSupportMap[cell->id()].insert(
-            count);
+
 
           const std::vector<double> &quadPoints =
             cellIteratorQuadPointsMap[cell];
@@ -209,73 +349,13 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
           // compute values for the current elements
           // fe_values.reinit(cell);
 
-#ifdef USE_COMPLEX
-          d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp].resize(
-            maxkPoints * numberNodesPerElement * numberPseudoWaveFunctions,
-            std::complex<double>(0.0));
-          d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp].resize(
-            maxkPoints * numberNodesPerElement * numberPseudoWaveFunctions,
-            std::complex<double>(0.0));
-
-          std::vector<std::complex<double>>
-            &nonLocalProjectorElementMatricesConjugateAtomElem =
-              d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp];
-
-          std::vector<std::complex<double>>
-            &nonLocalProjectorElementMatricesTransposeAtomElem =
-              d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp];
-
-#else
-          d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp].resize(
-            numberNodesPerElement * numberPseudoWaveFunctions, 0.0);
-          d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp].resize(
-            numberNodesPerElement * numberPseudoWaveFunctions, 0.0);
-
-          std::vector<double>
-            &nonLocalProjectorElementMatricesConjugateAtomElem =
-              d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp];
-
-
-          std::vector<double>
-            &nonLocalProjectorElementMatricesTransposeAtomElem =
-              d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp];
-
-
-#endif
-
           int iPsp  = -1;
           int lTemp = 1e5;
 
-#ifdef USE_COMPLEX
-          std::vector<double> nonLocalProjectorBasisRealTimesJxW(
-            maxkPoints * numberPseudoWaveFunctions * numberQuadraturePoints,
-            0.0);
-          std::vector<double> nonLocalProjectorBasisImagTimesJxW(
-            maxkPoints * numberPseudoWaveFunctions * numberQuadraturePoints,
-            0.0);
-#else
-          std::vector<double> ZetalmDeltaVlTimesJxW(numberPseudoWaveFunctions *
-                                                      numberQuadraturePoints,
-                                                    0.0);
-#endif
 
           for (int iPseudoWave = 0; iPseudoWave < numberPseudoWaveFunctions;
                ++iPseudoWave)
             {
-#ifdef USE_COMPLEX
-              d_nonLocalPSP_ZetalmDeltaVl[count][iPseudoWave][cell->id()] =
-                std::vector<double>(maxkPoints * numberQuadraturePoints * 2);
-              d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms_KPoint
-                [count][iPseudoWave][cell->id()] = std::vector<double>(
-                  maxkPoints * numberQuadraturePoints * 3 * 2);
-#else
-              d_nonLocalPSP_ZetalmDeltaVl[count][iPseudoWave][cell->id()] =
-                std::vector<double>(numberQuadraturePoints);
-              d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms_KPoint
-                [count][iPseudoWave][cell->id()] =
-                  std::vector<double>(maxkPoints * numberQuadraturePoints * 3);
-#endif
-
               waveFunctionId = iPseudoWave + cumulativeWaveSplineId;
               const int globalWaveSplineId =
                 d_pseudoWaveFunctionIdToFunctionIdDetails[waveFunctionId][0];
@@ -299,15 +379,11 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
                         nonLocalProjectorBasisImag.end(),
                         0.0);
 
-#ifdef USE_COMPLEX
-              std::fill(ZetalmDeltaVl_KPoint.begin(),
-                        ZetalmDeltaVl_KPoint.end(),
-                        0.0);
-#else
-              std::fill(ZetalmDeltaVl.begin(), ZetalmDeltaVl.end(), 0.0);
-#endif
-              std::fill(zetalmDeltaVlProductDistImageAtoms_KPoint.begin(),
-                        zetalmDeltaVlProductDistImageAtoms_KPoint.end(),
+              std::fill(ZetalmDeltaVl.begin(),
+                        ZetalmDeltaVl.end(),
+                        dataTypes::number(0.0));
+              std::fill(zetalmDeltaVlProductDistImageAtoms.begin(),
+                        zetalmDeltaVlProductDistImageAtoms.end(),
                         0.0);
 
               double nlpValue = 0.0;
@@ -427,34 +503,27 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
 
                               const double tempReal = std::cos(-angle);
                               const double tempImag = std::sin(-angle);
-                              ZetalmDeltaVl_KPoint[kPoint *
-                                                     numberQuadraturePoints *
-                                                     2 +
-                                                   2 * iQuadPoint + 0] +=
-                                tempReal * projectorFunctionValue;
-                              ZetalmDeltaVl_KPoint[kPoint *
-                                                     numberQuadraturePoints *
-                                                     2 +
-                                                   2 * iQuadPoint + 1] +=
-                                tempImag * projectorFunctionValue;
+                              ZetalmDeltaVl[kPoint * numberQuadraturePoints +
+                                            iQuadPoint] +=
+                                dataTypes::number(tempReal *
+                                                    projectorFunctionValue,
+                                                  tempImag *
+                                                    projectorFunctionValue);
                               for (unsigned int iDim = 0; iDim < 3; ++iDim)
-                                {
-                                  zetalmDeltaVlProductDistImageAtoms_KPoint
-                                    [kPoint * numberQuadraturePoints * 3 * 2 +
-                                     iQuadPoint * 3 * 2 + iDim * 2 + 0] +=
-                                    tempReal * projectorFunctionValue * x[iDim];
-                                  zetalmDeltaVlProductDistImageAtoms_KPoint
-                                    [kPoint * numberQuadraturePoints * 3 * 2 +
-                                     iQuadPoint * 3 * 2 + iDim * 2 + 1] +=
-                                    tempImag * projectorFunctionValue * x[iDim];
-                                }
+                                zetalmDeltaVlProductDistImageAtoms
+                                  [kPoint * numberQuadraturePoints * 3 +
+                                   iQuadPoint * 3 + iDim] +=
+                                  dataTypes::number(
+                                    tempReal * projectorFunctionValue * x[iDim],
+                                    tempImag * projectorFunctionValue *
+                                      x[iDim]);
                             }
 #else
 
                           ZetalmDeltaVl[iQuadPoint] += projectorFunctionValue;
                           for (unsigned int iDim = 0; iDim < 3; ++iDim)
-                            zetalmDeltaVlProductDistImageAtoms_KPoint
-                              [iQuadPoint * 3 + iDim] +=
+                            zetalmDeltaVlProductDistImageAtoms[iQuadPoint * 3 +
+                                                               iDim] +=
                               projectorFunctionValue * x[iDim];
 #endif
                         } // inside psp tail
@@ -463,16 +532,40 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
 
                 } // image atom loop
 
-#ifdef USE_COMPLEX
-              d_nonLocalPSP_ZetalmDeltaVl[count][iPseudoWave][cell->id()] =
-                ZetalmDeltaVl_KPoint;
-#else
-              d_nonLocalPSP_ZetalmDeltaVl[count][iPseudoWave][cell->id()] =
-                ZetalmDeltaVl;
-#endif
-              d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms_KPoint
-                [count][iPseudoWave][cell->id()] =
-                  zetalmDeltaVlProductDistImageAtoms_KPoint;
+              const unsigned int startIndex1 =
+                d_nonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads[elementId];
+              const unsigned int startIndex2 =
+                globalNonLocalAtomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads
+                  [iAtom][elementId];
+              for (int kPoint = 0; kPoint < maxkPoints; ++kPoint)
+                {
+                  for (int iQuadPoint = 0; iQuadPoint < numberQuadraturePoints;
+                       ++iQuadPoint)
+                    d_nonLocalPSP_ZetalmDeltaVl
+                      [kPoint *
+                         d_sumNonTrivialPseudoWfcsOverAllCellsZetaDeltaVQuads *
+                         numberQuadraturePoints +
+                       startIndex1 * numberQuadraturePoints +
+                       (startIndex2 + iPseudoWave) * numberQuadraturePoints +
+                       iQuadPoint] =
+                        ZetalmDeltaVl[kPoint * numberQuadraturePoints +
+                                      iQuadPoint];
+
+                  for (int iQuadPoint = 0; iQuadPoint < numberQuadraturePoints;
+                       ++iQuadPoint)
+                    for (unsigned int iDim = 0; iDim < 3; ++iDim)
+                      d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms
+                        [kPoint *
+                           d_sumNonTrivialPseudoWfcsOverAllCellsZetaDeltaVQuads *
+                           numberQuadraturePoints * 3 +
+                         startIndex1 * numberQuadraturePoints * 3 +
+                         (startIndex2 + iPseudoWave) * numberQuadraturePoints *
+                           3 +
+                         iQuadPoint * 3 + iDim] =
+                          zetalmDeltaVlProductDistImageAtoms
+                            [kPoint * numberQuadraturePoints * 3 +
+                             iQuadPoint * 3 + iDim];
+                }
 
 #ifdef USE_COMPLEX
               for (int kPoint = 0; kPoint < maxkPoints; ++kPoint)
@@ -480,7 +573,9 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
                      ++iQuadPoint)
                   {
                     nonLocalProjectorBasisRealTimesJxW
-                      [kPoint * numberPseudoWaveFunctions *
+                      [iElemComp * maxkPoints * numberPseudoWaveFunctions *
+                         numberQuadraturePoints +
+                       kPoint * numberPseudoWaveFunctions *
                          numberQuadraturePoints +
                        iPseudoWave * numberQuadraturePoints + iQuadPoint] =
                         nonLocalProjectorBasisReal[kPoint *
@@ -488,7 +583,9 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
                                                    iQuadPoint] *
                         jxwQuads[iQuadPoint];
                     nonLocalProjectorBasisImagTimesJxW
-                      [kPoint * numberPseudoWaveFunctions *
+                      [iElemComp * maxkPoints * numberPseudoWaveFunctions *
+                         numberQuadraturePoints +
+                       kPoint * numberPseudoWaveFunctions *
                          numberQuadraturePoints +
                        iPseudoWave * numberQuadraturePoints + iQuadPoint] =
                         nonLocalProjectorBasisImag[kPoint *
@@ -499,85 +596,127 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
 #else
               for (int iQuadPoint = 0; iQuadPoint < numberQuadraturePoints;
                    ++iQuadPoint)
-                ZetalmDeltaVlTimesJxW[iPseudoWave * numberQuadraturePoints +
+                ZetalmDeltaVlTimesJxW[iElemComp * numberPseudoWaveFunctions *
+                                        numberQuadraturePoints +
+                                      iPseudoWave * numberQuadraturePoints +
                                       iQuadPoint] =
                   ZetalmDeltaVl[iQuadPoint] * jxwQuads[iQuadPoint];
 #endif
             } // pseudowave loop
 
+        } // element loop
 
-          const char          transA = 'N', transB = 'N';
-          const double        scalarCoeffAlpha = 1.0, scalarCoeffBeta = 0.0;
-          const unsigned int  inc = 1;
-          std::vector<double> projectorMatrixReal(numberNodesPerElement *
-                                                    numberPseudoWaveFunctions,
-                                                  0.0);
-          std::vector<double> projectorMatrixImag(numberNodesPerElement *
-                                                    numberPseudoWaveFunctions,
-                                                  0.0);
 
+
+      const char         transA = 'N', transB = 'N';
+      const double       scalarCoeffAlpha = 1.0, scalarCoeffBeta = 0.0;
+      const unsigned int inc = 1;
+      const unsigned int n   = numberElementsInAtomCompactSupport * maxkPoints *
+                             numberPseudoWaveFunctions;
+      const unsigned int  m = numberNodesPerElement;
+      const unsigned int  k = numberQuadraturePoints;
+      std::vector<double> projectorMatricesReal(m * n, 0.0);
+      std::vector<double> projectorMatricesImag(m * n, 0.0);
+
+      if (numberElementsInAtomCompactSupport > 0)
+        {
+#ifdef USE_COMPLEX
+          dgemm_(&transA,
+                 &transB,
+                 &m,
+                 &n,
+                 &k,
+                 &scalarCoeffAlpha,
+                 &shapeValQuads[0],
+                 &m,
+                 &nonLocalProjectorBasisRealTimesJxW[0],
+                 &k,
+                 &scalarCoeffBeta,
+                 &projectorMatricesReal[0],
+                 &m);
+
+          dgemm_(&transA,
+                 &transB,
+                 &m,
+                 &n,
+                 &k,
+                 &scalarCoeffAlpha,
+                 &shapeValQuads[0],
+                 &m,
+                 &nonLocalProjectorBasisImagTimesJxW[0],
+                 &k,
+                 &scalarCoeffBeta,
+                 &projectorMatricesImag[0],
+                 &m);
+#else
+          dgemm_(&transA,
+                 &transB,
+                 &m,
+                 &n,
+                 &k,
+                 &scalarCoeffAlpha,
+                 &shapeValQuads[0],
+                 &m,
+                 &ZetalmDeltaVlTimesJxW[0],
+                 &k,
+                 &scalarCoeffBeta,
+                 &projectorMatricesReal[0],
+                 &m);
+#endif
+        }
+
+      for (int iElemComp = 0; iElemComp < numberElementsInAtomCompactSupport;
+           ++iElemComp)
+        {
+#ifdef USE_COMPLEX
+          d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp].resize(
+            maxkPoints * numberNodesPerElement * numberPseudoWaveFunctions,
+            std::complex<double>(0.0));
+          d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp].resize(
+            maxkPoints * numberNodesPerElement * numberPseudoWaveFunctions,
+            std::complex<double>(0.0));
+
+          std::vector<std::complex<double>>
+            &nonLocalProjectorElementMatricesConjugateAtomElem =
+              d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp];
+
+          std::vector<std::complex<double>>
+            &nonLocalProjectorElementMatricesTransposeAtomElem =
+              d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp];
+
+#else
+          d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp].resize(
+            numberNodesPerElement * numberPseudoWaveFunctions, 0.0);
+          d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp].resize(
+            numberNodesPerElement * numberPseudoWaveFunctions, 0.0);
+
+          std::vector<double>
+            &nonLocalProjectorElementMatricesConjugateAtomElem =
+              d_nonLocalProjectorElementMatricesConjugate[iAtom][iElemComp];
+
+
+          std::vector<double>
+            &nonLocalProjectorElementMatricesTransposeAtomElem =
+              d_nonLocalProjectorElementMatricesTranspose[iAtom][iElemComp];
+
+
+#endif
           for (int kPoint = 0; kPoint < maxkPoints; ++kPoint)
             {
-#ifdef USE_COMPLEX
-              dgemm_(
-                &transA,
-                &transB,
-                &numberNodesPerElement,
-                &numberPseudoWaveFunctions,
-                &numberQuadraturePoints,
-                &scalarCoeffAlpha,
-                &shapeValQuads[0],
-                &numberNodesPerElement,
-                &nonLocalProjectorBasisRealTimesJxW[kPoint *
-                                                    numberPseudoWaveFunctions *
-                                                    numberQuadraturePoints],
-                &numberQuadraturePoints,
-                &scalarCoeffBeta,
-                &projectorMatrixReal[0],
-                &numberNodesPerElement);
-
-              dgemm_(
-                &transA,
-                &transB,
-                &numberNodesPerElement,
-                &numberPseudoWaveFunctions,
-                &numberQuadraturePoints,
-                &scalarCoeffAlpha,
-                &shapeValQuads[0],
-                &numberNodesPerElement,
-                &nonLocalProjectorBasisImagTimesJxW[kPoint *
-                                                    numberPseudoWaveFunctions *
-                                                    numberQuadraturePoints],
-                &numberQuadraturePoints,
-                &scalarCoeffBeta,
-                &projectorMatrixImag[0],
-                &numberNodesPerElement);
-#else
-              dgemm_(&transA,
-                     &transB,
-                     &numberNodesPerElement,
-                     &numberPseudoWaveFunctions,
-                     &numberQuadraturePoints,
-                     &scalarCoeffAlpha,
-                     &shapeValQuads[0],
-                     &numberNodesPerElement,
-                     &ZetalmDeltaVlTimesJxW[0],
-                     &numberQuadraturePoints,
-                     &scalarCoeffBeta,
-                     &projectorMatrixReal[0],
-                     &numberNodesPerElement);
-#endif
-
               for (int iPseudoWave = 0; iPseudoWave < numberPseudoWaveFunctions;
                    ++iPseudoWave)
                 for (int iNode = 0; iNode < numberNodesPerElement; ++iNode)
                   {
+                    const unsigned int flattenedIndex =
+                      iElemComp * maxkPoints * numberPseudoWaveFunctions *
+                        numberNodesPerElement +
+                      kPoint * numberPseudoWaveFunctions *
+                        numberNodesPerElement +
+                      iPseudoWave * numberNodesPerElement + iNode;
                     const double tempReal =
-                      projectorMatrixReal[iPseudoWave * numberNodesPerElement +
-                                          iNode];
+                      projectorMatricesReal[flattenedIndex];
                     const double tempImag =
-                      projectorMatrixImag[iPseudoWave * numberNodesPerElement +
-                                          iNode];
+                      projectorMatricesImag[flattenedIndex];
 #ifdef USE_COMPLEX
                     nonLocalProjectorElementMatricesConjugateAtomElem
                       [kPoint * numberNodesPerElement *
@@ -610,9 +749,7 @@ dftClass<FEOrder, FEOrderElectro>::computeElementalOVProjectorKets()
 #endif
                   } // node loop
             }       // k point loop
-
-
-        } // element loop
+        }           // non-trivial element loop
 
       cumulativeWaveSplineId += numberPseudoWaveFunctions;
       if (numberElementsInAtomCompactSupport != 0)

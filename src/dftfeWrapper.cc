@@ -42,7 +42,7 @@
 
 #include "dft.h"
 #include "dftParameters.h"
-#include "cudaHelpers.h"
+#include "deviceKernelsGeneric.h"
 #include "dftUtils.h"
 #include "dftfeWrapper.h"
 #include "fileReaders.h"
@@ -130,9 +130,9 @@ namespace dftfe
   } // namespace internalWrapper
 
   void
-  dftfeWrapper::globalHandlesInitialize()
+  dftfeWrapper::globalHandlesInitialize(const MPI_Comm &mpi_comm_world)
   {
-    sc_init(MPI_COMM_WORLD, 0, 0, nullptr, SC_LP_SILENT);
+    sc_init(mpi_comm_world, 0, 0, nullptr, SC_LP_SILENT);
     p4est_init(nullptr, SC_LP_SILENT);
 
 #ifdef USE_PETSC
@@ -163,24 +163,35 @@ namespace dftfe
                 dealii::ExcMessage("DFT-FE Error: elpa error."));
   }
 
+
+  //
+  // constructor
+  //
+  dftfeWrapper::dftfeWrapper()
+    : d_dftfeBasePtr(nullptr)
+    , d_dftfeParamsPtr(nullptr)
+    , d_mpi_comm_parent(MPI_COMM_NULL)
+    , d_isDeviceToMPITaskBindingSetInternally(false)
+  {}
+
   //
   // constructor
   //
   dftfeWrapper::dftfeWrapper(const std::string parameter_file,
                              const MPI_Comm &  mpi_comm_parent,
                              const bool        printParams,
-                             const bool        setGPUToMPITaskBindingInternally,
+                             const bool setDeviceToMPITaskBindingInternally,
                              const std::string mode,
                              const std::string restartFilesPath)
     : d_dftfeBasePtr(nullptr)
     , d_dftfeParamsPtr(nullptr)
     , d_mpi_comm_parent(MPI_COMM_NULL)
-    , d_isGPUToMPITaskBindingSetInternally(false)
+    , d_isDeviceToMPITaskBindingSetInternally(false)
   {
     reinit(parameter_file,
            mpi_comm_parent,
            printParams,
-           setGPUToMPITaskBindingInternally,
+           setDeviceToMPITaskBindingInternally,
            mode,
            restartFilesPath);
   }
@@ -194,21 +205,21 @@ namespace dftfe
                              const std::string restartDomainVectorsFile,
                              const MPI_Comm &  mpi_comm_parent,
                              const bool        printParams,
-                             const bool        setGPUToMPITaskBindingInternally,
+                             const bool setDeviceToMPITaskBindingInternally,
                              const std::string mode,
                              const std::string restartFilesPath,
                              const bool        isScfRestart)
     : d_dftfeBasePtr(nullptr)
     , d_dftfeParamsPtr(nullptr)
     , d_mpi_comm_parent(MPI_COMM_NULL)
-    , d_isGPUToMPITaskBindingSetInternally(false)
+    , d_isDeviceToMPITaskBindingSetInternally(false)
   {
     reinit(parameter_file,
            restartCoordsFile,
            restartDomainVectorsFile,
            mpi_comm_parent,
            printParams,
-           setGPUToMPITaskBindingInternally,
+           setDeviceToMPITaskBindingInternally,
            mode,
            restartFilesPath,
            isScfRestart);
@@ -221,7 +232,7 @@ namespace dftfe
   //
   dftfeWrapper::dftfeWrapper(
     const MPI_Comm &                       mpi_comm_parent,
-    const bool                             useGPU,
+    const bool                             useDevice,
     const std::vector<std::vector<double>> atomicPositionsCart,
     const std::vector<unsigned int>        atomicNumbers,
     const std::vector<std::vector<double>> cell,
@@ -235,14 +246,14 @@ namespace dftfe
     const double                           meshSize,
     const double                           scfMixingParameter,
     const int                              verbosity,
-    const bool                             setGPUToMPITaskBindingInternally)
+    const bool                             setDeviceToMPITaskBindingInternally)
     : d_dftfeBasePtr(nullptr)
     , d_dftfeParamsPtr(nullptr)
     , d_mpi_comm_parent(MPI_COMM_NULL)
-    , d_isGPUToMPITaskBindingSetInternally(false)
+    , d_isDeviceToMPITaskBindingSetInternally(false)
   {
     reinit(mpi_comm_parent,
-           useGPU,
+           useDevice,
            atomicPositionsCart,
            atomicNumbers,
            cell,
@@ -256,7 +267,7 @@ namespace dftfe
            meshSize,
            scfMixingParameter,
            verbosity,
-           setGPUToMPITaskBindingInternally);
+           setDeviceToMPITaskBindingInternally);
   }
 
 
@@ -269,7 +280,7 @@ namespace dftfe
   dftfeWrapper::reinit(const std::string parameter_file,
                        const MPI_Comm &  mpi_comm_parent,
                        const bool        printParams,
-                       const bool        setGPUToMPITaskBindingInternally,
+                       const bool        setDeviceToMPITaskBindingInternally,
                        const std::string mode,
                        const std::string restartFilesPath)
   {
@@ -288,7 +299,7 @@ namespace dftfe
                                            mode,
                                            restartFilesPath);
       }
-    initialize(setGPUToMPITaskBindingInternally);
+    initialize(setDeviceToMPITaskBindingInternally);
   }
 
 
@@ -298,7 +309,7 @@ namespace dftfe
                        const std::string restartDomainVectorsFile,
                        const MPI_Comm &  mpi_comm_parent,
                        const bool        printParams,
-                       const bool        setGPUToMPITaskBindingInternally,
+                       const bool        setDeviceToMPITaskBindingInternally,
                        const std::string mode,
                        const std::string restartFilesPath,
                        const bool        isScfRestart)
@@ -322,14 +333,14 @@ namespace dftfe
         d_dftfeParamsPtr->loadRhoData =
           d_dftfeParamsPtr->loadRhoData && isScfRestart;
       }
-    initialize(setGPUToMPITaskBindingInternally);
+    initialize(setDeviceToMPITaskBindingInternally);
   }
 
 
   void
   dftfeWrapper::reinit(
     const MPI_Comm &                       mpi_comm_parent,
-    const bool                             useGPU,
+    const bool                             useDevice,
     const std::vector<std::vector<double>> atomicPositionsCart,
     const std::vector<unsigned int>        atomicNumbers,
     const std::vector<std::vector<double>> cell,
@@ -343,11 +354,17 @@ namespace dftfe
     const double                           meshSize,
     const double                           scfMixingParameter,
     const int                              verbosity,
-    const bool                             setGPUToMPITaskBindingInternally)
+    const bool                             setDeviceToMPITaskBindingInternally)
   {
     clear();
     if (mpi_comm_parent != MPI_COMM_NULL)
-      MPI_Comm_dup(mpi_comm_parent, &d_mpi_comm_parent);
+      {
+        int ierr = MPI_Comm_dup(mpi_comm_parent, &d_mpi_comm_parent);
+        if (ierr != 0)
+          {
+            throw std::runtime_error("MPI_Comm_dup failed.");
+          }
+      }
 
     createScratchFolder();
 
@@ -655,9 +672,11 @@ namespace dftfe
                                            d_mpi_comm_parent,
                                            false,
                                            "GS");
-        d_dftfeParamsPtr->useGPU = useGPU;
+#ifdef DFTFE_WITH_DEVICE
+        d_dftfeParamsPtr->useDevice = useDevice;
+#endif
       }
-    initialize(setGPUToMPITaskBindingInternally);
+    initialize(setDeviceToMPITaskBindingInternally);
   }
 
 
@@ -696,16 +715,17 @@ namespace dftfe
   }
 
   void
-  dftfeWrapper::initialize(const bool setGPUToMPITaskBindingInternally)
+  dftfeWrapper::initialize(const bool setDeviceToMPITaskBindingInternally)
   {
     if (d_mpi_comm_parent != MPI_COMM_NULL)
       {
-#ifdef DFTFE_WITH_GPU
-        if (d_dftfeParamsPtr->useGPU && setGPUToMPITaskBindingInternally &&
-            !d_isGPUToMPITaskBindingSetInternally)
+#ifdef DFTFE_WITH_DEVICE
+        if (d_dftfeParamsPtr->useDevice &&
+            setDeviceToMPITaskBindingInternally &&
+            !d_isDeviceToMPITaskBindingSetInternally)
           {
-            dftfe::cudaUtils::setupGPU();
-            d_isGPUToMPITaskBindingSetInternally = true;
+            dftfe::utils::deviceKernelsGeneric::setupDevice();
+            d_isDeviceToMPITaskBindingSetInternally = true;
           }
 #endif
 
@@ -850,6 +870,9 @@ namespace dftfe
           delete d_dftfeParamsPtr;
         MPI_Comm_free(&d_mpi_comm_parent);
       }
+    d_dftfeBasePtr    = nullptr;
+    d_dftfeParamsPtr  = nullptr;
+    d_mpi_comm_parent = MPI_COMM_NULL;
   }
 
   void
@@ -861,6 +884,17 @@ namespace dftfe
         "DFT-FE Error: dftfeWrapper cannot be used on MPI_COMM_NULL."));
     d_dftfeBasePtr->run();
   }
+
+  void
+  dftfeWrapper::writeMesh()
+  {
+    AssertThrow(
+      d_mpi_comm_parent != MPI_COMM_NULL,
+      dealii::ExcMessage(
+        "DFT-FE Error: dftfeWrapper cannot be used on MPI_COMM_NULL."));
+    d_dftfeBasePtr->writeMesh();
+  }
+
 
   std::tuple<double, bool, double>
   dftfeWrapper::computeDFTFreeEnergy(const bool computeIonForces,
@@ -876,6 +910,28 @@ namespace dftfe
                            std::get<0>(t),
                            std::get<1>(t));
   }
+
+  void
+  dftfeWrapper::computeStress()
+  {
+    AssertThrow(
+      d_mpi_comm_parent != MPI_COMM_NULL,
+      dealii::ExcMessage(
+        "DFT-FE Error: dftfeWrapper cannot be used on MPI_COMM_NULL."));
+
+    d_dftfeBasePtr->computeStress();
+  }
+
+  double
+  dftfeWrapper::getDFTFreeEnergy() const
+  {
+    AssertThrow(
+      d_mpi_comm_parent != MPI_COMM_NULL,
+      dealii::ExcMessage(
+        "DFT-FE Error: dftfeWrapper cannot be used on MPI_COMM_NULL."));
+    return d_dftfeBasePtr->getFreeEnergy();
+  }
+
 
   double
   dftfeWrapper::getElectronicEntropicEnergy() const

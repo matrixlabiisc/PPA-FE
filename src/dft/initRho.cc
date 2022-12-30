@@ -151,7 +151,7 @@ dftClass<FEOrder, FEOrderElectro>::initRho()
       rhoInValuesSpinPolarized = &(rhoInValsSpinPolarized.back());
     }
 
-  if (d_dftParamsPtr->xcFamilyType == "GGA")
+  if (excFunctionalPtr->getDensityBasedFamilyType() == densityFamilyType::GGA)
     {
       gradRhoInVals.push_back(std::map<dealii::CellId, std::vector<double>>());
       gradRhoInValues = &(gradRhoInVals.back());
@@ -173,7 +173,8 @@ dftClass<FEOrder, FEOrderElectro>::initRho()
       rhoOutVals.push_back(std::map<dealii::CellId, std::vector<double>>());
       rhoOutValues = &(rhoOutVals.back());
 
-      if (d_dftParamsPtr->xcFamilyType == "GGA")
+      if (excFunctionalPtr->getDensityBasedFamilyType() ==
+          densityFamilyType::GGA)
         {
           gradRhoOutVals.push_back(
             std::map<dealii::CellId, std::vector<double>>());
@@ -186,7 +187,8 @@ dftClass<FEOrder, FEOrderElectro>::initRho()
             std::map<dealii::CellId, std::vector<double>>());
           rhoOutValuesSpinPolarized = &(rhoOutValsSpinPolarized.back());
 
-          if (d_dftParamsPtr->xcFamilyType == "GGA")
+          if (excFunctionalPtr->getDensityBasedFamilyType() ==
+              densityFamilyType::GGA)
             {
               gradRhoOutValsSpinPolarized.push_back(
                 std::map<dealii::CellId, std::vector<double>>());
@@ -267,43 +269,75 @@ dftClass<FEOrder, FEOrderElectro>::initRho()
           }
         }
 
+      // kpoint group parallelization data structures
+      const unsigned int numberKptGroups =
+        dealii::Utilities::MPI::n_mpi_processes(interpoolcomm);
 
+      const unsigned int kptGroupTaskId =
+        dealii::Utilities::MPI::this_mpi_process(interpoolcomm);
+      std::vector<int> kptGroupLowHighPlusOneIndices;
+
+      if (numberDofs > 0)
+        dftUtils::createKpointParallelizationIndices(
+          interpoolcomm, numberDofs, kptGroupLowHighPlusOneIndices);
+
+      d_rhoInNodalValues = 0;
       for (unsigned int dof = 0; dof < numberDofs; ++dof)
         {
-          const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
-          const Point<3> &nodalCoor = supportPointsRhoNodal[dofID];
-          if (!d_constraintsRhoNodal.is_constrained(dofID))
+          if (dof < kptGroupLowHighPlusOneIndices[2 * kptGroupTaskId + 1] &&
+              dof >= kptGroupLowHighPlusOneIndices[2 * kptGroupTaskId])
             {
-              // loop over atoms and superimpose electron-density at a given dof
-              // from all atoms
-              double rhoNodalValue = 0.0;
-              int    chargeId;
-              double distanceToAtom;
-              double diffx;
-              double diffy;
-              double diffz;
-
-              for (unsigned int iAtom = 0; iAtom < atomsImagesChargeIds.size();
-                   ++iAtom)
+              const dealii::types::global_dof_index dofID =
+                locallyOwnedDOFs[dof];
+              const Point<3> &nodalCoor = supportPointsRhoNodal[dofID];
+              if (!d_constraintsRhoNodal.is_constrained(dofID))
                 {
-                  diffx = nodalCoor[0] - atomsImagesPositions[iAtom * 3 + 0];
-                  diffy = nodalCoor[1] - atomsImagesPositions[iAtom * 3 + 1];
-                  diffz = nodalCoor[2] - atomsImagesPositions[iAtom * 3 + 2];
+                  // loop over atoms and superimpose electron-density at a given
+                  // dof from all atoms
+                  double rhoNodalValue = 0.0;
+                  int    chargeId;
+                  double distanceToAtom;
+                  double diffx;
+                  double diffy;
+                  double diffz;
 
-                  distanceToAtom =
-                    std::sqrt(diffx * diffx + diffy * diffy + diffz * diffz);
+                  for (unsigned int iAtom = 0;
+                       iAtom < atomsImagesChargeIds.size();
+                       ++iAtom)
+                    {
+                      diffx =
+                        nodalCoor[0] - atomsImagesPositions[iAtom * 3 + 0];
+                      diffy =
+                        nodalCoor[1] - atomsImagesPositions[iAtom * 3 + 1];
+                      diffz =
+                        nodalCoor[2] - atomsImagesPositions[iAtom * 3 + 2];
 
-                  chargeId = atomsImagesChargeIds[iAtom];
+                      distanceToAtom = std::sqrt(diffx * diffx + diffy * diffy +
+                                                 diffz * diffz);
 
-                  if (distanceToAtom <=
-                      outerMostPointDen[atomLocations[chargeId][0]])
-                    rhoNodalValue += alglib::spline1dcalc(
-                      denSpline[atomLocations[chargeId][0]], distanceToAtom);
+                      chargeId = atomsImagesChargeIds[iAtom];
+
+                      if (distanceToAtom <=
+                          outerMostPointDen[atomLocations[chargeId][0]])
+                        rhoNodalValue += alglib::spline1dcalc(
+                          denSpline[atomLocations[chargeId][0]],
+                          distanceToAtom);
+                    }
+
+                  d_rhoInNodalValues.local_element(dof) =
+                    std::abs(rhoNodalValue);
                 }
-
-              d_rhoInNodalValues.local_element(dof) = std::abs(rhoNodalValue);
             }
         }
+
+      if (numberDofs > 0 && numberKptGroups > 1)
+        MPI_Allreduce(MPI_IN_PLACE,
+                      d_rhoInNodalValues.begin(),
+                      numberDofs,
+                      MPI_DOUBLE,
+                      MPI_SUM,
+                      interpoolcomm);
+      MPI_Barrier(interpoolcomm);
 
       d_rhoInNodalValues.update_ghost_values();
 
@@ -337,7 +371,8 @@ dftClass<FEOrder, FEOrderElectro>::initRho()
         *rhoInValues,
         *gradRhoInValues,
         *gradRhoInValues,
-        d_dftParamsPtr->xcFamilyType == "GGA");
+        excFunctionalPtr->getDensityBasedFamilyType() ==
+          densityFamilyType::GGA);
 
       if (d_dftParamsPtr->spinPolarized == 1)
         {
@@ -373,7 +408,8 @@ dftClass<FEOrder, FEOrderElectro>::initRho()
             *rhoInValuesSpinPolarized,
             *gradRhoInValuesSpinPolarized,
             *gradRhoInValuesSpinPolarized,
-            d_dftParamsPtr->xcFamilyType == "GGA");
+            excFunctionalPtr->getDensityBasedFamilyType() ==
+              densityFamilyType::GGA);
         }
 
       normalizeRhoInQuadValues();
@@ -464,7 +500,8 @@ dftClass<FEOrder, FEOrderElectro>::initRho()
 
 
       // loop over elements
-      if (d_dftParamsPtr->xcFamilyType == "GGA")
+      if (excFunctionalPtr->getDensityBasedFamilyType() ==
+          densityFamilyType::GGA)
         {
           //
           cell = dofHandler.begin_active();
@@ -665,7 +702,7 @@ dftClass<FEOrder, FEOrderElectro>::computeRhoInitialGuessFromPSI(
       rhoInValuesSpinPolarized = &(rhoInValsSpinPolarized.back());
     }
 
-  if (d_dftParamsPtr->xcFamilyType == "GGA")
+  if (excFunctionalPtr->getDensityBasedFamilyType() == densityFamilyType::GGA)
     {
       gradRhoInVals.push_back(std::map<dealii::CellId, std::vector<double>>());
       gradRhoInValues = &(gradRhoInVals.back());
@@ -721,7 +758,8 @@ dftClass<FEOrder, FEOrderElectro>::computeRhoInitialGuessFromPSI(
 
 
 
-        if (d_dftParamsPtr->xcFamilyType == "GGA") // GGA
+        if (excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA) // GGA
           {
             (*gradRhoInValues)[cell->id()] =
               std::vector<double>(3 * num_quad_points);
@@ -1239,14 +1277,16 @@ dftClass<FEOrder, FEOrderElectro>::normalizeRhoInQuadValues()
             {
               (*rhoInValues)[cell->id()][q] *= scaling;
 
-              if (d_dftParamsPtr->xcFamilyType == "GGA")
+              if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                  densityFamilyType::GGA)
                 for (unsigned int idim = 0; idim < 3; ++idim)
                   (*gradRhoInValues)[cell->id()][3 * q + idim] *= scaling;
               if (d_dftParamsPtr->spinPolarized == 1)
                 {
                   (*rhoInValuesSpinPolarized)[cell->id()][2 * q + 1] *= scaling;
                   (*rhoInValuesSpinPolarized)[cell->id()][2 * q] *= scaling;
-                  if (d_dftParamsPtr->xcFamilyType == "GGA")
+                  if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                      densityFamilyType::GGA)
                     for (unsigned int idim = 0; idim < 3; ++idim)
                       {
                         (*gradRhoInValuesSpinPolarized)[cell->id()]
@@ -1295,7 +1335,8 @@ dftClass<FEOrder, FEOrderElectro>::normalizeRhoOutQuadValues()
             {
               (*rhoOutValues)[cell->id()][q] *= scaling;
 
-              if (d_dftParamsPtr->xcFamilyType == "GGA")
+              if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                  densityFamilyType::GGA)
                 for (unsigned int idim = 0; idim < 3; ++idim)
                   (*gradRhoOutValues)[cell->id()][3 * q + idim] *= scaling;
               if (d_dftParamsPtr->spinPolarized == 1)
@@ -1303,7 +1344,8 @@ dftClass<FEOrder, FEOrderElectro>::normalizeRhoOutQuadValues()
                   (*rhoOutValuesSpinPolarized)[cell->id()][2 * q + 1] *=
                     scaling;
                   (*rhoOutValuesSpinPolarized)[cell->id()][2 * q] *= scaling;
-                  if (d_dftParamsPtr->xcFamilyType == "GGA")
+                  if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                      densityFamilyType::GGA)
                     for (unsigned int idim = 0; idim < 3; ++idim)
                       {
                         (*gradRhoOutValuesSpinPolarized)[cell->id()]

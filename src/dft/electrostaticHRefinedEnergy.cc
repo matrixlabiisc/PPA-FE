@@ -21,8 +21,8 @@
 template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
 dftClass<FEOrder, FEOrderElectro>::computeElectrostaticEnergyHRefined(
-#ifdef DFTFE_WITH_GPU
-  kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+#ifdef DFTFE_WITH_DEVICE
+  kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
     &kohnShamDFTEigenOperator
 #endif
 )
@@ -392,7 +392,7 @@ dftClass<FEOrder, FEOrderElectro>::computeElectrostaticEnergyHRefined(
   // with atoms belonging to a given bin
 
   vselfBinsManager<FEOrder, FEOrderElectro> vselfBinsManagerHRefined(
-    d_mpiCommParent, mpi_communicator, *d_dftParamsPtr);
+    d_mpiCommParent, mpi_communicator, interpoolcomm, *d_dftParamsPtr);
   vselfBinsManagerHRefined.createAtomBins(
     matrixFreeConstraintsInputVector,
     onlyHangingNodeConstraints,
@@ -588,8 +588,7 @@ dftClass<FEOrder, FEOrderElectro>::computeElectrostaticEnergyHRefined(
                                        eigenValues,
                                        d_kPointWeights,
                                        fermiEnergy,
-                                       funcX,
-                                       funcC,
+                                       excFunctionalPtr,
                                        dispersionCorrHRefined,
                                        d_phiInValues,
                                        phiTotRhoOutHRefined,
@@ -625,8 +624,7 @@ dftClass<FEOrder, FEOrderElectro>::computeElectrostaticEnergyHRefined(
         fermiEnergy,
         fermiEnergyUp,
         fermiEnergyDown,
-        funcX,
-        funcC,
+        excFunctionalPtr,
         dispersionCorrHRefined,
         d_phiInValues,
         phiTotRhoOutHRefined,

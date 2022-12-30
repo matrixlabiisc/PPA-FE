@@ -81,14 +81,8 @@
 #  include <deal.II/base/smartpointer.h>
 #  include <deal.II/base/types.h>
 
-#  if defined(DFTFE_WITH_GPU)
-#    include <cuComplex.h>
-#    include <thrust/device_vector.h>
-#    include <thrust/complex.h>
-#  endif
-
-#  include "dftfeDataTypes.h"
-#  include "distributedMulticomponentVec.h"
+#  include <dftfeDataTypes.h>
+#  include <MultiVector.h>
 
 // Include generic C++ headers
 #  include <fstream>
@@ -103,15 +97,11 @@ namespace dftfe
   using distributedCPUVec =
     dealii::LinearAlgebra::distributed::Vector<elem_type,
                                                dealii::MemorySpace::Host>;
-#ifdef DFTFE_WITH_GPU
-  // template <typename elem_type>
-  // using distributedGPUVec =
-  //  dealii::LinearAlgebra::distributed::Vector<elem_type,
-  //                                             dealii::MemorySpace::CUDA>;
-
+#ifdef DFTFE_WITH_DEVICE
   template <typename NumberType>
-  using distributedGPUVec =
-    dftfe::DistributedMulticomponentVec<NumberType, dftfe::MemorySpace::GPU>;
+  using distributedDeviceVec =
+    dftfe::linearAlgebra::MultiVector<NumberType,
+                                      dftfe::utils::MemorySpace::DEVICE>;
 
 #endif
 } // namespace dftfe

@@ -57,14 +57,16 @@ dftClass<FEOrder, FEOrderElectro>::popOutRhoInRhoOutVals()
               rhoOutValsSpinPolarized.pop_front();
             }
 
-          if (d_dftParamsPtr->xcFamilyType == "GGA") // GGA
+          if (excFunctionalPtr->getDensityBasedFamilyType() ==
+              densityFamilyType::GGA) // GGA
             {
               gradRhoInVals.pop_front();
               gradRhoOutVals.pop_front();
             }
 
           if (d_dftParamsPtr->spinPolarized == 1 &&
-              d_dftParamsPtr->xcFamilyType == "GGA")
+              excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA)
             {
               gradRhoInValsSpinPolarized.pop_front();
               gradRhoOutValsSpinPolarized.pop_front();
@@ -74,7 +76,8 @@ dftClass<FEOrder, FEOrderElectro>::popOutRhoInRhoOutVals()
             {
               dFBroyden.pop_front();
               uBroyden.pop_front();
-              if (d_dftParamsPtr->xcFamilyType == "GGA") // GGA
+              if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                  densityFamilyType::GGA) // GGA
                 {
                   graddFBroyden.pop_front();
                   gradUBroyden.pop_front();
@@ -89,8 +92,8 @@ dftClass<FEOrder, FEOrderElectro>::popOutRhoInRhoOutVals()
 template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
 dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
-#ifdef DFTFE_WITH_GPU
-  kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+#ifdef DFTFE_WITH_DEVICE
+  kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
     &kohnShamDFTEigenOperator,
 #endif
   kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
@@ -101,7 +104,7 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
   if (d_dftParamsPtr->mixingMethod == "ANDERSON_WITH_KERKER" ||
       d_dftParamsPtr->mixingMethod == "LOW_RANK_DIELECM_PRECOND")
     {
-#ifdef DFTFE_WITH_GPU
+#ifdef DFTFE_WITH_DEVICE
       computeRhoNodalFromPSI(kohnShamDFTEigenOperator,
                              kohnShamDFTEigenOperatorCPU,
                              isConsiderSpectrumSplitting);
@@ -133,7 +136,8 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
         *rhoOutValues,
         *gradRhoOutValues,
         *gradRhoOutValues,
-        d_dftParamsPtr->xcFamilyType == "GGA");
+        excFunctionalPtr->getDensityBasedFamilyType() ==
+          densityFamilyType::GGA);
 
       if (d_dftParamsPtr->spinPolarized == 1)
         {
@@ -156,7 +160,8 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
             *rhoOutValuesSpinPolarized,
             *gradRhoOutValuesSpinPolarized,
             *gradRhoOutValuesSpinPolarized,
-            d_dftParamsPtr->xcFamilyType == "GGA");
+            excFunctionalPtr->getDensityBasedFamilyType() ==
+              densityFamilyType::GGA);
         }
 
 
@@ -178,7 +183,8 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
       if (d_dftParamsPtr->spinPolarized == 1)
         rhoOutValuesSpinPolarized = &(rhoOutValsSpinPolarized.back());
 
-      if (d_dftParamsPtr->xcFamilyType == "GGA")
+      if (excFunctionalPtr->getDensityBasedFamilyType() ==
+          densityFamilyType::GGA)
         {
           gradRhoOutValues = &(gradRhoOutVals.back());
           if (d_dftParamsPtr->spinPolarized == 1)
@@ -186,11 +192,11 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
               &(gradRhoOutValsSpinPolarized.back());
         }
 
-#ifdef DFTFE_WITH_GPU
-      if (d_dftParamsPtr->useGPU)
-        CUDA::computeRhoFromPSI(
-          d_eigenVectorsFlattenedCUDA.begin(),
-          d_eigenVectorsRotFracFlattenedCUDA.begin(),
+#ifdef DFTFE_WITH_DEVICE
+      if (d_dftParamsPtr->useDevice)
+        Device::computeRhoFromPSI(
+          d_eigenVectorsFlattenedDevice.begin(),
+          d_eigenVectorsRotFracFlattenedDevice.begin(),
           d_numEigenValues,
           d_numEigenValuesRR,
           d_eigenVectorsFlattenedSTL[0].size() / d_numEigenValues,
@@ -209,7 +215,8 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
           gradRhoOutValues,
           rhoOutValuesSpinPolarized,
           gradRhoOutValuesSpinPolarized,
-          d_dftParamsPtr->xcFamilyType == "GGA",
+          excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA,
           d_mpiCommParent,
           interpoolcomm,
           interBandGroupComm,
@@ -217,7 +224,7 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
           isConsiderSpectrumSplitting &&
             d_numEigenValues != d_numEigenValuesRR);
 #endif
-      if (!d_dftParamsPtr->useGPU)
+      if (!d_dftParamsPtr->useDevice)
         computeRhoFromPSICPU(
           d_eigenVectorsFlattenedSTL,
           d_eigenVectorsRotFracDensityFlattenedSTL,
@@ -238,7 +245,8 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
           gradRhoOutValues,
           rhoOutValuesSpinPolarized,
           gradRhoOutValuesSpinPolarized,
-          d_dftParamsPtr->xcFamilyType == "GGA",
+          excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA,
           d_mpiCommParent,
           interpoolcomm,
           interBandGroupComm,
@@ -250,7 +258,7 @@ dftClass<FEOrder, FEOrderElectro>::compute_rhoOut(
       if (isGroundState)
         {
           computeRhoNodalFromPSI(
-#ifdef DFTFE_WITH_GPU
+#ifdef DFTFE_WITH_DEVICE
             kohnShamDFTEigenOperator,
 #endif
             kohnShamDFTEigenOperatorCPU,
@@ -383,7 +391,7 @@ dftClass<FEOrder, FEOrderElectro>::resizeAndAllocateRhoTableStorage(
     rhoValsSpinPolarized.push_back(
       std::map<dealii::CellId, std::vector<double>>());
 
-  if (d_dftParamsPtr->xcFamilyType == "GGA")
+  if (excFunctionalPtr->getDensityBasedFamilyType() == densityFamilyType::GGA)
     {
       gradRhoVals.push_back(std::map<dealii::CellId, std::vector<double>>());
       if (d_dftParamsPtr->spinPolarized == 1)
@@ -399,7 +407,8 @@ dftClass<FEOrder, FEOrderElectro>::resizeAndAllocateRhoTableStorage(
       {
         const dealii::CellId cellId = cell->id();
         rhoVals.back()[cellId]      = std::vector<double>(numQuadPoints, 0.0);
-        if (d_dftParamsPtr->xcFamilyType == "GGA")
+        if (excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA)
           gradRhoVals.back()[cellId] =
             std::vector<double>(3 * numQuadPoints, 0.0);
 
@@ -407,7 +416,8 @@ dftClass<FEOrder, FEOrderElectro>::resizeAndAllocateRhoTableStorage(
           {
             rhoValsSpinPolarized.back()[cellId] =
               std::vector<double>(2 * numQuadPoints, 0.0);
-            if (d_dftParamsPtr->xcFamilyType == "GGA")
+            if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA)
               gradRhoValsSpinPolarized.back()[cellId] =
                 std::vector<double>(6 * numQuadPoints, 0.0);
           }
@@ -428,7 +438,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
         *(rhoOutValues);
 
       std::map<dealii::CellId, std::vector<double>> gradRhoOutValuesCopy;
-      if (d_dftParamsPtr->xcFamilyType == "GGA")
+      if (excFunctionalPtr->getDensityBasedFamilyType() ==
+          densityFamilyType::GGA)
         {
           gradRhoOutValuesCopy = *(gradRhoOutValues);
         }
@@ -443,7 +454,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
       std::map<dealii::CellId, std::vector<double>>
         gradRhoOutValuesSpinPolarizedCopy;
       if (d_dftParamsPtr->spinPolarized == 1 &&
-          d_dftParamsPtr->xcFamilyType == "GGA")
+          excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA)
         {
           gradRhoOutValuesSpinPolarizedCopy = *(gradRhoOutValuesSpinPolarized);
         }
@@ -455,7 +467,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
       rhoInVals.push_back(rhoOutValuesCopy);
       rhoInValues = &(rhoInVals.back());
 
-      if (d_dftParamsPtr->xcFamilyType == "GGA")
+      if (excFunctionalPtr->getDensityBasedFamilyType() ==
+          densityFamilyType::GGA)
         {
           gradRhoInVals.push_back(gradRhoOutValuesCopy);
           gradRhoInValues = &(gradRhoInVals.back());
@@ -467,7 +480,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
           rhoInValuesSpinPolarized = &(rhoInValsSpinPolarized.back());
         }
 
-      if (d_dftParamsPtr->xcFamilyType == "GGA" &&
+      if (excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA &&
           d_dftParamsPtr->spinPolarized == 1)
         {
           gradRhoInValsSpinPolarized.push_back(
@@ -499,7 +513,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
             *rhoInValues,
             *gradRhoInValues,
             *gradRhoInValues,
-            d_dftParamsPtr->xcFamilyType == "GGA");
+            excFunctionalPtr->getDensityBasedFamilyType() ==
+              densityFamilyType::GGA);
 
           if (d_dftParamsPtr->spinPolarized == 1)
             {
@@ -525,7 +540,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
                 *rhoInValuesSpinPolarized,
                 *gradRhoInValuesSpinPolarized,
                 *gradRhoInValuesSpinPolarized,
-                d_dftParamsPtr->xcFamilyType == "GGA");
+                excFunctionalPtr->getDensityBasedFamilyType() ==
+                  densityFamilyType::GGA);
             }
 
           rhoOutVals.push_back(std::map<dealii::CellId, std::vector<double>>());
@@ -537,7 +553,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
               rhoOutValuesSpinPolarized = &(rhoOutValsSpinPolarized.back());
             }
 
-          if (d_dftParamsPtr->xcFamilyType == "GGA")
+          if (excFunctionalPtr->getDensityBasedFamilyType() ==
+              densityFamilyType::GGA)
             {
               gradRhoOutVals.push_back(
                 std::map<dealii::CellId, std::vector<double>>());
@@ -561,8 +578,8 @@ dftClass<FEOrder, FEOrderElectro>::noRemeshRhoDataInit()
 template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
 dftClass<FEOrder, FEOrderElectro>::computeRhoNodalFromPSI(
-#ifdef DFTFE_WITH_GPU
-  kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+#ifdef DFTFE_WITH_DEVICE
+  kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
     &kohnShamDFTEigenOperator,
 #endif
   kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
@@ -637,13 +654,15 @@ dftClass<FEOrder, FEOrderElectro>::computeRhoNodalFromPSI(
     if (cell->is_locally_owned())
       {
         const dealii::CellId cellId = cell->id();
-        if (d_dftParamsPtr->xcFamilyType == "GGA")
+        if (excFunctionalPtr->getDensityBasedFamilyType() ==
+            densityFamilyType::GGA)
           (_gradRhoValues)[cellId] =
             std::vector<double>(3 * numQuadPoints, 0.0);
 
         if (d_dftParamsPtr->spinPolarized == 1)
           {
-            if (d_dftParamsPtr->xcFamilyType == "GGA")
+            if (excFunctionalPtr->getDensityBasedFamilyType() ==
+                densityFamilyType::GGA)
               (_gradRhoValuesSpinPolarized)[cellId] =
                 std::vector<double>(6 * numQuadPoints, 0.0);
           }
@@ -652,11 +671,11 @@ dftClass<FEOrder, FEOrderElectro>::computeRhoNodalFromPSI(
 
       // compute rho from wavefunctions at nodal locations of 2p DoFHandler
       // nodes in each cell
-#ifdef DFTFE_WITH_GPU
-  if (d_dftParamsPtr->useGPU)
-    CUDA::computeRhoFromPSI(
-      d_eigenVectorsFlattenedCUDA.begin(),
-      d_eigenVectorsRotFracFlattenedCUDA.begin(),
+#ifdef DFTFE_WITH_DEVICE
+  if (d_dftParamsPtr->useDevice)
+    Device::computeRhoFromPSI(
+      d_eigenVectorsFlattenedDevice.begin(),
+      d_eigenVectorsRotFracFlattenedDevice.begin(),
       d_numEigenValues,
       d_numEigenValuesRR,
       d_eigenVectorsFlattenedSTL[0].size() / d_numEigenValues,
@@ -683,7 +702,7 @@ dftClass<FEOrder, FEOrderElectro>::computeRhoNodalFromPSI(
       isConsiderSpectrumSplitting && d_numEigenValues != d_numEigenValuesRR,
       true);
 #endif
-  if (!d_dftParamsPtr->useGPU)
+  if (!d_dftParamsPtr->useDevice)
     computeRhoFromPSICPU(
       d_eigenVectorsFlattenedSTL,
       d_eigenVectorsRotFracDensityFlattenedSTL,

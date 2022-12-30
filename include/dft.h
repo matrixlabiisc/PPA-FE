@@ -21,6 +21,8 @@
 #include <constraintMatrixInfo.h>
 #include <elpaScalaManager.h>
 #include <headers.h>
+#include <MemorySpaceType.h>
+#include <MemoryStorage.h>
 
 #include <complex>
 #include <deque>
@@ -29,15 +31,15 @@
 #include <numeric>
 #include <sstream>
 
-#ifdef DFTFE_WITH_GPU
-#  include <chebyshevOrthogonalizedSubspaceIterationSolverCUDA.h>
-#  include <constraintMatrixInfoCUDA.h>
-#  include <kohnShamDFTOperatorCUDA.h>
-#  include "cudaHelpers.h"
-#  include <poissonSolverProblemCUDA.h>
-
-
-#  include "gpuDirectCCLWrapper.h"
+#ifdef DFTFE_WITH_DEVICE
+#  include <chebyshevOrthogonalizedSubspaceIterationSolverDevice.h>
+#  include <constraintMatrixInfoDevice.h>
+#  include <kohnShamDFTOperatorDevice.h>
+#  include "deviceKernelsGeneric.h"
+#  include <poissonSolverProblemDevice.h>
+#  include <kerkerSolverProblemDevice.h>
+#  include <linearSolverCGDevice.h>
+#  include <deviceDirectCCLWrapper.h>
 #endif
 
 #include <chebyshevOrthogonalizedSubspaceIterationSolver.h>
@@ -53,6 +55,9 @@
 #include <triangulationManager.h>
 #include <vselfBinsManager.h>
 #include <xc.h>
+#include <excWavefunctionBaseClass.h>
+#include <excManager.h>
+#include <dftd.h>
 #include "dftBase.h"
 #ifdef USE_PETSC
 #  include <petsc.h>
@@ -75,11 +80,11 @@ namespace dftfe
 
   struct orbital
   {
-    unsigned int                 atomID;
-    unsigned int                 waveID;
-    unsigned int                 Z, n, l;
-    int                          m;
-    alglib::spline1dinterpolant *psi;
+    unsigned int                atomID;
+    unsigned int                waveID;
+    unsigned int                Z, n, l;
+    int                         m;
+    alglib::spline1dinterpolant psi;
   };
 
   /* code that must be skipped by Doxygen */
@@ -103,8 +108,8 @@ namespace dftfe
   {
     friend class kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>;
 
-#ifdef DFTFE_WITH_GPU
-    friend class kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>;
+#ifdef DFTFE_WITH_DEVICE
+    friend class kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>;
 #endif
 
     friend class forceClass<FEOrder, FEOrderElectro>;
@@ -173,6 +178,12 @@ namespace dftfe
     run();
 
     /**
+     * @brief Writes inital density and mesh to file.
+     */
+    void
+    writeMesh();
+
+    /**
      * @brief compute approximation to ground-state without solving the SCF iteration
      */
     void
@@ -186,8 +197,11 @@ namespace dftfe
      */
     std::tuple<bool, double>
     solve(const bool computeForces                 = true,
-          const bool computeStress                 = true,
+          const bool computestress                 = true,
           const bool restartGroundStateCalcFromChk = false);
+
+    void
+    computeStress();
 
     void
     trivialSolveForStress();
@@ -429,12 +443,10 @@ namespace dftfe
 
     /// creates datastructures related to periodic image charges
     void
-    generateImageCharges(
-      const double                      pspCutOff,
-      std::vector<int> &                imageIds,
-      std::vector<double> &             imageCharges,
-      std::vector<std::vector<double>> &imagePositions,
-      std::vector<std::vector<int>> &   globalChargeIdToImageIdMap);
+    generateImageCharges(const double                      pspCutOff,
+                         std::vector<int> &                imageIds,
+                         std::vector<double> &             imageCharges,
+                         std::vector<std::vector<double>> &imagePositions);
 
     void
     createMasterChargeIdToImageIdMaps(
@@ -659,8 +671,8 @@ namespace dftfe
      */
     void
     computeRhoNodalFromPSI(
-#ifdef DFTFE_WITH_GPU
-      kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+#ifdef DFTFE_WITH_DEVICE
+      kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
         &kohnShamDFTEigenOperator,
 #endif
       kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
@@ -670,9 +682,9 @@ namespace dftfe
 
     void
     computeRhoNodalFirstOrderResponseFromPSIAndPSIPrime(
-#ifdef DFTFE_WITH_GPU
-      kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-        &kohnShamDFTEigenOperatorGPU,
+#ifdef DFTFE_WITH_DEVICE
+      kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+        &kohnShamDFTEigenOperatorDevice,
 #endif
       kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
         &                        kohnShamDFTEigenOperatorCPU,
@@ -782,6 +794,15 @@ namespace dftfe
                    const unsigned int                   quadratureId);
 
     double
+    rhofieldInnerProduct(
+      const dealii::MatrixFree<3, double> &matrixFreeDataObject,
+      const distributedCPUVec<double> &    rhoNodalField1,
+      const distributedCPUVec<double> &    rhoNodalField2,
+      const unsigned int                   dofHandlerId,
+      const unsigned int                   quadratureId);
+
+
+    double
     fieldGradl2Norm(const dealii::MatrixFree<3, double> &matrixFreeDataObject,
                     const distributedCPUVec<double> &    field);
 
@@ -839,8 +860,8 @@ namespace dftfe
      */
     void
     compute_rhoOut(
-#ifdef DFTFE_WITH_GPU
-      kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+#ifdef DFTFE_WITH_DEVICE
+      kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
         &kohnShamDFTEigenOperator,
 #endif
       kohnShamDFTOperatorClass<FEOrder, FEOrderElectro>
@@ -867,16 +888,28 @@ namespace dftfe
     mixing_broyden();
     double
     mixing_broyden_spinPolarized();
+
     double
     nodalDensity_mixing_simple_kerker(
+#ifdef DFTFE_WITH_DEVICE
+      kerkerSolverProblemDevice<C_rhoNodalPolyOrder<FEOrder, FEOrderElectro>()>
+        &                   kerkerPreconditionedResidualSolverProblemDevice,
+      linearSolverCGDevice &CGSolverDevice,
+#endif
       kerkerSolverProblem<C_rhoNodalPolyOrder<FEOrder, FEOrderElectro>()>
-        &                 solverProblem,
-      dealiiLinearSolver &dealiiLinearSolver);
+        &                 kerkerPreconditionedResidualSolverProblem,
+      dealiiLinearSolver &CGSolver);
+
     double
     nodalDensity_mixing_anderson_kerker(
+#ifdef DFTFE_WITH_DEVICE
+      kerkerSolverProblemDevice<C_rhoNodalPolyOrder<FEOrder, FEOrderElectro>()>
+        &                   kerkerPreconditionedResidualSolverProblemDevice,
+      linearSolverCGDevice &CGSolverDevice,
+#endif
       kerkerSolverProblem<C_rhoNodalPolyOrder<FEOrder, FEOrderElectro>()>
-        &                 solverProblem,
-      dealiiLinearSolver &dealiiLinearSolver);
+        &                 kerkerPreconditionedResidualSolverProblem,
+      dealiiLinearSolver &CGSolver);
 
     double
     lowrankApproxScfDielectricMatrixInv(const unsigned int scfIter);
@@ -896,8 +929,8 @@ namespace dftfe
      */
     void
     computeElectrostaticEnergyHRefined(
-#ifdef DFTFE_WITH_GPU
-      kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+#ifdef DFTFE_WITH_DEVICE
+      kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
         &kohnShamDFTEigenOperator
 #endif
     );
@@ -1011,7 +1044,10 @@ namespace dftfe
 
 
     /// objects for various exchange-correlations (from libxc package)
-    xc_func_type funcX, funcC;
+    // xc_func_type funcX, funcC;
+
+    excWavefunctionBaseClass *excFunctionalPtr;
+    dispersionCorrection      d_dispersionCorr;
 
     /**
      * stores required data for Kohn-Sham problem
@@ -1152,7 +1188,7 @@ namespace dftfe
     std::vector<orbital> waveFunctionsVector;
     std::map<unsigned int,
              std::map<unsigned int,
-                      std::map<unsigned int, alglib::spline1dinterpolant *>>>
+                      std::map<unsigned int, alglib::spline1dinterpolant>>>
       radValues;
     std::map<unsigned int,
              std::map<unsigned int, std::map<unsigned int, double>>>
@@ -1217,8 +1253,8 @@ namespace dftfe
      * parallel objects
      */
     const MPI_Comm mpi_communicator;
-#if defined(DFTFE_WITH_GPU)
-    GPUCCLWrapper *d_gpucclMpiCommDomainPtr;
+#if defined(DFTFE_WITH_DEVICE)
+    utils::DeviceCCLWrapper *d_devicecclMpiCommDomainPtr;
 #endif
     const MPI_Comm     d_mpiCommParent;
     const MPI_Comm     interpoolcomm;
@@ -1240,17 +1276,17 @@ namespace dftfe
     elpaScalaManager *d_elpaScala;
 
     poissonSolverProblem<FEOrder, FEOrderElectro> d_phiTotalSolverProblem;
-#ifdef DFTFE_WITH_GPU
-    poissonSolverProblemCUDA<FEOrder, FEOrderElectro>
-      d_phiTotalSolverProblemCUDA;
+#ifdef DFTFE_WITH_DEVICE
+    poissonSolverProblemDevice<FEOrder, FEOrderElectro>
+      d_phiTotalSolverProblemDevice;
 #endif
 
     bool d_kohnShamDFTOperatorsInitialized;
 
     kohnShamDFTOperatorClass<FEOrder, FEOrderElectro> *d_kohnShamDFTOperatorPtr;
-#ifdef DFTFE_WITH_GPU
-    kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-      *d_kohnShamDFTOperatorCUDAPtr;
+#ifdef DFTFE_WITH_DEVICE
+    kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+      *d_kohnShamDFTOperatorDevicePtr;
 #endif
 
     const std::string d_dftfeScratchFolderName;
@@ -1260,9 +1296,9 @@ namespace dftfe
      *
      */
     chebyshevOrthogonalizedSubspaceIterationSolver d_subspaceIterationSolver;
-#ifdef DFTFE_WITH_GPU
-    chebyshevOrthogonalizedSubspaceIterationSolverCUDA
-      d_subspaceIterationSolverCUDA;
+#ifdef DFTFE_WITH_DEVICE
+    chebyshevOrthogonalizedSubspaceIterationSolverDevice
+      d_subspaceIterationSolverDevice;
 #endif
 
     /**
@@ -1287,8 +1323,8 @@ namespace dftfe
     dftUtils::constraintMatrixInfo constraintsNoneDataInfo;
 
 
-#ifdef DFTFE_WITH_GPU
-    dftUtils::constraintMatrixInfoCUDA d_constraintsNoneDataInfoCUDA;
+#ifdef DFTFE_WITH_DEVICE
+    dftUtils::constraintMatrixInfoDevice d_constraintsNoneDataInfoDevice;
 #endif
 
 
@@ -1326,14 +1362,17 @@ namespace dftfe
     std::vector<std::vector<dataTypes::number>>
       d_eigenVectorsDensityMatrixPrimeSTL;
 
-    /// cuda eigenvectors
-#ifdef DFTFE_WITH_GPU
-    cudaUtils::Vector<dataTypes::numberGPU, dftfe::MemorySpace::GPU>
-      d_eigenVectorsFlattenedCUDA;
-    cudaUtils::Vector<dataTypes::numberGPU, dftfe::MemorySpace::GPU>
-      d_eigenVectorsRotFracFlattenedCUDA;
-    cudaUtils::Vector<dataTypes::numberGPU, dftfe::MemorySpace::GPU>
-      d_eigenVectorsDensityMatrixPrimeFlattenedCUDA;
+    /// device eigenvectors
+#ifdef DFTFE_WITH_DEVICE
+    dftfe::utils::MemoryStorage<dataTypes::number,
+                                dftfe::utils::MemorySpace::DEVICE>
+      d_eigenVectorsFlattenedDevice;
+    dftfe::utils::MemoryStorage<dataTypes::number,
+                                dftfe::utils::MemorySpace::DEVICE>
+      d_eigenVectorsRotFracFlattenedDevice;
+    dftfe::utils::MemoryStorage<dataTypes::number,
+                                dftfe::utils::MemorySpace::DEVICE>
+      d_eigenVectorsDensityMatrixPrimeFlattenedDevice;
 #endif
 
     /// parallel message stream
@@ -1384,8 +1423,11 @@ namespace dftfe
     std::deque<distributedCPUVec<double>> d_fvSpin0containerVals;
     std::deque<distributedCPUVec<double>> d_vSpin1containerVals;
     std::deque<distributedCPUVec<double>> d_fvSpin1containerVals;
+    distributedCPUVec<double>             d_residualPredicted;
     unsigned int                          d_rankCurrentLRD;
     double                                d_relativeErrorJacInvApproxPrevScfLRD;
+    double                                d_residualNormPredicted;
+    bool                                  d_tolReached;
 
     /// for xl-bomd
     std::map<dealii::CellId, std::vector<double>> d_rhoAtomsValues,
@@ -1473,7 +1515,7 @@ namespace dftfe
 
     //
     // vector to store the number of pseudowave functions/pseudo potentials
-    // associated with an atom
+    // associated with an atom (global nonlocal psp atom id)
     //
     std::vector<int> d_numberPseudoAtomicWaveFunctions;
     std::vector<int> d_numberPseudoPotentials;
@@ -1541,24 +1583,24 @@ namespace dftfe
     //
     std::vector<alglib::spline1dinterpolant> d_deltaVlSplines;
 
-    /* Storage for precomputed nonlocal pseudopotential quadrature data. This is
-     * to speedup the configurational force computation. Data format:
-     * vector(numNonLocalAtomsCurrentProcess with non-zero compact support,
-     * vector(number pseudo wave functions,map<cellid,num_quad_points*2>)).
-     * Refer to (https://link.aps.org/doi/10.1103/PhysRevB.97.165132) for
-     * details of the expression of the configurational force terms for the
-     * norm-conserving Troullier-Martins pseudopotential in the
-     * Kleinman-Bylander form. The same expressions also extend to the Optimized
-     * Norm-Conserving Vanderbilt (ONCV) pseudopotentials.
+    /* Flattened Storage for precomputed nonlocal pseudopotential quadrature
+     * data. This is to speedup the configurational force computation. Data
+     * format: vector(numNonLocalAtomsCurrentProcess with non-zero compact
+     * support, vector(number pseudo wave
+     * functions,map<cellid,num_quad_points*2>)). Refer to
+     * (https://link.aps.org/doi/10.1103/PhysRevB.97.165132) for details of the
+     * expression of the configurational force terms for the norm-conserving
+     * Troullier-Martins pseudopotential in the Kleinman-Bylander form. The same
+     * expressions also extend to the Optimized Norm-Conserving Vanderbilt
+     * (ONCV) pseudopotentials.
      */
-    std::vector<std::vector<std::map<dealii::CellId, std::vector<double>>>>
-      d_nonLocalPSP_ZetalmDeltaVl;
+    std::vector<dataTypes::number> d_nonLocalPSP_ZetalmDeltaVl;
 
 
-    /* Storage for precomputed nonlocal pseudopotential quadrature data. This is
-     * to speedup the configurational stress computation. Data format:
-     * vector(numNonLocalAtomsCurrentProcess with non-zero compact support,
-     * vector(number pseudo wave
+    /* Flattened Storage for precomputed nonlocal pseudopotential quadrature
+     * data. This is to speedup the configurational stress computation. Data
+     * format: vector(numNonLocalAtomsCurrentProcess with non-zero compact
+     * support, vector(number pseudo wave
      * functions,map<cellid,num_quad_points*num_k_points*3*2>)). Refer to
      * (https://link.aps.org/doi/10.1103/PhysRevB.97.165132) for details of the
      * expression of the configurational force terms for the norm-conserving
@@ -1566,14 +1608,33 @@ namespace dftfe
      * expressions also extend to the Optimized Norm-Conserving Vanderbilt
      * (ONCV) pseudopotentials.
      */
-    std::vector<std::vector<std::map<dealii::CellId, std::vector<double>>>>
-      d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms_KPoint;
+    std::vector<dataTypes::number>
+      d_nonLocalPSP_zetalmDeltaVlProductDistImageAtoms;
 
 
-    /// map from cell id to set of non local atom ids (local numbering)
-    std::map<dealii::CellId, std::set<unsigned int>>
+    /// map from cell number to set of non local atom ids (local numbering)
+    std::map<unsigned int, std::vector<unsigned int>>
       d_cellIdToNonlocalAtomIdsLocalCompactSupportMap;
 
+    /// vector of size num physical cells
+    std::vector<unsigned int> d_nonTrivialPseudoWfcsPerCellZetaDeltaVQuads;
+
+    /// vector of size num physical cell with starting index for each cell for
+    /// the above array
+    std::vector<unsigned int>
+      d_nonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads;
+
+    std::vector<unsigned int> d_nonTrivialAllCellsPseudoWfcIdToElemIdMap;
+
+    /// map from local nonlocal atomid to vector over cells
+    std::map<unsigned int, std::vector<unsigned int>>
+      d_atomIdToNonTrivialPseudoWfcsCellStartIndexZetaDeltaVQuads;
+
+    unsigned int d_sumNonTrivialPseudoWfcsOverAllCellsZetaDeltaVQuads;
+
+
+    std::vector<unsigned int> d_projecterKetTimesFlattenedVectorLocalIds;
+    std::vector<std::vector<unsigned int>> d_projectorKetTimesVectorLocalIds;
     //
     // vector of outermost Points for various radial Data
     //
@@ -1596,9 +1657,9 @@ namespace dftfe
     /// strain tensor components
     void
     computeVselfFieldGateauxDerFD(
-#ifdef DFTFE_WITH_GPU
-      kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
-        &kohnShamDFTEigenOperatorCUDA
+#ifdef DFTFE_WITH_DEVICE
+      kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
+        &kohnShamDFTEigenOperatorDevice
 #endif
     );
 
@@ -1696,16 +1757,16 @@ namespace dftfe
       const bool                                      isFirstScf      = false);
 
 
-#ifdef DFTFE_WITH_GPU
+#ifdef DFTFE_WITH_DEVICE
     void
     kohnShamEigenSpaceCompute(
       const unsigned int s,
       const unsigned int kPointIndex,
-      kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+      kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
         &               kohnShamDFTEigenOperator,
       elpaScalaManager &elpaScala,
-      chebyshevOrthogonalizedSubspaceIterationSolverCUDA
-        &                  subspaceIterationSolverCUDA,
+      chebyshevOrthogonalizedSubspaceIterationSolverDevice
+        &                  subspaceIterationSolverDevice,
       std::vector<double> &residualNormWaveFunctions,
       const bool           computeResidual,
       const unsigned int   numberRayleighRitzAvoidancePasses = 0,
@@ -1715,16 +1776,16 @@ namespace dftfe
 #endif
 
 
-#ifdef DFTFE_WITH_GPU
+#ifdef DFTFE_WITH_DEVICE
     void
     kohnShamEigenSpaceFirstOrderDensityMatResponse(
       const unsigned int s,
       const unsigned int kPointIndex,
-      kohnShamDFTOperatorCUDAClass<FEOrder, FEOrderElectro>
+      kohnShamDFTOperatorDeviceClass<FEOrder, FEOrderElectro>
         &               kohnShamDFTEigenOperator,
       elpaScalaManager &elpaScala,
-      chebyshevOrthogonalizedSubspaceIterationSolverCUDA
-        &subspaceIterationSolverCUDA);
+      chebyshevOrthogonalizedSubspaceIterationSolverDevice
+        &subspaceIterationSolverDevice);
 
 #endif
 
