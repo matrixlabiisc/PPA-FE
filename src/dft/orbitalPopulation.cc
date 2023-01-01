@@ -574,15 +574,15 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
         pcout << "couldn't open highLevelBasisInfo.txt file!\n";
     }
 
-
-#ifdef USE_COMPLEX
-
-#else
-
   MPI_Barrier(MPI_COMM_WORLD);
   double timerCreatingMatrices = MPI_Wtime();
   double r,theta,phi;
   int SumCounter=0;
+#ifdef USE_COMPLEX
+
+#else
+
+
   for (unsigned int dof = 0; dof < n_dofs; ++dof)
     {
       // get nodeID

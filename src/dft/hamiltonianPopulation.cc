@@ -360,16 +360,16 @@ dftClass<FEOrder, FEOrderElectro>::hamiltonianPopulationCompute(
       else
         pcout << "couldn't open highLevelBasisInfo.txt file!\n";
     }
-
+  MPI_Barrier(MPI_COMM_WORLD);
+  double timerCreatingMatrices = MPI_Wtime();
+  double r,theta,phi;
+  int SumCounter=0;
 
 #ifdef USE_COMPLEX
 
 #else
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  double timerCreatingMatrices = MPI_Wtime();
-  double r,theta,phi;
-  int SumCounter=0;
+
   for (unsigned int dof = 0; dof < n_dofs; ++dof)
     {
       // get nodeID
@@ -569,14 +569,18 @@ dftClass<FEOrder, FEOrderElectro>::hamiltonianPopulationCompute(
 
       const unsigned int N = totalDimOfBasis;
 
+
+double timerHprojnormal,timerSinvHproj,timerHprojScalapack,timerChat2,timerCbar2;
+
 #ifdef USE_COMPLEX
 
 #else
       //std::vector<dataTypes::number> CoeffNew(N * N, 0.0);
        
       std::vector<dataTypes::number> ProjHam1;
+
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerHprojnormal = MPI_Wtime();  
+      timerHprojnormal = MPI_Wtime();  
       d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
                                      totalDimOfBasis,
                                      ProjHam1);
@@ -584,7 +588,7 @@ dftClass<FEOrder, FEOrderElectro>::hamiltonianPopulationCompute(
       timerHprojnormal = MPI_Wtime()-timerHprojnormal;
        pcout<<" Computing H projected: "<<timerHprojnormal<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerSinvHproj = MPI_Wtime();
+      timerSinvHproj = MPI_Wtime();
       auto ProjHam2 = matrixmatrixmul(Sminushalf,N,N,ProjHam1,N,N);
       auto ProjHam = matrixmatrixmul(ProjHam2,N,N,Sminushalf,N,N);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -597,7 +601,7 @@ dftClass<FEOrder, FEOrderElectro>::hamiltonianPopulationCompute(
                                                            processGrid,
                                                            rowsBlockSize);
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerHprojScalapack = MPI_Wtime();
+      timerHprojScalapack = MPI_Wtime();
       d_kohnShamDFTOperatorPtr->XtHX(scaledOrbitalValues_FEnodes,
                                      totalDimOfBasis,
                                      processGrid,
@@ -619,7 +623,7 @@ dftClass<FEOrder, FEOrderElectro>::hamiltonianPopulationCompute(
 	std::vector<double> projEnergy(N,0.0);
 	std::vector<double> CoeffNew(N*N,0.0);
 	MPI_Barrier(MPI_COMM_WORLD);
-      double timerChat2 = MPI_Wtime();
+  timerChat2 = MPI_Wtime();
        if(this_mpi_process == 0)
         CoeffNew = diagonalization(ProjHam,N,projEnergy);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -639,7 +643,7 @@ dftClass<FEOrder, FEOrderElectro>::hamiltonianPopulationCompute(
       
      
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerCbar2 = MPI_Wtime();
+      timerCbar2 = MPI_Wtime();
       auto C_bar2 = matrixmatrixTmul(Sminushalf,
                                      totalDimOfBasis,
                                      totalDimOfBasis,
