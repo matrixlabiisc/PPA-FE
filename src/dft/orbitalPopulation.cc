@@ -657,7 +657,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                       atomPos[2] = d_imagePositions[chargeId - numOfAtoms][2];
                     }
                     auto relativeEvalPoint = relativeVector3d(node, atomPos);
-
+                    std::complex<double> kdotRm = atomPos[0]*d_kPointCoordinates[kpoint*3+0] +
+                                                  atomPos[1]*d_kPointCoordinates[kpoint*3+1] +
+                                                  atomPos[2]*d_kPointCoordinates[kpoint*3+2] ;
                     convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
                  
                   if(atomTypewiseSTOvector[atomTypeID].maxRadialcutoff < 0 || r <= atomTypewiseSTOvector[atomTypeID].maxRadialcutoff)
@@ -670,7 +672,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                           .local_element(dof) *
                         atomTypewiseSTOvector[atomTypeID].bungeOrbital(orbital,
                                                                        node,
-                                                                       atomPos);
+                                                                       atomPos)*exp(iota*kdotRm);
                     }
                   if (d_dftParamsPtr->AtomicOrbitalBasis == 0)
                     {
@@ -678,7 +680,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                         d_kohnShamDFTOperatorPtr->d_sqrtMassVector
                           .local_element(dof) *
                         atomTypewiseSTOvector[atomTypeID]
-                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi);
+                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi)*exp(iota*kdotRm);
                     }
                   }  
                   
