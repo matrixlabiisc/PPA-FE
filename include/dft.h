@@ -966,7 +966,7 @@ namespace dftfe
 
     void
     orbitalPopulationCompute(
-      const std::vector<std::vector<double>> &eigenValuesInput);
+      const std::vector<std::vector<double>> &eigenValuesInput, unsigned int kpoint = 0);
 
     void
     hamiltonianPopulationCompute(

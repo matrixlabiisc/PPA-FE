@@ -215,8 +215,12 @@ dftClass<FEOrder, FEOrderElectro>::newRhoSpillFactorspin(
 template <unsigned int FEOrder, unsigned int FEOrderElectro>
 void
 dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
-  const std::vector<std::vector<double>> &eigenValuesInput)
+  const std::vector<std::vector<double>> &eigenValuesInput, unsigned int kpoint)
 {
+  
+  double timerUOtranspose,timerUStranspose,timerHprojOrbital,timerChatcompute,
+    timerShalf,timerCbarcompute,timerOminushalf,timerOdiagnolaization,timerOcompute,
+    timerCcompute,timerSinverse,timerSdiagonalization,timerPhiTPsi,timerScompute;
   pcout << std::fixed;
   pcout << std::setprecision(8);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -507,14 +511,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   pcout << "Size of Occupance vector" << occupationNum.size() << std::endl;
 
   unsigned int numEigenValues =
-    eigenValuesInput[0].size() / (1 + d_dftParamsPtr->spinPolarized);
+    eigenValuesInput[kpoint].size() / (1 + d_dftParamsPtr->spinPolarized);
   pcout << "Number of Eigenvalues " << numEigenValues << std::endl;
   for (unsigned int iEigen = 0; iEigen < numOfKSOrbitals; ++iEigen)
     {
       if (d_dftParamsPtr->spinPolarized == 0)
         {
           occupationNum[iEigen] =
-            dftUtils::getPartialOccupancy(eigenValuesInput[0][iEigen],
+            dftUtils::getPartialOccupancy(eigenValuesInput[kpoint][iEigen],
                                           fermiEnergy,
                                           C_kb,
                                           d_dftParamsPtr->TVal);
@@ -523,13 +527,13 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
       else
         {
           occupationNum[iEigen] =
-            dftUtils::getPartialOccupancy(eigenValuesInput[0][iEigen],
+            dftUtils::getPartialOccupancy(eigenValuesInput[kpoint][iEigen],
                                           fermiEnergy,
                                           C_kb,
                                           d_dftParamsPtr->TVal);
           occupationNum[iEigen + numOfKSOrbitals] =
             dftUtils::getPartialOccupancy(
-              eigenValuesInput[0][iEigen + numEigenValues],
+              eigenValuesInput[kpoint][iEigen + numEigenValues],
               fermiEnergy,
               C_kb,
               d_dftParamsPtr->TVal);
@@ -546,6 +550,20 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   MPI_Barrier(MPI_COMM_WORLD);
   // std::cout<<"Processor ID: "<<this_mpi_process<<" has dofs total:
   // "<<n_dofs<<std::endl;
+#ifdef USE_COMPLEX
+  
+  const std::complex<double> iota(0, 1);
+  std::vector<std::complex<double>> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis,
+                                                  0.0);
+  std::vector<std::complex<double>> scaledKSOrbitalValues_FEnodes(
+    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 0 : 1), 0.0);
+  std::vector<std::complex<double>> scaledKSOrbitalValues_FEnodes_spinup(
+    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
+  std::vector<std::complex<double>> scaledKSOrbitalValues_FEnodes_spindown(
+    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
+#else
+
+
   std::vector<double> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis,
                                                   0.0);
   std::vector<double> scaledKSOrbitalValues_FEnodes(
@@ -554,6 +572,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
     (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
   std::vector<double> scaledKSOrbitalValues_FEnodes_spindown(
     (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
+  
+#endif  
   if (this_mpi_process == 0)
     {
       // and writing the high level basis information
@@ -579,7 +599,115 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   double r,theta,phi;
   int SumCounter=0;
 #ifdef USE_COMPLEX
+  for (unsigned int dof = 0; dof < n_dofs; ++dof)
+    {
+      // get nodeID
+      const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
+          Point<3> node = d_supportPointsEigen[dofID];
+          std::complex<double> kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
+                         d_kPointCoordinates[kpoint*3+1]*node[1] +
+                         d_kPointCoordinates[kpoint*3+2]*node[2];
 
+      if (!constraintsNone.is_constrained(dofID))
+        {
+          // get coordinates of the finite-element node
+          /*Point<3> node = d_supportPointsEigen[dofID];
+          std::complex<double> kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
+                         d_kPointCoordinates[kpoint*3+1]*node[1] +
+                         d_kPointCoordinates[kpoint*3+2]*node[2]; */
+
+          auto count1 = totalDimOfBasis * dof;
+
+          for (unsigned int i = 0; i < totalDimOfBasis; ++i)
+            {
+              auto atomTypeID   = globalBasisInfo[i].atomTypeID;
+              auto atomChargeID = globalBasisInfo[i].atomID;
+
+              std::vector<int> imageIdsList;
+              if (d_dftParamsPtr->periodicX || d_dftParamsPtr->periodicY ||
+                  d_dftParamsPtr->periodicZ)
+                
+                {
+                  imageIdsList = d_globalChargeIdToImageIdMap[atomChargeID];
+                }
+              else
+                {
+                  imageIdsList.push_back(atomChargeID);
+                }
+ 
+                   OrbitalQuantumNumbers orbital = {globalBasisInfo[i].n,
+                                                   globalBasisInfo[i].l,
+                                                   globalBasisInfo[i].m};
+              //pcout<<"imageIdsList.size(): "<<imageIdsList.size()<<std::endl;
+              int counterlist = 0;
+              for (int imageID = 0; imageID < imageIdsList.size(); imageID++)
+                {
+                  int                 chargeId = imageIdsList[imageID];
+                  std::vector<double> atomPos(3, 0.0);
+                  if (chargeId < numOfAtoms)
+                    {
+                      atomPos[0] = atomLocations[chargeId][2];
+                      atomPos[1] = atomLocations[chargeId][3];
+                      atomPos[2] = atomLocations[chargeId][4];
+                    }
+                  else
+                    {
+                      atomPos[0] = d_imagePositions[chargeId - numOfAtoms][0];
+                      atomPos[1] = d_imagePositions[chargeId - numOfAtoms][1];
+                      atomPos[2] = d_imagePositions[chargeId - numOfAtoms][2];
+                    }
+                    auto relativeEvalPoint = relativeVector3d(node, atomPos);
+
+                    convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
+                 
+                  if(atomTypewiseSTOvector[atomTypeID].maxRadialcutoff < 0 || r <= atomTypewiseSTOvector[atomTypeID].maxRadialcutoff)
+                  {
+                    counterlist++;
+                  if (d_dftParamsPtr->AtomicOrbitalBasis == 1)
+                    {
+                      scaledOrbitalValues_FEnodes[count1 + i] +=
+                        d_kohnShamDFTOperatorPtr->d_sqrtMassVector
+                          .local_element(dof) *
+                        atomTypewiseSTOvector[atomTypeID].bungeOrbital(orbital,
+                                                                       node,
+                                                                       atomPos);
+                    }
+                  if (d_dftParamsPtr->AtomicOrbitalBasis == 0)
+                    {
+                      scaledOrbitalValues_FEnodes[count1 + i] +=
+                        d_kohnShamDFTOperatorPtr->d_sqrtMassVector
+                          .local_element(dof) *
+                        atomTypewiseSTOvector[atomTypeID]
+                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi);
+                    }
+                  }  
+                  
+                }
+                SumCounter+=counterlist;
+            }
+        }
+      auto count2 = numOfKSOrbitals * dof;
+
+      for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
+        {
+          if (d_dftParamsPtr->spinPolarized == 1)
+            {
+              scaledKSOrbitalValues_FEnodes_spinup[count2 + j] =
+                d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+                d_eigenVectorsFlattenedSTL[2*kpoint+0][dof * d_numEigenValues + j]*exp(iota*kdotx);
+              // pcout<<"Accessing spin down"<<std::endl;
+              scaledKSOrbitalValues_FEnodes_spindown[count2 + j] =
+                d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+                d_eigenVectorsFlattenedSTL[2*kpoint +1][dof * d_numEigenValues + j]*exp(iota*kdotx);
+            }
+          else
+            {
+              scaledKSOrbitalValues_FEnodes[count2 + j] =
+                d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+                d_eigenVectorsFlattenedSTL[kpoint][dof * d_numEigenValues + j]*exp(iota*kdotx);
+            }
+        }
+    }
 #else
 
 
@@ -686,7 +814,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
     }
 
 
-#endif
+
   MPI_Barrier(MPI_COMM_WORLD);
   timerCreatingMatrices = MPI_Wtime() - timerCreatingMatrices;
   pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
@@ -698,7 +826,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                 MPI_COMM_WORLD);  
   pcout<<"Sum of Counter: "<<SumCounter;
   MPI_Barrier(MPI_COMM_WORLD);
-  double timerScompute = MPI_Wtime();  
+   timerScompute = MPI_Wtime();  
   auto upperTriaOfSserial =
     selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
   std::vector<double> upperTriaOfS((totalDimOfBasis * (totalDimOfBasis + 1) /
@@ -735,7 +863,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   std::vector<double> D(totalDimOfBasis,0.0);
   std::vector<double> U(totalDimOfBasis*totalDimOfBasis,0.0);
   MPI_Barrier(MPI_COMM_WORLD);
-  double timerSdiagonalization = MPI_Wtime();
+  timerSdiagonalization = MPI_Wtime();
   if(this_mpi_process == 0)
     U = diagonalization(S,totalDimOfBasis,D);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -748,14 +876,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
 
 
   MPI_Barrier(MPI_COMM_WORLD);
-  double timerUStranspose = MPI_Wtime();
+   timerUStranspose = MPI_Wtime();
   auto Ut = TransposeMatrix(U,totalDimOfBasis);
    MPI_Barrier(MPI_COMM_WORLD);
    timerUStranspose = MPI_Wtime()-timerUStranspose;
 
 
   MPI_Barrier(MPI_COMM_WORLD);
-  double timerSinverse = MPI_Wtime();   
+   timerSinverse = MPI_Wtime();   
   auto invS = powerOfMatrix(-1,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
   timerSinverse = MPI_Wtime()-timerSinverse;
@@ -772,14 +900,14 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   
 
   MPI_Barrier(MPI_COMM_WORLD);
-  double timerShalf = MPI_Wtime();
+   timerShalf = MPI_Wtime();
   auto Shalf = powerOfMatrix(0.5,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
   timerShalf = MPI_Wtime() - timerShalf;  
   pcout<<" Computing S^0.5: "<<timerShalf<<std::endl;
 
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerPhiTPsi = MPI_Wtime();
+       timerPhiTPsi = MPI_Wtime();
       auto arrayVecOfProjserial =
         matrixTmatrixmul(scaledOrbitalValues_FEnodes,
                          n_dofs,
@@ -800,7 +928,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
       pcout<<"Computing PHI^TPSI: "<<timerPhiTPsi<<std::endl;
       pcout << "Matrix of projections with atomic orbitals: \n";
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerCcompute = MPI_Wtime();
+       timerCcompute = MPI_Wtime();
       auto coeffArrayVecOfProj = matrixmatrixmul(invS,
                                                  totalDimOfBasis,
                                                  totalDimOfBasis,
@@ -811,7 +939,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
       timerCcompute = MPI_Wtime() - timerCcompute;  
       pcout<<"Computing C: "<<timerCcompute<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerOcompute = MPI_Wtime();
+       timerOcompute = MPI_Wtime();
       auto B = matrixTmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,S,totalDimOfBasis,totalDimOfBasis);
       auto O = matrixmatrixmul(B,numOfKSOrbitals,totalDimOfBasis,coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals);                                               
       MPI_Barrier(MPI_COMM_WORLD);
@@ -821,7 +949,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
       std::vector<double> U_O(numOfKSOrbitals*numOfKSOrbitals,0.0);
       
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerOdiagnolaization = MPI_Wtime();
+       timerOdiagnolaization = MPI_Wtime();
        if(this_mpi_process == 0)
 	U_O =  diagonalization(O,numOfKSOrbitals,D_O);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -835,7 +963,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
      // timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
 
   MPI_Barrier(MPI_COMM_WORLD);
-  double timerUOtranspose = MPI_Wtime();
+   timerUOtranspose = MPI_Wtime();
   auto U_Ot = TransposeMatrix(U_O,numOfKSOrbitals);
    MPI_Barrier(MPI_COMM_WORLD);
    timerUOtranspose = MPI_Wtime()-timerUOtranspose;  
@@ -843,13 +971,13 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   
   
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerOminushalf = MPI_Wtime();
+       timerOminushalf = MPI_Wtime();
       auto Ominushalf = powerOfMatrix(-0.5,D_O,U_Ot,numOfKSOrbitals,U_Ot);
       MPI_Barrier(MPI_COMM_WORLD);
       timerOminushalf = MPI_Wtime() - timerOminushalf;
       pcout<<" Computing O^-0.5: "<<timerOminushalf<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerCbarcompute = MPI_Wtime();
+       timerCbarcompute = MPI_Wtime();
       std::vector<double> C_bar = matrixmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,
                                     Ominushalf,numOfKSOrbitals,numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -865,7 +993,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
           // printVector(CoeffofOrthonormalisedKSonAO);
         }
       MPI_Barrier(MPI_COMM_WORLD);
-      double timerChatcompute = MPI_Wtime();
+       timerChatcompute = MPI_Wtime();
       std::vector<double> C_hat = matrixmatrixmul(Shalf,totalDimOfBasis,totalDimOfBasis,C_bar,totalDimOfBasis,numOfKSOrbitals);
       MPI_Barrier(MPI_COMM_WORLD);
       timerChatcompute = MPI_Wtime() - timerChatcompute; 
@@ -879,7 +1007,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
-        double timerHprojOrbital = MPI_Wtime();
+         timerHprojOrbital = MPI_Wtime();
         auto Hproj_orbital = computeHprojOrbital(C_hat,C_hat,
                                                totalDimOfBasis,
                                                numOfKSOrbitals,
@@ -957,6 +1085,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
           pcout
             << "\n-------------------------------------------------------\n";
         }
+#endif 
   pcout<<"----------------------------------------------------------"<<std::endl;
   pcout<<"------------------- OLD METHOD ----------------------------"<<std::endl;
   pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
@@ -981,6 +1110,6 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   pcout<<std::endl;
    pcout<<"----------------------------------------------------------"<<std::endl;
 
- 
+
     
 }
