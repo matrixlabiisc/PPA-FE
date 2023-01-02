@@ -612,7 +612,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
         {
           // get coordinates of the finite-element node
           /*Point<3> node = d_supportPointsEigen[dofID];
-          std::complex<double> kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
+          std::complex<double><double> kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
                          d_kPointCoordinates[kpoint*3+1]*node[1] +
                          d_kPointCoordinates[kpoint*3+2]*node[2]; */
 
@@ -710,6 +710,280 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
             }
         }
     }
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerCreatingMatrices = MPI_Wtime() - timerCreatingMatrices;
+  pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
+    MPI_Allreduce(&SumCounter,
+                &SumCounter,
+                1,
+                MPI_INT,
+                MPI_SUM,
+                MPI_COMM_WORLD);  
+  pcout<<"Sum of Counter: "<<SumCounter;
+  MPI_Barrier(MPI_COMM_WORLD);
+   timerScompute = MPI_Wtime();  
+  auto upperTriaOfSserial =
+    selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
+  std::vector<std::complex<double>> upperTriaOfS((totalDimOfBasis * (totalDimOfBasis + 1) /
+                                    2),
+                                   0.0);
+  MPI_Allreduce(&upperTriaOfSserial[0],
+                &upperTriaOfS[0],
+                (totalDimOfBasis * (totalDimOfBasis + 1) / 2),
+                MPI_COMPLEX,
+                MPI_SUM,
+                MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerScompute = MPI_Wtime() - timerScompute;
+  pcout<<" Computing S matrix: "<<timerScompute<<std::endl;
+  if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+    {
+      writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
+      // printVector(upperTriaOfS);
+    }
+   std::vector<std::complex<double>> S(totalDimOfBasis*totalDimOfBasis,0.0);
+   int Scount=0;
+   for(int i = 0; i < totalDimOfBasis; i++)
+   {
+    for (int j=0; j < totalDimOfBasis; j++)
+    {
+      if(j >=i)
+      {
+        S[i*totalDimOfBasis+j] = upperTriaOfS[Scount];
+        S[j*totalDimOfBasis +i] = S[i*totalDimOfBasis+j];
+        Scount++;
+      }
+    }
+   }
+  std::vector<double> D(totalDimOfBasis,0.0);
+  std::vector<std::complex<double>> U(totalDimOfBasis*totalDimOfBasis,0.0);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerSdiagonalization = MPI_Wtime();
+  if(this_mpi_process == 0)
+    U = diagonalization(S,totalDimOfBasis,D);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerSdiagonalization = MPI_Wtime() - timerSdiagonalization;
+  pcout<<"Diagonalization of S: "<<timerSdiagonalization<<std::endl;
+    MPI_Bcast(
+      &(D[0]), totalDimOfBasis, MPI_COMPLEX, 0, MPI_COMM_WORLD); 
+    MPI_Bcast(
+      &(U[0]), totalDimOfBasis*totalDimOfBasis, MPI_COMPLEX, 0, MPI_COMM_WORLD);       
+
+
+  MPI_Barrier(MPI_COMM_WORLD);
+   timerUStranspose = MPI_Wtime();
+  auto Ut = TransposeMatrix(U,totalDimOfBasis);
+   MPI_Barrier(MPI_COMM_WORLD);
+   timerUStranspose = MPI_Wtime()-timerUStranspose;
+
+
+  MPI_Barrier(MPI_COMM_WORLD);
+   timerSinverse = MPI_Wtime();   
+  auto invS = powerOfMatrix(-1,D,Ut,totalDimOfBasis,Ut);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerSinverse = MPI_Wtime()-timerSinverse;
+  pcout<<" Computing S^-1: "<<timerSinverse<<std::endl;
+
+
+
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double timerSminushalf = MPI_Wtime();
+  auto Sminushalf = powerOfMatrix(-0.5,D,Ut,totalDimOfBasis,Ut);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerSminushalf = MPI_Wtime() - timerSminushalf;
+  
+
+  MPI_Barrier(MPI_COMM_WORLD);
+   timerShalf = MPI_Wtime();
+  auto Shalf = powerOfMatrix(0.5,D,Ut,totalDimOfBasis,Ut);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerShalf = MPI_Wtime() - timerShalf;  
+  pcout<<" Computing S^0.5: "<<timerShalf<<std::endl;
+
+      MPI_Barrier(MPI_COMM_WORLD);
+       timerPhiTPsi = MPI_Wtime();
+      auto arrayVecOfProjserial =
+        matrixTmatrixmul(scaledOrbitalValues_FEnodes,
+                         n_dofs,
+                         totalDimOfBasis,
+                         scaledKSOrbitalValues_FEnodes,
+                         n_dofs,
+                         numOfKSOrbitals);
+      std::vector<std::complex<double>> arrayVecOfProj(totalDimOfBasis * numOfKSOrbitals,
+                                         0.0);
+      MPI_Allreduce(&arrayVecOfProjserial[0],
+                    &arrayVecOfProj[0],
+                    (totalDimOfBasis * numOfKSOrbitals),
+                    MPI_COMPLEX,
+                    MPI_SUM,
+                    MPI_COMM_WORLD);
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerPhiTPsi = MPI_Wtime() - timerPhiTPsi;
+      pcout<<"Computing PHI^TPSI: "<<timerPhiTPsi<<std::endl;
+      pcout << "Matrix of projections with atomic orbitals: \n";
+      MPI_Barrier(MPI_COMM_WORLD);
+       timerCcompute = MPI_Wtime();
+      auto coeffArrayVecOfProj = matrixmatrixmul(invS,
+                                                 totalDimOfBasis,
+                                                 totalDimOfBasis,
+                                                 arrayVecOfProj,
+                                                 totalDimOfBasis,
+                                                 numOfKSOrbitals);
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerCcompute = MPI_Wtime() - timerCcompute;  
+      pcout<<"Computing C: "<<timerCcompute<<std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+       timerOcompute = MPI_Wtime();
+      auto B = matrixTmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,S,totalDimOfBasis,totalDimOfBasis);
+      auto O = matrixmatrixmul(B,numOfKSOrbitals,totalDimOfBasis,coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals);                                               
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerOcompute = MPI_Wtime() -timerOcompute;
+      pcout<<" Computing O: "<<timerOcompute<<std::endl;
+      std::vector<double> D_O(numOfKSOrbitals,0.0);
+      std::vector<std::complex<double>> U_O(numOfKSOrbitals*numOfKSOrbitals,0.0);
+      
+      MPI_Barrier(MPI_COMM_WORLD);
+       timerOdiagnolaization = MPI_Wtime();
+       if(this_mpi_process == 0)
+	U_O =  diagonalization(O,numOfKSOrbitals,D_O);
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization; 
+    pcout<<" Diagonalization of O: "<<timerOdiagnolaization<<std::endl;     
+    MPI_Bcast(
+      &(D_O[0]), numOfKSOrbitals, MPI_COMPLEX, 0, MPI_COMM_WORLD); 
+    MPI_Bcast(
+      &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals, MPI_COMPLEX, 0, MPI_COMM_WORLD); 
+     // MPI_Barrier(MPI_COMM_WORLD);
+     // timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+   timerUOtranspose = MPI_Wtime();
+  auto U_Ot = TransposeMatrix(U_O,numOfKSOrbitals);
+   MPI_Barrier(MPI_COMM_WORLD);
+   timerUOtranspose = MPI_Wtime()-timerUOtranspose;  
+  
+  
+  
+      MPI_Barrier(MPI_COMM_WORLD);
+       timerOminushalf = MPI_Wtime();
+      auto Ominushalf = powerOfMatrix(-0.5,D_O,U_Ot,numOfKSOrbitals,U_Ot);
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerOminushalf = MPI_Wtime() - timerOminushalf;
+      pcout<<" Computing O^-0.5: "<<timerOminushalf<<std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+       timerCbarcompute = MPI_Wtime();
+      std::vector<std::complex<double>> C_bar = matrixmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,
+                                    Ominushalf,numOfKSOrbitals,numOfKSOrbitals);
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerCbarcompute = MPI_Wtime() - timerCbarcompute;
+      pcout<<" Computing Cbar: "<<timerCbarcompute<<std::endl;
+
+      if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        {
+          writeVectorAs2DMatrix(C_bar,
+                                totalDimOfBasis,
+                                numOfKSOrbitals,
+                                "FePOP_v1.txt");
+          // printVector(CoeffofOrthonormalisedKSonAO);
+        }
+      MPI_Barrier(MPI_COMM_WORLD);
+       timerChatcompute = MPI_Wtime();
+      std::vector<std::complex<double>> C_hat = matrixmatrixmul(Shalf,totalDimOfBasis,totalDimOfBasis,C_bar,totalDimOfBasis,numOfKSOrbitals);
+      MPI_Barrier(MPI_COMM_WORLD);
+      timerChatcompute = MPI_Wtime() - timerChatcompute; 
+      pcout<<" Computing Chat: "<<timerChatcompute<<std::endl;
+      if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        {
+          writeVectorAs2DMatrix(C_hat,
+                                totalDimOfBasis,
+                                numOfKSOrbitals,
+                                "FePHP_v1.txt");
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+         timerHprojOrbital = MPI_Wtime();
+        auto Hproj_orbital = computeHprojOrbital(C_hat,C_hat,
+                                               totalDimOfBasis,
+                                               numOfKSOrbitals,
+                                               eigenValues[0]);
+        MPI_Barrier(MPI_COMM_WORLD);
+        timerHprojOrbital = MPI_Wtime()-timerHprojOrbital;                                       
+        pcout<<" Computing Projected Hamiltonian: "<<timerHprojOrbital<<std::endl;
+      
+      
+     /* if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        {
+          writeVectorAs2DMatrix(Hproj_orbital,
+                                totalDimOfBasis,
+                                totalDimOfBasis,
+                                "Hproj_orbital.txt");
+        } */
+      // Compute projected Hamiltonian of FE discretized Hamiltonian into
+      
+        Hproj_orbital.clear();
+	C_hat.clear();
+	C_bar.clear();	
+	O.clear();
+	U_O.clear();
+	B.clear();
+	
+	std::vector<std::complex<double>>().swap(Hproj_orbital);
+	std::vector<std::complex<double>>().swap(C_hat);
+	std::vector<std::complex<double>>().swap(C_bar);
+	std::vector<std::complex<double>>().swap(O);
+	std::vector<std::complex<double>>().swap(U_O);
+	std::vector<std::complex<double>>().swap(B);
+
+	pcout
+        << "--------------------------COHP Data Saved------------------------------"
+        << std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (this_mpi_process == 0)
+        {
+          // writing the energy levels and the occupation numbers
+          unsigned int  kPointDummy = 0;
+          std::ofstream energyLevelsOccNumsFile("energyLevelsOccNums.txt");
+
+          if (energyLevelsOccNumsFile.is_open())
+            {
+              for (unsigned int i = 0; i < eigenValues[0].size(); ++i)
+                {
+                  const double partialOccupancy =
+                    dftUtils::getPartialOccupancy(eigenValues[kPointDummy][i],
+                                                  fermiEnergy,
+                                                  C_kb,
+                                                  d_dftParamsPtr->TVal);
+
+                  energyLevelsOccNumsFile << eigenValues[kPointDummy][i] << " "
+                                          << partialOccupancy << '\n';
+                }
+
+              energyLevelsOccNumsFile.close();
+            }
+
+          else
+            pcout << "couldn't open energyLevelsOccNums.txt file!\n";
+        }
+      /*if (this_mpi_process == 0)
+        {
+          pcout
+            << "\n-------------------------------------------------------\n";
+          pcout << "Projected SpillFactors are:" << std::endl;
+          spillFactorsofProjectionwithCS(coeffArrayVecOfProj,
+                                         upperTriaOfS,
+                                         occupationNum,
+                                         totalDimOfBasis,
+                                         numOfKSOrbitals,
+                                         totalDimOfBasis,
+                                         totalDimOfBasis);
+          pcout
+            << "\n-------------------------------------------------------\n";
+        }*/
+
+
+
+
 #else
 
 
