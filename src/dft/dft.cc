@@ -1773,11 +1773,17 @@ namespace dftfe
 
     if (d_dftParamsPtr->writeLocalizationLengths)
       compute_localizationLength("localizationLengths.out");
+  
+#ifdef USE_COMPLEX
+    if (d_dftParamsPtr->ComputePFOP)
+    for(int kpt = 0; kpt < d_kPointWeights.size(); kpt++)
+      orbitalPopulationCompute(eigenValues,kpt);
+#else
     if (d_dftParamsPtr->ComputePFOP)
       orbitalPopulationCompute(eigenValues);
     if (d_dftParamsPtr->ComputePFHP)
       hamiltonianPopulationCompute(eigenValues);      
-
+#endif
     /*if (d_dftParamsPtr->computeDipoleMoment)
       {
         dipole(d_dofHandlerPRefined, rhoOutValues, false);
