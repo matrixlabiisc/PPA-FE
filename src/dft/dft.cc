@@ -1777,7 +1777,13 @@ namespace dftfe
 #ifdef USE_COMPLEX
     if (d_dftParamsPtr->ComputePFOP)
     for(int kpt = 0; kpt < d_kPointWeights.size(); kpt++)
-      orbitalPopulationCompute(eigenValues,kpt);
+   {
+    d_kohnShamDFTOperatorPtr->reinitkPointSpinIndex(kpt, 0);
+    orbitalPopulationCompute(eigenValues,kpt);
+   } 
+    
+      
+  
 #else
     if (d_dftParamsPtr->ComputePFOP)
       orbitalPopulationCompute(eigenValues);

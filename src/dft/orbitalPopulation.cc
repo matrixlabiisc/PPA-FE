@@ -543,7 +543,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
 
   // Loop over atomic orbitals to evaluate at all nodal points
 
-  const IndexSet &locallyOwnedSet = dofHandlerEigen.locally_owned_dofs();
+  const IndexSet &locallyOwnedSet = dofHandler.locally_owned_dofs();
   std::vector<IndexSet::size_type> locallyOwnedDOFs;
   locallyOwnedSet.fill_index_vector(locallyOwnedDOFs);
   unsigned int n_dofs = locallyOwnedDOFs.size();
@@ -551,16 +551,17 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   // std::cout<<"Processor ID: "<<this_mpi_process<<" has dofs total:
   // "<<n_dofs<<std::endl;
 #ifdef USE_COMPLEX
-  
+  pcout<<"Total DOFs: "<<n_dofs<<std::endl;
   const std::complex<double> iota(0, 1);
+  pcout<<"Imaginary No: "<<iota<<std::endl;
   std::vector<std::complex<double>> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis,
-                                                  0.0);
+                                                  std::complex<double> (0,0));
   std::vector<std::complex<double>> scaledKSOrbitalValues_FEnodes(
-    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 0 : 1), 0.0);
+    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 0 : 1), std::complex<double> (0,0));
   std::vector<std::complex<double>> scaledKSOrbitalValues_FEnodes_spinup(
-    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
+    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), std::complex<double> (0,0));
   std::vector<std::complex<double>> scaledKSOrbitalValues_FEnodes_spindown(
-    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), 0.0);
+    (n_dofs * numOfKSOrbitals) * (d_dftParamsPtr->spinPolarized ? 1 : 0), std::complex<double> (0,0));
 #else
 
 
@@ -599,23 +600,25 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   double r,theta,phi;
   int SumCounter=0;
 #ifdef USE_COMPLEX
+pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoordinates[kpoint*3+1]<<" "<<d_kPointCoordinates[kpoint*3+2]<<std::endl;
   for (unsigned int dof = 0; dof < n_dofs; ++dof)
     {
+      pcout<<"Node no: "<<dof<<std::endl;
       // get nodeID
       const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
           Point<3> node = d_supportPointsEigen[dofID];
-          std::complex<double> kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
-                         d_kPointCoordinates[kpoint*3+1]*node[1] +
-                         d_kPointCoordinates[kpoint*3+2]*node[2];
+          double kdotx,kdotRm; 
+         //pcout<<"kdotx at DOF:" <<dofID<<" :"<<kdotx<<" "<<exp(iota*kdotx)<<std::endl;               
 
       if (!constraintsNone.is_constrained(dofID))
         {
           // get coordinates of the finite-element node
-          /*Point<3> node = d_supportPointsEigen[dofID];
-          std::complex<double><double> kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
-                         d_kPointCoordinates[kpoint*3+1]*node[1] +
-                         d_kPointCoordinates[kpoint*3+2]*node[2]; */
+          Point<3> node = d_supportPointsEigen[dofID];
 
+
+          kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
+                        d_kPointCoordinates[kpoint*3+1]*node[1] +
+                         d_kPointCoordinates[kpoint*3+2]*node[2];
           auto count1 = totalDimOfBasis * dof;
 
           for (unsigned int i = 0; i < totalDimOfBasis; ++i)
@@ -657,37 +660,53 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                       atomPos[2] = d_imagePositions[chargeId - numOfAtoms][2];
                     }
                     auto relativeEvalPoint = relativeVector3d(node, atomPos);
-                    std::complex<double> kdotRm = atomPos[0]*d_kPointCoordinates[kpoint*3+0] +
-                                                  atomPos[1]*d_kPointCoordinates[kpoint*3+1] +
-                                                  atomPos[2]*d_kPointCoordinates[kpoint*3+2] ;
+                    
+                    
                     convertCartesianToSpherical(relativeEvalPoint, r, theta, phi);
                  
                   if(atomTypewiseSTOvector[atomTypeID].maxRadialcutoff < 0 || r <= atomTypewiseSTOvector[atomTypeID].maxRadialcutoff)
                   {
+                    //pcout<<"kdotRm at imageId:" <<imageID<<" :"<<kdotRm<<" "<<exp(iota*kdotRm)<<std::endl;
                     counterlist++;
+                   kdotRm = atomPos[0]*d_kPointCoordinates[kpoint*3+0] +
+                                                 atomPos[1]*d_kPointCoordinates[kpoint*3+1] +
+                                                  atomPos[2]*d_kPointCoordinates[kpoint*3+2] ;
                   if (d_dftParamsPtr->AtomicOrbitalBasis == 1)
                     {
+                      double realvalue = scaledOrbitalValues_FEnodes[count1 + i].real();
+                      double imaginaryValue = scaledOrbitalValues_FEnodes[count1 + i].imag();
+
                       scaledOrbitalValues_FEnodes[count1 + i] +=
                         d_kohnShamDFTOperatorPtr->d_sqrtMassVector
                           .local_element(dof) *
                         atomTypewiseSTOvector[atomTypeID].bungeOrbital(orbital,
                                                                        node,
-                                                                       atomPos)*exp(iota*kdotRm);
+                                                                       atomPos);//*std::exp(iota*kdotRm);
                     }
                   if (d_dftParamsPtr->AtomicOrbitalBasis == 0)
                     {
-                      scaledOrbitalValues_FEnodes[count1 + i] +=
-                        d_kohnShamDFTOperatorPtr->d_sqrtMassVector
+                      double realvalue = scaledOrbitalValues_FEnodes[count1 + i].real();
+                      double imaginaryValue = scaledOrbitalValues_FEnodes[count1 + i].imag();
+                      realvalue += d_kohnShamDFTOperatorPtr->d_sqrtMassVector
                           .local_element(dof) *
                         atomTypewiseSTOvector[atomTypeID]
-                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi)*exp(iota*kdotRm);
+                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi)*std::cos(kdotRm);
+                      imaginaryValue += d_kohnShamDFTOperatorPtr->d_sqrtMassVector
+                          .local_element(dof) *
+                        atomTypewiseSTOvector[atomTypeID]
+                          .PseudoAtomicOrbitalvalue(orbital, node, atomPos,r,theta,phi)*std::sin(kdotRm);                      
+                      
+                      scaledOrbitalValues_FEnodes[count1 + i].real(realvalue);
+                      scaledOrbitalValues_FEnodes[count1 + i].imag(imaginaryValue);
+                        
                     }
                   }  
                   
                 }
                 SumCounter+=counterlist;
             }
-        }
+        
+      pcout<<" Line No 699"<<" "<<d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof)<<std::endl;  
       auto count2 = numOfKSOrbitals * dof;
 
       for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
@@ -696,20 +715,32 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
             {
               scaledKSOrbitalValues_FEnodes_spinup[count2 + j] =
                 d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
-                d_eigenVectorsFlattenedSTL[2*kpoint+0][dof * d_numEigenValues + j]*exp(iota*kdotx);
+                d_eigenVectorsFlattenedSTL[2*kpoint+0][dof * d_numEigenValues + j]*std::exp(iota*kdotx);
               // pcout<<"Accessing spin down"<<std::endl;
               scaledKSOrbitalValues_FEnodes_spindown[count2 + j] =
                 d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
-                d_eigenVectorsFlattenedSTL[2*kpoint +1][dof * d_numEigenValues + j]*exp(iota*kdotx);
+                d_eigenVectorsFlattenedSTL[2*kpoint +1][dof * d_numEigenValues + j]*std::exp(iota*kdotx);
             }
           else
             {
-              scaledKSOrbitalValues_FEnodes[count2 + j] =
-                d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
-                d_eigenVectorsFlattenedSTL[kpoint][dof * d_numEigenValues + j]*exp(iota*kdotx);
+              //pcout<<"  Line 712"<<std::endl;
+              
+              scaledKSOrbitalValues_FEnodes[count2 + j] += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+                (d_eigenVectorsFlattenedSTL[kpoint][dof * d_numEigenValues + j]*std::exp(iota*kdotx));
+              /*double realValue = scaledKSOrbitalValues_FEnodes[count2 + j].real();
+              double imaginaryValue =  scaledKSOrbitalValues_FEnodes[count2 + j].imag();
+                realValue += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+                d_eigenVectorsFlattenedSTL[kpoint][dof * d_numEigenValues + j]*std::cos(kdotx);
+                imaginaryValue += d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
+                d_eigenVectorsFlattenedSTL[kpoint][dof * d_numEigenValues + j]*std::sin(kdotx);
+                scaledKSOrbitalValues_FEnodes[count2 + j].real(realValue);
+                scaledKSOrbitalValues_FEnodes[count2 + j].imag(imaginaryValue); */
             }
         }
+        }
+        pcout<<" Line 722"<<std::endl;
     }
+  pcout<<"Line no 718"<<std::endl;  
   MPI_Barrier(MPI_COMM_WORLD);
   timerCreatingMatrices = MPI_Wtime() - timerCreatingMatrices;
   pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
@@ -729,8 +760,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                                    0.0);
   MPI_Allreduce(&upperTriaOfSserial[0],
                 &upperTriaOfS[0],
-                (totalDimOfBasis * (totalDimOfBasis + 1) / 2),
-                MPI_COMPLEX,
+                (totalDimOfBasis * (totalDimOfBasis + 1) / 2)*sizeof(std::complex<double>()),
+                MPI_BYTE,
                 MPI_SUM,
                 MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -765,9 +796,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   timerSdiagonalization = MPI_Wtime() - timerSdiagonalization;
   pcout<<"Diagonalization of S: "<<timerSdiagonalization<<std::endl;
     MPI_Bcast(
-      &(D[0]), totalDimOfBasis, MPI_COMPLEX, 0, MPI_COMM_WORLD); 
+      &(D[0]), totalDimOfBasis*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD); 
     MPI_Bcast(
-      &(U[0]), totalDimOfBasis*totalDimOfBasis, MPI_COMPLEX, 0, MPI_COMM_WORLD);       
+      &(U[0]), totalDimOfBasis*totalDimOfBasis*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD);       
 
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -814,8 +845,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                                          0.0);
       MPI_Allreduce(&arrayVecOfProjserial[0],
                     &arrayVecOfProj[0],
-                    (totalDimOfBasis * numOfKSOrbitals),
-                    MPI_COMPLEX,
+                    (totalDimOfBasis * numOfKSOrbitals)*sizeof(std::complex<double>()),
+                     MPI_BYTE,
                     MPI_SUM,
                     MPI_COMM_WORLD);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -851,9 +882,9 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
       timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization; 
     pcout<<" Diagonalization of O: "<<timerOdiagnolaization<<std::endl;     
     MPI_Bcast(
-      &(D_O[0]), numOfKSOrbitals, MPI_COMPLEX, 0, MPI_COMM_WORLD); 
+      &(D_O[0]), numOfKSOrbitals*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD); 
     MPI_Bcast(
-      &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals, MPI_COMPLEX, 0, MPI_COMM_WORLD); 
+      &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD); 
      // MPI_Barrier(MPI_COMM_WORLD);
      // timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
 
@@ -1065,7 +1096,8 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                 }
                 SumCounter+=counterlist;
             }
-        }
+        
+      pcout<<" Line No 1099"<<" "<<d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof)<<std::endl; 
       auto count2 = numOfKSOrbitals * dof;
 
       for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
@@ -1086,7 +1118,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
                 d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof) *
                 d_eigenVectorsFlattenedSTL[0][dof * d_numEigenValues + j];
             }
-        }
+        }}
     }
 
 

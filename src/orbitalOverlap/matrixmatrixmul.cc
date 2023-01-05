@@ -35,7 +35,7 @@ matrixmatrixmul(const std::vector<std::complex<double>> &A,
 
   // unsigned int indexA, indexB, indexC = 0;
 
-  std::vector<std::complex<double>> C(m1 * n2, 0.0); // initialized to zero
+  std::vector<std::complex<double>> C(m1 * n2, std::complex<double> (0.0,0.0)); // initialized to zero
 
   /*	for (size_t i = 0; i < m1; ++i) // (i+1)th row of A
     {
@@ -54,7 +54,7 @@ matrixmatrixmul(const std::vector<std::complex<double>> &A,
     } */
   char         transA = 'N';
   char         transB = 'N';
-  const std::complex<double> alpha = 1.0, beta = 0.0;
+  const std::complex<double> alpha(1,0), beta(0,0);
   // std::cout<<"Start Matrix matrix multiplication\n";
   dftfe::zgemm_(&transB,
                 &transA,
@@ -69,6 +69,7 @@ matrixmatrixmul(const std::vector<std::complex<double>> &A,
                 &beta,
                 &C[0],
                 &n2);
+
 
   // std::cout<<"Finish Matrix matrix multiplication\n";
   return C;
@@ -94,27 +95,13 @@ matrixTmatrixmul(const std::vector<std::complex<double>> &A,
 
   // unsigned int indexA, indexB, indexC = 0;
 
-  std::vector<std::complex<double>> C(n1 * n2, 0.0); // initialized to zero
-
-  // std::cout << "started matrixT matrix mul\n";
-
-  /*	for (size_t i = 0; i < n1; ++i) // (i+1)th column of A or row of A^T
-    {
-      for (size_t j = 0; j < n2; ++j) // (j+1)th column of B
-      {
-
-        for (size_t k = 0; k < m1; ++k)
-        {
-          indexA = i + k*n1;
-          indexB = j + k*n2;
-
-          C[indexC] += A[indexA] * B[indexB];
-        }
-
-        // std::cout << indexC << ' ';
-        ++indexC;
-      }
-    } */
+  std::vector<std::complex<double>> C(n1 * n2, std::complex<double> (0.0,0.0)); // initialized to zero
+  std::vector<std::complex<double>> Aconj(m1 * n1, std::complex<double> (0.0,0.0));
+  for (int i = 0; i < m1; i++)
+  {
+    for (int j = 0; j < n1; j++ )
+      Aconj[i*n1+j] = std::conj(A[i*n1+j]);
+  }
 
   char         transA = 'T';
   char         transB = 'N';
@@ -128,7 +115,7 @@ matrixTmatrixmul(const std::vector<std::complex<double>> &A,
                 &alpha,
                 &B[0],
                 &n2,
-                &A[0],
+                &Aconj[0],
                 &n1,
                 &beta,
                 &C[0],
@@ -152,13 +139,18 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
 
   // unsigned int indexA, indexB, indexC = 0;
 
-  std::vector<std::complex<double>> C_upper((n * (n + 1)) / 2, 0.0); // initialized to zero
-  std::vector<std::complex<double>> C(n * n, 0.0);
+  std::vector<std::complex<double>> C_upper((n * (n + 1)) / 2, std::complex<double> (0.0,0.0)); // initialized to zero
+  std::vector<std::complex<double>> C(n * n, std::complex<double> (0.0,0.0));
 
-  // std::cout << "started matrixT matrix mul\n";
+  std::cout << "started matrixT matrix mul\n";
+  std::vector<std::complex<double>> Aconj(m * n, std::complex<double> (0.0,0.0));
+  for (int i = 0; i < m; i++)
+  {
+    for (int j = 0; j < n; j++ )
+      Aconj[i*n+j] = std::conj(A[i*n+j]);
+  }
 
-
-  // std::cout << '\n';
+  std::cout << '\n';
   char         transA = 'T';
   char         transB = 'N';
   const std::complex<double> alpha = 1.0, beta = 0.0;
@@ -171,7 +163,7 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
                 &alpha,
                 &A[0],
                 &n,
-                &A[0],
+                &Aconj[0],
                 &n,
                 &beta,
                 &C[0],
@@ -179,7 +171,7 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
 
 
 
-  // std::cout << "finished matrixT matrix mul\n";
+  std::cout << "finished matrixT matrix mul\n";
 
 
   int count = 0;
@@ -192,9 +184,10 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
               C_upper[count] = C[i * n + j];
               count++;
             }
+            
         }
     }
-  // std::cout << "Upper matrixT matrix mul\n";
+  std::cout << "S matrix: "<<C[0]<<" "<<C[1]<<" "<<C[n]<<" "<<C[2*n]<<std::endl;
   return C_upper;
 }
 // both matrices are full matrices written as rowwise flattened vectors
@@ -219,7 +212,7 @@ matrixmatrixTmul(const std::vector<std::complex<double>> &A,
 
   // unsigned int indexA, indexBT, indexC = 0;
 
-  std::vector<std::complex<double>> C(m1 * m2, 0.0); // initialized to zero
+  std::vector<std::complex<double>> C(m1 * m2, std::complex<double> (0.0,0.0)); // initialized to zero
 
   /*for (size_t i = 0; i < m1; ++i) // (i+1)th row of A
   {
@@ -239,6 +232,13 @@ matrixmatrixTmul(const std::vector<std::complex<double>> &A,
       ++indexC;
     }
   } */
+  std::vector<std::complex<double>> Bconj(m2 * n2, std::complex<double> (0.0,0.0));
+  for (int i = 0; i < m2; i++)
+  {
+    for (int j = 0; j < n2; j++ )
+      Bconj[i*n2+j] = std::conj(B[i*n2+j]);
+  }
+
   char         transA = 'N';
   char         transB = 'T';
   const std::complex<double> alpha = 1.0, beta = 0.0;
@@ -249,7 +249,7 @@ matrixmatrixTmul(const std::vector<std::complex<double>> &A,
                 &m1,
                 &n2,
                 &alpha,
-                &B[0],
+                &Bconj[0],
                 &n2,
                 &A[0],
                 &n1,
@@ -276,7 +276,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<std::complex<double>> &Sol
 
 
   // std::cout<<"#Begin OrthoNormalization"<<std::endl;
-  std::vector<std::complex<double>> S(m1 * n1, 0.0);
+  std::vector<std::complex<double>> S(m1 * n1, std::complex<double> (0.0,0.0));
   int                 count = 0;
   for (int i = 0; i < m1; i++)
     {
@@ -366,10 +366,10 @@ OrthonormalizationofProjectedWavefn(const std::vector<std::complex<double>> &Sol
   if (info > 0)
     std::cout << "Eigen Value Decomposition Falied!!" << std::endl;
 
-  std::vector<std::complex<double>> D_half(N * N, 0.0);
-  std::vector<std::complex<double>> upperOvector(N * N, 0);
+  std::vector<std::complex<double>> D_half(N * N, std::complex<double> (0.0,0.0));
+  std::vector<std::complex<double>> upperOvector(N * N, std::complex<double> (0.0,0.0));
   for (int i = 0; i < N; i++)
-    D_half[i * N + i] = pow(D[i], -0.5);
+    D_half[i * N + i].real(pow(D[i], -0.5)) ;
 
   for (int i = 0; i < N; i++)
     {
@@ -384,14 +384,13 @@ OrthonormalizationofProjectedWavefn(const std::vector<std::complex<double>> &Sol
 
   auto temp  = matrixTmatrixmul(Cnew, n2, n2, S, m1, n1);
   auto temp2 = matrixmatrixmul(temp, m2, n1, Cnew, m2, n2);
-  /*	std::cout<<"The I matrix is: "<<std::endl;
+  	std::cout<<"The I matrix is: "<<std::endl;
     for(int i = 0; i < m2; i++)
     {
       for(int j = 0; j <n2; j++)
         std::cout<<temp2[i*n2+j]<<" ";
       std::cout<<std::endl;
     }
-    */
 
 
   return Cnew;
@@ -402,7 +401,7 @@ LowdenOrtho(const std::vector<std::complex<double>> &phi,
             int                        N,
             const std::vector<std::complex<double>> &UpperS)
 {
-  std::vector<std::complex<double>> S(N * N, 0.0);
+  std::vector<std::complex<double>> S(N * N, std::complex<double> (0.0,0.0));
   int                 count = 0;
   for (int i = 0; i < N; i++)
     {
@@ -457,9 +456,9 @@ LowdenOrtho(const std::vector<std::complex<double>> &phi,
   if (info > 0)
     std::cout << "Eigen Value Decomposition Falied!!" << std::endl;
 
-  std::vector<std::complex<double>> D_half(N * N, 0.0);
+  std::vector<std::complex<double>> D_half(N * N, std::complex<double> (0.0,0.0));
   for (int i = 0; i < N; i++)
-    D_half[i * N + i] = pow(D[i], -0.5);
+    D_half[i * N + i].real(pow(D[i], -0.5))  ;
 
   // U is in column major form.. O = U'DU
   auto D_hfU  = matrixmatrixmul(D_half, N, N, S, N, N);
@@ -473,9 +472,9 @@ std::vector<std::complex<double>>
 powerOfMatrix(double power, const std::vector<double> &D, const std::vector<std::complex<double>> &U,const unsigned int N, std::vector<std::complex<double>> Umod)
 {
 
-  std::vector<std::complex<double>> Dpow(N*N,0.0);
+  std::vector<std::complex<double>> Dpow(N*N,std::complex<double> (0.0,0.0));
   for(int i = 0; i < N; i++)
-    Dpow[i*N+i] = pow(D[i],power);
+    Dpow[i*N+i].real(pow(D[i],power)) ;
   //dftfe::dlascl2_(&N,&N,&Dpow[0],&Umod[0],&N);
   auto temp = matrixmatrixmul(Dpow,N,N,U,N,N);
   auto Newmatrix = matrixmatrixTmul(U,N,N,temp,N,N);
@@ -535,12 +534,12 @@ std::vector<std::complex<double>> diagonalization(std::vector<std::complex<doubl
 std::vector<std::complex<double>> 
 TransposeMatrix(std::vector<std::complex<double>> &A, int N)
 {
-  std::vector<std::complex<double>> B(N*N,0.0);
+  std::vector<std::complex<double>> B(N*N,std::complex<double> (0.0,0.0));
   
   for (int i = 0; i < N; i++)
   {
     for (int j = 0; j < N; j++)
-      B[i*N+j] = A[j*N+i];
+      B[i*N+j] = std::conj(A[j*N+i]);
   }
   
   return B;
@@ -554,9 +553,9 @@ computeHprojOrbital(std::vector<std::complex<double>>              C,
                     std::vector<double> &H)
 {
 
-  std::vector<std::complex<double>> Hmatrix(N*N,0.0);
+  std::vector<std::complex<double>> Hmatrix(N*N,std::complex<double> (0.0,0.0));
   for(int i = 0; i < N; i++)
-    Hmatrix[i*N+i] = H[i];
+    Hmatrix[i*N+i].real(H[i])  ;
   auto temp = matrixmatrixmul(Hmatrix,N,N,C_hat,m,N);
   auto Hproj  = matrixmatrixTmul(C_hat, m, N, temp, N, m);
 
