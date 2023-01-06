@@ -69,9 +69,15 @@ matrixmatrixmul(const std::vector<std::complex<double>> &A,
                 &beta,
                 &C[0],
                 &n2);
+    
 
-
-  // std::cout<<"Finish Matrix matrix multiplication\n";
+  std::cout<<"Finish Matrix matrix multiplication\n";
+  for(int i = 0; i < m1;i++)
+  {
+    for(int j = 0; j < n2; j++)
+      std::cout<<C[i*n2+j]<<" ";
+    std::cout<<std::endl;
+  }
   return C;
 }
 
@@ -120,7 +126,13 @@ matrixTmatrixmul(const std::vector<std::complex<double>> &A,
                 &beta,
                 &C[0],
                 &n2);
-  // std::cout<<"Finish MatrixT matrix multiplication\n";
+   std::cout<<"Finish MatrixT matrix multiplication\n";
+     for(int i = 0; i < n1;i++)
+  {
+    for(int j = 0; j < n2; j++)
+      std::cout<<C[i*n2+j]<<" ";
+    std::cout<<std::endl;
+  }
   // std::cout << '\n';
   return C;
 }
@@ -258,7 +270,16 @@ matrixmatrixTmul(const std::vector<std::complex<double>> &A,
                 &m2);
 
 
+  std::cout<<"Finished Matria MAtrix T mult"<<std::endl;
+    for(int i = 0; i < m1;i++)
+  {
+    for(int j = 0; j < m2; j++)
+      std::cout<<C[i*n2+j]<<" ";
+    std::cout<<std::endl;
+  }
+
   return C;
+  
 }
 std::vector<std::complex<double>>
 OrthonormalizationofProjectedWavefn(const std::vector<std::complex<double>> &Sold,
@@ -415,7 +436,7 @@ LowdenOrtho(const std::vector<std::complex<double>> &phi,
             }
         }
     }
-  // std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
+   std::cout<<"#Begin Eigen Value Decomposition"<<std::endl;
 
 
   const unsigned int  Nrow = N;
@@ -458,7 +479,10 @@ LowdenOrtho(const std::vector<std::complex<double>> &phi,
 
   std::vector<std::complex<double>> D_half(N * N, std::complex<double> (0.0,0.0));
   for (int i = 0; i < N; i++)
+  {
     D_half[i * N + i].real(pow(D[i], -0.5))  ;
+    std::cout<< D_half[i*N+i];
+  } 
 
   // U is in column major form.. O = U'DU
   auto D_hfU  = matrixmatrixmul(D_half, N, N, S, N, N);

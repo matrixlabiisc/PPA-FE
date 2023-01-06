@@ -603,7 +603,7 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
 pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoordinates[kpoint*3+1]<<" "<<d_kPointCoordinates[kpoint*3+2]<<std::endl;
   for (unsigned int dof = 0; dof < n_dofs; ++dof)
     {
-      pcout<<"Node no: "<<dof<<std::endl;
+      //pcout<<"Node no: "<<dof<<std::endl;
       // get nodeID
       const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
           Point<3> node = d_supportPointsEigen[dofID];
@@ -706,7 +706,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
                 SumCounter+=counterlist;
             }
         
-      pcout<<" Line No 699"<<" "<<d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof)<<std::endl;  
+      //pcout<<" Line No 699"<<" "<<d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof)<<std::endl;  
       auto count2 = numOfKSOrbitals * dof;
 
       for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
@@ -738,9 +738,9 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
             }
         }
         }
-        pcout<<" Line 722"<<std::endl;
+        //pcout<<" Line 722"<<std::endl;
     }
-  pcout<<"Line no 718"<<std::endl;  
+  //pcout<<"Line no 718"<<std::endl;  
   MPI_Barrier(MPI_COMM_WORLD);
   timerCreatingMatrices = MPI_Wtime() - timerCreatingMatrices;
   pcout<<" Creating PHI and PSI matrices: "<<timerCreatingMatrices<<std::endl;
@@ -1097,7 +1097,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
                 SumCounter+=counterlist;
             }
         
-      pcout<<" Line No 1099"<<" "<<d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof)<<std::endl; 
+      //pcout<<" Line No 1099"<<" "<<d_kohnShamDFTOperatorPtr->d_sqrtMassVector.local_element(dof)<<std::endl; 
       auto count2 = numOfKSOrbitals * dof;
 
       for (unsigned int j = 0; j < numOfKSOrbitals; ++j)
