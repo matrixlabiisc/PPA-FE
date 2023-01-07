@@ -159,7 +159,11 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
   for (int i = 0; i < m; i++)
   {
     for (int j = 0; j < n; j++ )
-      Aconj[i*n+j] = std::conj(A[i*n+j]);
+      {
+        Aconj[i*n+j] = std::conj(A[i*n+j]);
+        //std::cout<<A[i*n+j]<<" ";
+      }
+      //std::cout<<std::endl;
   }
 
   std::cout << '\n';
@@ -183,7 +187,7 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
 
 
 
-  std::cout << "finished matrixT matrix mul\n";
+  std::cout << "finished Self matrixT matrix mul\n";
 
 
   int count = 0;
@@ -196,8 +200,9 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
               C_upper[count] = C[i * n + j];
               count++;
             }
-            
+            std::cout<<C[i*n+j]<<" ";
         }
+        std::cout<<std::endl;
     }
   std::cout << "S matrix: "<<C[0]<<" "<<C[1]<<" "<<C[n]<<" "<<C[2*n]<<std::endl;
   return C_upper;
@@ -340,6 +345,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<std::complex<double>> &Sol
             upperO[i * N + j] = O[i * N + j];
           else
             upperO[i * N + j] = 0.0;
+            std::cout<<upperO[i*N+j]<<std::endl;
         }
     } /*
      for (int i = 0; i < n2; i++)
@@ -356,7 +362,7 @@ OrthonormalizationofProjectedWavefn(const std::vector<std::complex<double>> &Sol
                                  2 * N * N,
                          liwork = 3 + 5 * N;
       std::vector<int>   iwork(liwork, 0);
-      const char         jobz = 'V', uplo = 'U';
+      const char         jobz = 'V', uplo = 'L';
       const unsigned int lrwork =
         1 + 5 * N + 2 * N * N;
       std::vector<double>               rwork(lrwork);
@@ -507,12 +513,12 @@ powerOfMatrix(double power, const std::vector<double> &D, const std::vector<std:
   return Newmatrix;
 }
 
-std::vector<std::complex<double>> diagonalization(std::vector<std::complex<double>> S, int N, std::vector<double> &D)
+std::vector<std::complex<double>> diagonalization(std::vector<std::complex<double>> &S, int N, std::vector<double> &D)
 {
   
 
  
-  
+  std::vector<std::complex<double>> Stemp = S;
   
   const unsigned int  Nrow = N;
       int                info;
@@ -520,16 +526,23 @@ std::vector<std::complex<double>> diagonalization(std::vector<std::complex<doubl
                                  2 * N * N,
                          liwork = 3 + 5 * N;
       std::vector<int>   iwork(liwork, 0);
-      const char         jobz = 'V', uplo = 'U';
+      const char         jobz = 'V', uplo = 'L';
       const unsigned int lrwork =
         1 + 5 * N + 2 * N * N;
       std::vector<double>               rwork(lrwork);
       std::vector<std::complex<double>> work(lwork);
+      std::cout<<"Entries of matrix are: \n";
+      for(int i = 0; i <N; i++)
+      {
+        for(int j = 0; j < N; j++)
+          std::cout<<Stemp[i*N+j]<<" ";
+        std::cout<<std::endl;  
+      }
 
       dftfe::zheevd_(&jobz,
               &uplo,
               &Nrow,
-              &S[0],
+              &Stemp[0],
               &Nrow,
               &D[0],
               &work[0],
@@ -544,14 +557,35 @@ std::vector<std::complex<double>> diagonalization(std::vector<std::complex<doubl
   //
   // free up memory associated with work
   //
-  work.clear();
-  iwork.clear();
-  std::vector<std::complex<double>>().swap(work);
-  std::vector<int>().swap(iwork);
+      work.clear();
+      iwork.clear();
+      rwork.clear();
+      std::vector<std::complex<double>>().swap(work);
+      std::vector<double>().swap(rwork);
+      std::vector<int>().swap(iwork);
+  std::cout<<"Info Value: "<<info<<std::endl;    
   if (info > 0)
     std::cout << "Eigen Value Decomposition Falied!!" << std::endl;  
-
-  return S;
+  std::cout<<"EigenValues: "<<std::endl;
+  for(int i = 0; i < N; i++ )
+    std::cout<<D[i]<<" ";
+  std::cout<<std::endl;  
+  std::cout<<"EigenVectors: "<<std::endl;
+  for(int i = 0; i < N; i++)
+  {  for(int j = 0; j < N; j++)
+      std::cout<<Stemp[i*N+j]<<" ";
+    std::cout<<std::endl;  
+ 
+  }
+  std::cout<<"Testing Orthogonality\n";
+  auto I = selfMatrixTmatrixmul(Stemp,N,N);
+  for(int i = 0; i < N; i ++)
+  {
+    for(int j = 0; j < N; j++)
+      std::cout<<I[i*N+j]<<" ";
+    std::cout<<std::endl;  
+  }
+  return Stemp;
 
 }
 
@@ -803,7 +837,13 @@ matrixmatrixmul(const std::vector<double> &A,
                 &C[0],
                 &n2);
 
-  // std::cout<<"Finish Matrix matrix multiplication\n";
+  std::cout<<"Finish Matrix matrix multiplication\n";
+  for(int i = 0; i < m1;i++)
+  {
+    for(int j = 0; j < n2; j++)
+      std::cout<<C[i*n2+j]<<" ";
+    std::cout<<std::endl;
+  }
   return C;
 }
 // matrix A is m1 by n1 and B is m2 by n2
@@ -865,7 +905,13 @@ matrixTmatrixmul(const std::vector<double> &A,
                 &beta,
                 &C[0],
                 &n2);
-  // std::cout<<"Finish MatrixT matrix multiplication\n";
+   std::cout<<"Finish MatrixT matrix multiplication\n";
+     for(int i = 0; i < n1;i++)
+  {
+    for(int j = 0; j < n2; j++)
+      std::cout<<C[i*n2+j]<<" ";
+    std::cout<<std::endl;
+  }
   // std::cout << '\n';
   return C;
 }
@@ -887,8 +933,13 @@ selfMatrixTmatrixmul(const std::vector<double> &A,
   std::vector<double> C_upper((n * (n + 1)) / 2, 0.0); // initialized to zero
   std::vector<double> C(n * n, 0.0);
 
-  // std::cout << "started matrixT matrix mul\n";
-
+  std::cout << "started matrixT matrix mul\n";
+  /*for(int i = 0; i < m; i++)
+  { 
+    for(int j = 0; j < n; j++)
+      //std::cout<<A[i*n+j]<<" ";
+    //std::cout<<std::endl;  
+  }*/
 
   // std::cout << '\n';
   char         transA = 'T';
@@ -911,7 +962,7 @@ selfMatrixTmatrixmul(const std::vector<double> &A,
 
 
 
-  // std::cout << "finished matrixT matrix mul\n";
+  std::cout << "finished matrixT matrix mul\n";
 
 
   int count = 0;
@@ -924,9 +975,11 @@ selfMatrixTmatrixmul(const std::vector<double> &A,
               C_upper[count] = C[i * n + j];
               count++;
             }
+            std::cout<<C[i*n+j]<<" ";
         }
+        std::cout<<std::endl;
     }
-  // std::cout << "Upper matrixT matrix mul\n";
+  std::cout << "S matrix: "<<C[0]<<" "<<C[1]<<" "<<C[n]<<" "<<C[2*n]<<std::endl;
   return C_upper;
 }
 // both matrices are full matrices written as rowwise flattened vectors
@@ -989,6 +1042,13 @@ matrixmatrixTmul(const std::vector<double> &A,
                 &C[0],
                 &m2);
 
+  std::cout<<"Finished Matria MAtrix T mult"<<std::endl;
+  for(int i = 0; i < m1; i++)
+  {
+    for(int j = 0; j < m2; j++)
+    std::cout<<C[i*m2+j]<<" ";
+    std::cout<<std::endl;
+  }
 
   return C;
 }
@@ -1345,7 +1405,18 @@ std::vector<double> diagonalization(std::vector<double> S, int N, std::vector<do
   std::vector<int>().swap(iwork);
   if (info > 0)
     std::cout << "Eigen Value Decomposition Falied!!" << std::endl;  
+  std::cout<<"EigenValues: "<<std::endl;
+  for(int i = 0; i < N; i++ )
+    std::cout<<D[i]<<" ";
+  std::cout<<std::endl;  
+  std::cout<<"EigenVectors: "<<std::endl;
+  for(int i = 0; i < N; i++)
+  {  for(int j = 0; j < N; j++)
+      std::cout<<S[i*N+j]<<" ";
+    std::cout<<std::endl;  
 
+  
+  }
   return S;
 
 }

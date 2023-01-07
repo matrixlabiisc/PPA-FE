@@ -547,11 +547,12 @@ dftClass<FEOrder, FEOrderElectro>::orbitalPopulationCompute(
   std::vector<IndexSet::size_type> locallyOwnedDOFs;
   locallyOwnedSet.fill_index_vector(locallyOwnedDOFs);
   unsigned int n_dofs = locallyOwnedDOFs.size();
+  pcout<<"Total DOFs: "<<n_dofs<<std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
   // std::cout<<"Processor ID: "<<this_mpi_process<<" has dofs total:
   // "<<n_dofs<<std::endl;
 #ifdef USE_COMPLEX
-  pcout<<"Total DOFs: "<<n_dofs<<std::endl;
+  
   const std::complex<double> iota(0, 1);
   pcout<<"Imaginary No: "<<iota<<std::endl;
   std::vector<std::complex<double>> scaledOrbitalValues_FEnodes(n_dofs * totalDimOfBasis,
@@ -606,14 +607,14 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       //pcout<<"Node no: "<<dof<<std::endl;
       // get nodeID
       const dealii::types::global_dof_index dofID = locallyOwnedDOFs[dof];
-          Point<3> node = d_supportPointsEigen[dofID];
+          
           double kdotx,kdotRm; 
          //pcout<<"kdotx at DOF:" <<dofID<<" :"<<kdotx<<" "<<exp(iota*kdotx)<<std::endl;               
 
       if (!constraintsNone.is_constrained(dofID))
         {
           // get coordinates of the finite-element node
-          Point<3> node = d_supportPointsEigen[dofID];
+          Point<3> node = d_supportPoints[dofID];
 
 
           kdotx = d_kPointCoordinates[kpoint*3+0]*node[0]+
@@ -760,8 +761,8 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
                                    0.0);
   MPI_Allreduce(&upperTriaOfSserial[0],
                 &upperTriaOfS[0],
-                (totalDimOfBasis * (totalDimOfBasis + 1) / 2)*sizeof(std::complex<double>()),
-                MPI_BYTE,
+                totalDimOfBasis * (totalDimOfBasis + 1) / 2,
+                dataTypes::mpi_type_id(&upperTriaOfSserial[0]),
                 MPI_SUM,
                 MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -772,7 +773,8 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
       // printVector(upperTriaOfS);
     }
-   std::vector<std::complex<double>> S(totalDimOfBasis*totalDimOfBasis,0.0);
+   std::vector<std::complex<double>> S(totalDimOfBasis*totalDimOfBasis,std::complex<double> (0,0));
+   pcout<<"Printing the S overlap matrix: "<<std::endl;
    int Scount=0;
    for(int i = 0; i < totalDimOfBasis; i++)
    {
@@ -784,10 +786,12 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
         S[j*totalDimOfBasis +i] = S[i*totalDimOfBasis+j];
         Scount++;
       }
+      pcout<<S[j*totalDimOfBasis +i]<<" ";
     }
+      pcout<<std::endl;
    }
   std::vector<double> D(totalDimOfBasis,0.0);
-  std::vector<std::complex<double>> U(totalDimOfBasis*totalDimOfBasis,0.0);
+  std::vector<std::complex<double>> U(totalDimOfBasis*totalDimOfBasis,std::complex<double> (0,0));
   MPI_Barrier(MPI_COMM_WORLD);
   timerSdiagonalization = MPI_Wtime();
   if(this_mpi_process == 0)
@@ -796,9 +800,9 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   timerSdiagonalization = MPI_Wtime() - timerSdiagonalization;
   pcout<<"Diagonalization of S: "<<timerSdiagonalization<<std::endl;
     MPI_Bcast(
-      &(D[0]), totalDimOfBasis*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD); 
+      &(D[0]), totalDimOfBasis, dataTypes::mpi_type_id(&D[0]), 0, MPI_COMM_WORLD); 
     MPI_Bcast(
-      &(U[0]), totalDimOfBasis*totalDimOfBasis*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD);       
+      &(U[0]), totalDimOfBasis*totalDimOfBasis, dataTypes::mpi_type_id(&U[0]), 0, MPI_COMM_WORLD);       
 
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -845,8 +849,8 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
                                          0.0);
       MPI_Allreduce(&arrayVecOfProjserial[0],
                     &arrayVecOfProj[0],
-                    (totalDimOfBasis * numOfKSOrbitals)*sizeof(std::complex<double>()),
-                     MPI_BYTE,
+                    (totalDimOfBasis * numOfKSOrbitals),
+                     dataTypes::mpi_type_id(&arrayVecOfProjserial[0]),
                     MPI_SUM,
                     MPI_COMM_WORLD);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -882,9 +886,9 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization; 
     pcout<<" Diagonalization of O: "<<timerOdiagnolaization<<std::endl;     
     MPI_Bcast(
-      &(D_O[0]), numOfKSOrbitals*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD); 
+      &(D_O[0]), numOfKSOrbitals, dataTypes::mpi_type_id(&D_O[0]), 0, MPI_COMM_WORLD); 
     MPI_Bcast(
-      &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals*sizeof(std::complex<double>()), MPI_BYTE, 0, MPI_COMM_WORLD); 
+      &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals, dataTypes::mpi_type_id(&U_O[0]), 0, MPI_COMM_WORLD); 
      // MPI_Barrier(MPI_COMM_WORLD);
      // timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
 
@@ -1025,7 +1029,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       if (!constraintsNone.is_constrained(dofID))
         {
           // get coordinates of the finite-element node
-          Point<3> node = d_supportPointsEigen[dofID];
+          Point<3> node = d_supportPoints[dofID];
 
           auto count1 = totalDimOfBasis * dof;
 

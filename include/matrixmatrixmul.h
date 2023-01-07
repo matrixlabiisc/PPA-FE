@@ -185,7 +185,7 @@ std::vector<double>
 diagonalization(std::vector<double> S, int N, std::vector<double> &D);
 
 std::vector<std::complex<double>> 
-diagonalization(std::vector<std::complex<double>> S, int N, std::vector<double> &D);
+diagonalization(std::vector<std::complex<double>> &S, int N, std::vector<double> &D);
 
 std::vector<double>
 powerOfMatrix(double power, const std::vector<double> &D, const std::vector<double> &U,const unsigned int N, std::vector<double> Umod);
