@@ -1027,7 +1027,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
           else
             pcout << "couldn't open energyLevelsOccNums.txt file!\n";
         }
-      /*if (this_mpi_process == 0)
+      if (this_mpi_process == 0)
         {
           pcout
             << "\n-------------------------------------------------------\n";
@@ -1041,7 +1041,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
                                          totalDimOfBasis);
           pcout
             << "\n-------------------------------------------------------\n";
-        }*/
+        }
 
 
 

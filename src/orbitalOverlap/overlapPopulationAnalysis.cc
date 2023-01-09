@@ -523,3 +523,71 @@ pCOHPvsEnergyTest(std::vector<double>        epsvalues,
   return pCOHPvalues;
 }
 // can use auto pCOHPvector to collect the return vector
+void
+spillFactorsofProjectionwithCS(const std::vector<std::complex<double>> &C,
+                               const std::vector<std::complex<double>> &Sold,
+                               const std::vector<double> &occupationNum,
+                               int                        m1,
+                               int                        n1,
+                               int                        m2,
+                               int                        n2)
+{
+  int                 N = n1;
+  std::vector<std::complex<double>> S(m2 * n2, std::complex<double> (0.0, 0.0));
+  int                 count = 0;
+  for (int i = 0; i < m2; i++)
+    {
+      for (int j = i; j < n2; j++)
+        {
+          S[i * n1 + j] = Sold[count];
+          S[j * m1 + i] = Sold[count];
+          count++;
+        }
+    }
+  auto         temp                = matrixTmatrixmul(C, n1, m1, S, m2, n2);
+  auto         O                   = matrixmatrixmul(temp, n1, n2, C, n1, m1);
+  double       TSF                 = 0.0;
+  double       CSF                 = 0.0;
+  double       fCSF                = 0.0;
+  double       TSFabs              = 0.0;
+  double       CSFabs              = 0.0;
+  double       fCSFabs             = 0.0;
+  double       fsum                = 0.0;
+  double       totalNumOfElectrons = 0.0;
+  unsigned int numOfFilledKSorbitals =
+    std::distance(std::begin(occupationNum),
+                  std::find_if(std::begin(occupationNum),
+                               std::end(occupationNum),
+                               [](double x) { return (std::abs(x) < 1e-05); }));
+
+  // unsigned int numOfKSOrbitals = occupationNum.size();
+
+  for (int i = 0; i < N; i++)
+    {
+      TSF += 1 - O[i * N + i].real();
+      TSFabs += std::fabs(1 - O[i * N + i].real());
+
+      if (i < numOfFilledKSorbitals)
+        {
+          CSF += (1 - O[i * N + i].real());
+          CSFabs += (std::fabs(1 - O[i * N + i].real()));
+        }
+      fCSF += (occupationNum[i] * O[i * N + i].real());
+      fCSFabs += std::fabs(occupationNum[i] * O[i * N + i].real());
+      fsum += occupationNum[i];
+    }
+  TSF /= N;
+  TSFabs /= N;
+  CSF /= (numOfFilledKSorbitals);
+  CSFabs /= (numOfFilledKSorbitals);
+  fCSF    = 1 - fCSF / fsum;
+  fCSFabs = 1 - fCSFabs / fsum;
+  std::cout << "Number of Filled KS orbitals: " << numOfFilledKSorbitals
+            << std::endl;
+  std::cout << "TSF: " << TSF << std::endl;
+  std::cout << "TSFabs: " << TSF << std::endl;
+  std::cout << "CSF: " << CSF << std::endl;
+  std::cout << "CSFabs: " << CSFabs << std::endl;
+  std::cout << "fCSF: " << fCSF << std::endl;
+  std::cout << "fCSFabs: " << fCSFabs << std::endl;
+}
