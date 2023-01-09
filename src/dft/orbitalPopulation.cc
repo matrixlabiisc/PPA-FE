@@ -770,7 +770,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   pcout<<" Computing S matrix: "<<timerScompute<<std::endl;
   if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
     {
-      writeVectorToFile(upperTriaOfS, "overlapMatrix.txt");
+      writeVectorToFile(upperTriaOfS, "overlapMatrixComplex.txt");
       // printVector(upperTriaOfS);
     }
    std::vector<std::complex<double>> S(totalDimOfBasis*totalDimOfBasis,std::complex<double> (0,0));
@@ -803,9 +803,22 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       &(D[0]), totalDimOfBasis, dataTypes::mpi_type_id(&D[0]), 0, MPI_COMM_WORLD); 
     MPI_Bcast(
       &(U[0]), totalDimOfBasis*totalDimOfBasis, dataTypes::mpi_type_id(&U[0]), 0, MPI_COMM_WORLD);       
-
+  pcout<<"Eigenvalues of S: "<<std::endl;
+  for (int i = 0; i < totalDimOfBasis; i++)
+    pcout<<D[i]<<" ";
+  pcout<<std::endl;
+  pcout<<"Eigenvectors of S: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<U[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
 
   MPI_Barrier(MPI_COMM_WORLD);
+
+
    timerUStranspose = MPI_Wtime();
   auto Ut = TransposeMatrix(U,totalDimOfBasis);
    MPI_Barrier(MPI_COMM_WORLD);
@@ -818,7 +831,14 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   MPI_Barrier(MPI_COMM_WORLD);
   timerSinverse = MPI_Wtime()-timerSinverse;
   pcout<<" Computing S^-1: "<<timerSinverse<<std::endl;
-
+  pcout<<"Elements of invserse S: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<invS[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
 
 
 
@@ -835,7 +855,14 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   MPI_Barrier(MPI_COMM_WORLD);
   timerShalf = MPI_Wtime() - timerShalf;  
   pcout<<" Computing S^0.5: "<<timerShalf<<std::endl;
-
+  pcout<<"Elements of  S^0.5: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<Shalf[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
        timerPhiTPsi = MPI_Wtime();
       auto arrayVecOfProjserial =
@@ -919,7 +946,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
           writeVectorAs2DMatrix(C_bar,
                                 totalDimOfBasis,
                                 numOfKSOrbitals,
-                                "FePOP_v1.txt");
+                                "FePOP_v1Complex.txt");
           // printVector(CoeffofOrthonormalisedKSonAO);
         }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -933,7 +960,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
           writeVectorAs2DMatrix(C_hat,
                                 totalDimOfBasis,
                                 numOfKSOrbitals,
-                                "FePHP_v1.txt");
+                                "FePHP_v1Complex.txt");
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
@@ -941,19 +968,19 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
         auto Hproj_orbital = computeHprojOrbital(C_hat,C_hat,
                                                totalDimOfBasis,
                                                numOfKSOrbitals,
-                                               eigenValues[0]);
+                                               eigenValues[kpoint]);
         MPI_Barrier(MPI_COMM_WORLD);
         timerHprojOrbital = MPI_Wtime()-timerHprojOrbital;                                       
         pcout<<" Computing Projected Hamiltonian: "<<timerHprojOrbital<<std::endl;
       
       
-     /* if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+      if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
           writeVectorAs2DMatrix(Hproj_orbital,
                                 totalDimOfBasis,
                                 totalDimOfBasis,
-                                "Hproj_orbital.txt");
-        } */
+                                "Hproj_orbitalCOmplex.txt");
+        } 
       // Compute projected Hamiltonian of FE discretized Hamiltonian into
       
         Hproj_orbital.clear();
@@ -1186,7 +1213,18 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
     MPI_Bcast(
       &(U[0]), totalDimOfBasis*totalDimOfBasis, MPI_DOUBLE, 0, MPI_COMM_WORLD);       
 
-
+  pcout<<"Eigenvalues of S: "<<std::endl;
+  for (int i = 0; i < totalDimOfBasis; i++)
+    pcout<<D[i]<<" ";
+  pcout<<std::endl;
+  pcout<<"Eigenvectors of S: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<U[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
    timerUStranspose = MPI_Wtime();
   auto Ut = TransposeMatrix(U,totalDimOfBasis);
@@ -1200,7 +1238,14 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   MPI_Barrier(MPI_COMM_WORLD);
   timerSinverse = MPI_Wtime()-timerSinverse;
   pcout<<" Computing S^-1: "<<timerSinverse<<std::endl;
-
+  pcout<<"Elements of invserse S: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<invS[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
 
 
 
@@ -1217,8 +1262,15 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   MPI_Barrier(MPI_COMM_WORLD);
   timerShalf = MPI_Wtime() - timerShalf;  
   pcout<<" Computing S^0.5: "<<timerShalf<<std::endl;
-
-      MPI_Barrier(MPI_COMM_WORLD);
+  pcout<<"Elements of  S^0.5: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<Shalf[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
+  MPI_Barrier(MPI_COMM_WORLD);
        timerPhiTPsi = MPI_Wtime();
       auto arrayVecOfProjserial =
         matrixTmatrixmul(scaledOrbitalValues_FEnodes,
