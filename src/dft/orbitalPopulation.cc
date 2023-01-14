@@ -758,7 +758,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
     selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
   std::vector<std::complex<double>> upperTriaOfS((totalDimOfBasis * (totalDimOfBasis + 1) /
                                     2),
-                                   0.0);
+                                   std::complex<double> (0.0,0.0));
   MPI_Allreduce(&upperTriaOfSserial[0],
                 &upperTriaOfS[0],
                 totalDimOfBasis * (totalDimOfBasis + 1) / 2,
@@ -820,14 +820,14 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
 
 
    timerUStranspose = MPI_Wtime();
-  auto Ut = TransposeMatrix(U,totalDimOfBasis);
+  std::vector<std::complex<double>> Ut = TransposeMatrix(U,totalDimOfBasis);
    MPI_Barrier(MPI_COMM_WORLD);
    timerUStranspose = MPI_Wtime()-timerUStranspose;
 
 
   MPI_Barrier(MPI_COMM_WORLD);
    timerSinverse = MPI_Wtime();   
-  auto invS = powerOfMatrix(-1,D,Ut,totalDimOfBasis,Ut);
+  std::vector<std::complex<double>> invS = powerOfMatrix(-1,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
   timerSinverse = MPI_Wtime()-timerSinverse;
   pcout<<" Computing S^-1: "<<timerSinverse<<std::endl;
@@ -844,14 +844,14 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
 
   MPI_Barrier(MPI_COMM_WORLD);
   double timerSminushalf = MPI_Wtime();
-  auto Sminushalf = powerOfMatrix(-0.5,D,Ut,totalDimOfBasis,Ut);
+  std::vector<std::complex<double>> Sminushalf = powerOfMatrix(-0.5,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
   timerSminushalf = MPI_Wtime() - timerSminushalf;
   
 
   MPI_Barrier(MPI_COMM_WORLD);
    timerShalf = MPI_Wtime();
-  auto Shalf = powerOfMatrix(0.5,D,Ut,totalDimOfBasis,Ut);
+  std::vector<std::complex<double>> Shalf = powerOfMatrix(0.5,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
   timerShalf = MPI_Wtime() - timerShalf;  
   pcout<<" Computing S^0.5: "<<timerShalf<<std::endl;
@@ -865,7 +865,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   pcout<<"-------------------------"<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
        timerPhiTPsi = MPI_Wtime();
-      auto arrayVecOfProjserial =
+      std::vector<std::complex<double>> arrayVecOfProjserial =
         matrixTmatrixmul(scaledOrbitalValues_FEnodes,
                          n_dofs,
                          totalDimOfBasis,
@@ -873,7 +873,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
                          n_dofs,
                          numOfKSOrbitals);
       std::vector<std::complex<double>> arrayVecOfProj(totalDimOfBasis * numOfKSOrbitals,
-                                         0.0);
+                                         std::complex<double> (0.0,0.0));
       MPI_Allreduce(&arrayVecOfProjserial[0],
                     &arrayVecOfProj[0],
                     (totalDimOfBasis * numOfKSOrbitals),
@@ -886,7 +886,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       pcout << "Matrix of projections with atomic orbitals: \n";
       MPI_Barrier(MPI_COMM_WORLD);
        timerCcompute = MPI_Wtime();
-      auto coeffArrayVecOfProj = matrixmatrixmul(invS,
+      std::vector<std::complex<double>> coeffArrayVecOfProj = matrixmatrixmul(invS,
                                                  totalDimOfBasis,
                                                  totalDimOfBasis,
                                                  arrayVecOfProj,
@@ -897,13 +897,21 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       pcout<<"Computing C: "<<timerCcompute<<std::endl;
       MPI_Barrier(MPI_COMM_WORLD);
        timerOcompute = MPI_Wtime();
-      auto B = matrixTmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,S,totalDimOfBasis,totalDimOfBasis);
-      auto O = matrixmatrixmul(B,numOfKSOrbitals,totalDimOfBasis,coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals);                                               
+      std::vector<std::complex<double>> B = matrixTmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,S,totalDimOfBasis,totalDimOfBasis);
+      std::vector<std::complex<double>> O = matrixmatrixmul(B,numOfKSOrbitals,totalDimOfBasis,coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals);                                               
       MPI_Barrier(MPI_COMM_WORLD);
       timerOcompute = MPI_Wtime() -timerOcompute;
       pcout<<" Computing O: "<<timerOcompute<<std::endl;
+        pcout<<"Elements of  O: "<<std::endl;
+  for(int i = 0;i < numOfKSOrbitals; i++)
+    {
+      for(int j = 0; j < numOfKSOrbitals; j++)
+        pcout<<O[i*numOfKSOrbitals+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
       std::vector<double> D_O(numOfKSOrbitals,0.0);
-      std::vector<std::complex<double>> U_O(numOfKSOrbitals*numOfKSOrbitals,0.0);
+      std::vector<std::complex<double>> U_O(numOfKSOrbitals*numOfKSOrbitals,std::complex<double>(0.0,0.0));
       
       MPI_Barrier(MPI_COMM_WORLD);
        timerOdiagnolaization = MPI_Wtime();
@@ -916,12 +924,23 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       &(D_O[0]), numOfKSOrbitals, dataTypes::mpi_type_id(&D_O[0]), 0, MPI_COMM_WORLD); 
     MPI_Bcast(
       &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals, dataTypes::mpi_type_id(&U_O[0]), 0, MPI_COMM_WORLD); 
-     // MPI_Barrier(MPI_COMM_WORLD);
-     // timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
-
+     MPI_Barrier(MPI_COMM_WORLD);
+     timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
+  pcout<<"Eigenvalues of O: "<<std::endl;
+  for (int i = 0; i < numOfKSOrbitals; i++)
+    pcout<<D_O[i]<<" ";
+  pcout<<std::endl;
+  pcout<<"Eigenvectors of O: "<<std::endl;
+  for(int i = 0;i < numOfKSOrbitals; i++)
+    {
+      for(int j = 0; j < numOfKSOrbitals; j++)
+        pcout<<U_O[i*numOfKSOrbitals+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
    timerUOtranspose = MPI_Wtime();
-  auto U_Ot = TransposeMatrix(U_O,numOfKSOrbitals);
+  std::vector<std::complex<double>> U_Ot = TransposeMatrix(U_O,numOfKSOrbitals);
    MPI_Barrier(MPI_COMM_WORLD);
    timerUOtranspose = MPI_Wtime()-timerUOtranspose;  
   
@@ -929,10 +948,24 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   
       MPI_Barrier(MPI_COMM_WORLD);
        timerOminushalf = MPI_Wtime();
-      auto Ominushalf = powerOfMatrix(-0.5,D_O,U_Ot,numOfKSOrbitals,U_Ot);
+      std::vector<std::complex<double>> Ominushalf = powerOfMatrix(-0.5,D_O,U_Ot,numOfKSOrbitals,U_Ot);
       MPI_Barrier(MPI_COMM_WORLD);
       timerOminushalf = MPI_Wtime() - timerOminushalf;
       pcout<<" Computing O^-0.5: "<<timerOminushalf<<std::endl;
+  std::vector<std::complex<double>> Dpow(numOfKSOrbitals*numOfKSOrbitals,std::complex<double> (0.0,0.0));
+  for(int i = 0; i < numOfKSOrbitals; i++)
+    Dpow[i*numOfKSOrbitals+i].real(pow(D_O[i],-0.5)) ;
+  for (int i = 0; i < numOfKSOrbitals; i++)
+    pcout<<Dpow[i*numOfKSOrbitals+i]<<" ";
+  pcout<<std::endl;
+  pcout<<"Elements of O^-0.5: "<<std::endl;
+  for(int i = 0;i < numOfKSOrbitals; i++)
+    {
+      for(int j = 0; j < numOfKSOrbitals; j++)
+        pcout<<Ominushalf[i*numOfKSOrbitals+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;      
       MPI_Barrier(MPI_COMM_WORLD);
        timerCbarcompute = MPI_Wtime();
       std::vector<std::complex<double>> C_bar = matrixmatrixmul(coeffArrayVecOfProj,totalDimOfBasis,numOfKSOrbitals,
@@ -965,7 +998,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
 
         MPI_Barrier(MPI_COMM_WORLD);
          timerHprojOrbital = MPI_Wtime();
-        auto Hproj_orbital = computeHprojOrbital(C_hat,C_hat,
+        std::vector<std::complex<double>> Hproj_orbital = computeHprojOrbital(C_hat,C_hat,
                                                totalDimOfBasis,
                                                numOfKSOrbitals,
                                                eigenValues[kpoint]);
@@ -1325,7 +1358,18 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       &(U_O[0]), numOfKSOrbitals*numOfKSOrbitals, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
      // MPI_Barrier(MPI_COMM_WORLD);
      // timerOdiagnolaization = MPI_Wtime()-timerOdiagnolaization;
-
+  pcout<<"Eigenvalues of O: "<<std::endl;
+  for (int i = 0; i < numOfKSOrbitals; i++)
+    pcout<<D_O[i]<<" ";
+  pcout<<std::endl;
+  pcout<<"Eigenvectors of O: "<<std::endl;
+  for(int i = 0;i < numOfKSOrbitals; i++)
+    {
+      for(int j = 0; j < numOfKSOrbitals; j++)
+        pcout<<U_O[i*numOfKSOrbitals+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
    timerUOtranspose = MPI_Wtime();
   auto U_Ot = TransposeMatrix(U_O,numOfKSOrbitals);

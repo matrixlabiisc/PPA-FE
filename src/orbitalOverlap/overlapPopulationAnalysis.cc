@@ -565,15 +565,15 @@ spillFactorsofProjectionwithCS(const std::vector<std::complex<double>> &C,
   for (int i = 0; i < N; i++)
     {
       TSF += 1 - O[i * N + i].real();
-      TSFabs += std::fabs(1 - O[i * N + i].real());
+      TSFabs += std::abs(1.0 - O[i * N + i]);
 
       if (i < numOfFilledKSorbitals)
         {
           CSF += (1 - O[i * N + i].real());
-          CSFabs += (std::fabs(1 - O[i * N + i].real()));
+          CSFabs += (std::abs(1.0 - O[i * N + i]));
         }
       fCSF += (occupationNum[i] * O[i * N + i].real());
-      fCSFabs += std::fabs(occupationNum[i] * O[i * N + i].real());
+      fCSFabs += std::abs(occupationNum[i] * O[i * N + i]);
       fsum += occupationNum[i];
     }
   TSF /= N;

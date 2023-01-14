@@ -174,7 +174,7 @@ spillFactorsofProjectionwithCS(const std::vector<double> &C,
 void
 spillFactorsofProjectionwithCS(const std::vector<std::complex<double>> &C,
                                const std::vector<std::complex<double>> &Sold,
-                               const std::vector<std::complex<double>> &occupationNum,
+                               const std::vector<double> &occupationNum,
                                int                        m1,
                                int                        n1,
                                int                        m2,
