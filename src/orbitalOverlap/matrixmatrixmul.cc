@@ -139,7 +139,7 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
 
   // unsigned int indexA, indexB, indexC = 0;
 
-  std::vector<std::complex<double>> C_upper((n * (n + 1)) / 2, std::complex<double> (0.0,0.0)); // initialized to zero
+  //std::vector<std::complex<double>> C_upper((n * (n + 1)) / 2, std::complex<double> (0.0,0.0)); // initialized to zero
   std::vector<std::complex<double>> C(n * n, std::complex<double> (0.0,0.0));
 
 
@@ -178,7 +178,7 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
 
 
 
-  int count = 0;
+/*  int count = 0;
   for (int i = 0; i < n; i++)
     {
       for (int j = 0; j < n; j++)
@@ -191,9 +191,9 @@ selfMatrixTmatrixmul(const std::vector<std::complex<double>> &A,
 
         }
 
-    }
+    } */
 
-  return C_upper;
+  return C;
 }
 // both matrices are full matrices written as rowwise flattened vectors
 // A is m1 by n1 matrix, and BT is n2 by m2 matrix i.e. B is m2 by n2 matrix
@@ -538,6 +538,14 @@ std::vector<std::complex<double>> diagonalization(std::vector<std::complex<doubl
   if (info > 0)
     std::cout << "Eigen Value Decomposition Falied!!" << std::endl;  
 
+  auto Identity = matrixTmatrixmul(Stemp,N,N,Stemp,N,N);
+  std::cout<<"Ortho check"<<std::endl;
+  for (int i = 0; i < N; i++)
+  {
+    for (int j = 0; j < N; j++)
+      std::cout<<Identity[i*N+j]<<" ";
+    std::cout<<std::endl;  
+  }
   return Stemp;
 
 }
@@ -550,7 +558,7 @@ TransposeMatrix(std::vector<std::complex<double>> &A, int N)
   for (int i = 0; i < N; i++)
   {
     for (int j = 0; j < N; j++)
-      B[i*N+j] = std::conj(A[j*N+i]);
+      B[i*N+j] = std::conj(A[j*N+i]);//A[j*N+i];//
   }
   
   return B;

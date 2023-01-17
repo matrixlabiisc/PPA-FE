@@ -34,7 +34,7 @@ if(ELPA_FIND_REQUIRED AND NOT PC_ELPA_FOUND)
 endif()
 
 find_path(ELPA_INCLUDE_DIR
-    NAMES elpa/elpa.h elpa/elpa_constants.h
+    NAMES elpa-2022.11.001/elpa/elpa.h elpa-2022.11.001/elpa/elpa_constants.h
     PATHS ${PC_ELPA_INCLUDE_DIRS}
 )
 find_library(ELPA_LIBRARIES

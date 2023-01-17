@@ -754,7 +754,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
   pcout<<"Sum of Counter: "<<SumCounter;
   MPI_Barrier(MPI_COMM_WORLD);
    timerScompute = MPI_Wtime();  
-  auto upperTriaOfSserial =
+  /*auto upperTriaOfSserial =
     selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
   std::vector<std::complex<double>> upperTriaOfS((totalDimOfBasis * (totalDimOfBasis + 1) /
                                     2),
@@ -789,7 +789,38 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       pcout<<S[j*totalDimOfBasis +i]<<" ";
     }
       pcout<<std::endl;
-   }
+   } */
+auto Sserial =
+    selfMatrixTmatrixmul(scaledOrbitalValues_FEnodes, n_dofs, totalDimOfBasis);
+  std::vector<std::complex<double>> S((totalDimOfBasis *totalDimOfBasis
+                                    ),
+                                   std::complex<double> (0.0,0.0));
+  MPI_Allreduce(&Sserial[0],
+                &S[0],
+                totalDimOfBasis *totalDimOfBasis,
+                dataTypes::mpi_type_id(&Sserial[0]),
+                MPI_SUM,
+                MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
+  timerScompute = MPI_Wtime() - timerScompute;
+  pcout<<" Computing S matrix: "<<timerScompute<<std::endl;
+  if (dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+    {
+      //writeVectorToFile(S, "overlapMatrixComplex.txt");
+          writeVectorAs2DMatrix(S,
+                                totalDimOfBasis,
+                                totalDimOfBasis,
+                                "overlapMatrixComplex.txt");
+    }
+  pcout<<"Elements of  S: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<S[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
+
   std::vector<double> D(totalDimOfBasis,0.0);
   std::vector<std::complex<double>> U(totalDimOfBasis*totalDimOfBasis,std::complex<double> (0,0));
   MPI_Barrier(MPI_COMM_WORLD);
@@ -826,6 +857,15 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
 
 
   MPI_Barrier(MPI_COMM_WORLD);
+  std::vector<std::complex<double>> S2 = powerOfMatrix(1,D,Ut,totalDimOfBasis,Ut);
+  pcout<<"Elements of  S2: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<S2[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
    timerSinverse = MPI_Wtime();   
   std::vector<std::complex<double>> invS = powerOfMatrix(-1,D,Ut,totalDimOfBasis,Ut);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -839,9 +879,34 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       pcout<<std::endl;  
     }  
   pcout<<"-------------------------"<<std::endl;
-
-
-
+  std::vector<std::complex<double>> Identity = matrixmatrixmul(invS,totalDimOfBasis,totalDimOfBasis,S,totalDimOfBasis,totalDimOfBasis);
+  pcout<<"Elements of identity: "<<std::endl;
+  for(int i = 0;i < totalDimOfBasis; i++)
+    {
+      for(int j = 0; j < totalDimOfBasis; j++)
+        pcout<<Identity[i*totalDimOfBasis+j]<<" ";
+      pcout<<std::endl;  
+    }  
+  pcout<<"-------------------------"<<std::endl;
+  std::vector<double> Dinv(totalDimOfBasis,0.0);
+  std::vector<std::complex<double>> Uinv(totalDimOfBasis*totalDimOfBasis,std::complex<double> (0,0));
+  if(this_mpi_process == 0)
+    Uinv = diagonalization(invS,totalDimOfBasis,Dinv);
+    MPI_Bcast(
+      &(Dinv[0]), totalDimOfBasis, dataTypes::mpi_type_id(&D[0]), 0, MPI_COMM_WORLD); 
+    MPI_Bcast(
+      &(Uinv[0]), totalDimOfBasis*totalDimOfBasis, dataTypes::mpi_type_id(&U[0]), 0, MPI_COMM_WORLD);        
+  pcout<<"Eigenvalues of invS: "<<std::endl;
+  for (int i = 0; i < numOfKSOrbitals; i++)
+    pcout<<Dinv[i]<<" ";
+  pcout<<std::endl;
+  pcout<<"Eigenvectors of invS: "<<std::endl;
+  for(int i = 0;i < numOfKSOrbitals; i++)
+    {
+      for(int j = 0; j < numOfKSOrbitals; j++)
+        pcout<<Uinv[i*numOfKSOrbitals+j]<<" ";
+      pcout<<std::endl;  
+    } 
   MPI_Barrier(MPI_COMM_WORLD);
   double timerSminushalf = MPI_Wtime();
   std::vector<std::complex<double>> Sminushalf = powerOfMatrix(-0.5,D,Ut,totalDimOfBasis,Ut);
@@ -1066,7 +1131,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
             << "\n-------------------------------------------------------\n";
           pcout << "Projected SpillFactors are:" << std::endl;
           spillFactorsofProjectionwithCS(coeffArrayVecOfProj,
-                                         upperTriaOfS,
+                                         S,
                                          occupationNum,
                                          totalDimOfBasis,
                                          numOfKSOrbitals,
@@ -1279,6 +1344,7 @@ pcout<<"K-point coordinate: "<<d_kPointCoordinates[kpoint*3+0]<<" "<<d_kPointCoo
       pcout<<std::endl;  
     }  
   pcout<<"-------------------------"<<std::endl;
+ 
 
 
 

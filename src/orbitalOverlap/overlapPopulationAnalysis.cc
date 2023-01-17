@@ -525,7 +525,7 @@ pCOHPvsEnergyTest(std::vector<double>        epsvalues,
 // can use auto pCOHPvector to collect the return vector
 void
 spillFactorsofProjectionwithCS(const std::vector<std::complex<double>> &C,
-                               const std::vector<std::complex<double>> &Sold,
+                               const std::vector<std::complex<double>> &S,
                                const std::vector<double> &occupationNum,
                                int                        m1,
                                int                        n1,
@@ -533,17 +533,9 @@ spillFactorsofProjectionwithCS(const std::vector<std::complex<double>> &C,
                                int                        n2)
 {
   int                 N = n1;
-  std::vector<std::complex<double>> S(m2 * n2, std::complex<double> (0.0, 0.0));
+  //std::vector<std::complex<double>> S(m2 * n2, std::complex<double> (0.0, 0.0));
   int                 count = 0;
-  for (int i = 0; i < m2; i++)
-    {
-      for (int j = i; j < n2; j++)
-        {
-          S[i * n1 + j] = Sold[count];
-          S[j * m1 + i] = Sold[count];
-          count++;
-        }
-    }
+
   auto         temp                = matrixTmatrixmul(C, n1, m1, S, m2, n2);
   auto         O                   = matrixmatrixmul(temp, n1, n2, C, n1, m1);
   double       TSF                 = 0.0;
