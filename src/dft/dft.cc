@@ -2169,8 +2169,8 @@ namespace dftfe
     //
     computing_timer.enter_subsection("scf solve");
 
-    double firstScfChebyTol = d_dftParamsPtr->chebyshevTolerance;
-      //d_dftParamsPtr->mixingMethod == "ANDERSON_WITH_KERKER" ? d_dftParamsPtr->chebyshevTolerance : d_dftParamsPtr->chebyshevTolerance;
+    double firstScfChebyTol = //d_dftParamsPtr->chebyshevTolerance;
+      d_dftParamsPtr->mixingMethod == "ANDERSON_WITH_KERKER" ? d_dftParamsPtr->chebyshevTolerance : d_dftParamsPtr->chebyshevTolerance;
 
 
     if (d_dftParamsPtr->solverMode == "MD")
